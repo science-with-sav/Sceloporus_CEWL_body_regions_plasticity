@@ -1,0 +1,79 @@
+date,collect_time,individual_ID,sock_ID,SVL_mm,mass_g,sex_M_F,gravid_Y_N,blood_sample_eye,hematocrit_percent,osmolality_mmol_kg,cloacal_temp_C,processing_time,hemolyzed?,notes
+4/5/21,10:40,1,12,59,8,F,N,R,23,331,22,13:33,N,unreliable time; unreliable hematocrit estimate
+4/5/21,10:55,2,15,70,13.1,M,,R,34,337,26,13:31,N,unreliable time; unreliable hematocrit estimate
+4/5/21,10:25,3,58,69,12.2,M,,R,15,309,26,13:39,N,unreliable time; unreliable hematocrit estimate
+4/5/21,10:38,4,121,48,4.2,M,,R,19,341,26,14:02,Y,unreliable time; unreliable hematocrit estimate; plasma hemolyzed
+4/5/21,10:17,5,140,50,4.1,M,,R,14,354,25,13:59,Y,unreliable time; unreliable hematocrit estimate; plasma hemolyzed
+4/5/21,10:47,6,108,48,4.6,M,,L,7,355,24,14:06,N,unreliable time; unreliable hematocrit estimate
+4/5/21,10:39,7,110,63,9.4,F,N,R,16,321,,14:13,N,unreliable time; unreliable hematocrit estimate
+4/5/21,10:42,8,137,42,2.3,M,,R,6,304,23,14:20,N,unreliable time; unreliable hematocrit estimate; tail broken off
+4/5/21,13:27,9,122,46,3.1,F,N,L,1,,23,14:43,,unreliable time; unreliable hematocrit estimate; inadequate blood sample for osmolality
+4/5/21,13:40,10,29,68,12.5,M,,R,38,324,22,15:04,N,unreliable hematocrit estimate
+4/5/21,13:39,11,127,65,10,M,,R,12,310,23,15:14,N,unreliable hematocrit estimate
+4/5/21,13:35,12,134,65,12.2,M,,R,27,341,22,15:25,Y,unreliable hematocrit estimate; plasma hemolyzed
+4/5/21,13:26,13,138,70,13.8,M,,R,20,336,22,15:38,N,unreliable hematocrit estimate
+4/5/21,14:04,14,119,65,10.6,M,,R,25,341,22,15:46,N,unreliable hematocrit estimate
+4/5/21,13:58,15,126,67,14.1,M,,R,10,300,22,15:54,N,unreliable hematocrit estimate
+4/5/21,13:28,16,72,63,8.1,M,,R,22,316,21,16:08,N,unreliable hematocrit estimate
+4/5/21,13:41,17,124,64,12.5,M,,R,19,296,21,16:16,N,unreliable hematocrit estimate
+4/5/21,13:50,18,114,72,12.3,M,,R,25,303,21,16:27,N,unreliable hematocrit estimate
+4/5/21,,19,80,66,11.5,M,,R,4,525,22,16:37,N,unreliable hematocrit estimate; very small plasma sample - unsure if accurate!! okay to remove from analyses later
+4/5/21,15:03,20,112,65,9.3,M,,R,17,327,20,,N,unreliable hematocrit estimate
+4/5/21,,21,18,66,13.9,M,,R,34,307,21,,N,unreliable hematocrit estimate
+4/5/21,14:40,22,109,58,6.4,M,,L,16,336,,,N,unreliable hematocrit estimate
+4/5/21,14:20,24,102,60,6.5,M,,R,18,325,21,17:38,N,unreliable hematocrit estimate
+4/5/21,14:36,25,82,62,10.8,M,,R,1,,,,,unreliable hematocrit estimate
+4/5/21,13:25,26,103,64,7.7,F,N,R,,340,21,16:45,N,unreliable hematocrit estimate
+4/5/21,14:03,27,139,69,14.1,M,,R,,293,21,17:00,N,
+4/5/21,13:28,28,16,66,12.8,M,,L,,328,,,N,
+4/5/21,13:55,29,123,63,10.3,M,,R,35,323,20,17:29,N,
+4/5/21,,30,32,66,12,M,,R,39,313,21,17:20,N,
+4/19/21,11:58,31,A,70,12.7,M,,R,44,336,26,12:44,N,
+4/19/21,11:42,32,B,65,14.6,M,,R,37,356,25,12:53,Y,hemolyzed
+4/19/21,11:33,33,D,63,8.9,M,,R,29,373,25,13:17,Y,"hemolyzed, lost 1st sample in centrifuge, analyzed 2nd sample"
+4/19/21,11:29,34,E,59,8.1,F,Y,R,24,381,24,13:08,Y,"hemolyzed, lost 1st sample in centrifuge, analyzed 2nd sample"
+4/19/21,12:32,35,R,68,11.1,M,,R,38,337,24,13:29,N,
+4/19/21,12:49,36,S,64,9.8,F,Y,R,41,345,24,13:38,N,
+4/19/21,12:40,37,W,68,12.6,M,,R,32,334,24,13:44,N,
+4/19/21,12:49,38,G,66,10.2,F,N,R,29,319,25,13:56,N,
+4/19/21,12:54,39,M,60,8.2,M,,R,34,330,26,14:04,Y,hemolyzed
+4/19/21,12:57,40,C,68,12.9,M,,R,25,368,25,14:14,N,tail tip fallen and partially regrown
+4/19/21,13:08,41,L,65,8,M,,R,33,367,25,14:31,Y,"hemolyzed, 1st sample broke in centrifuge, analyzed 2nd sample, 1/2 tail fallen and fully regrown"
+4/19/21,13:14,42,V,69,11.8,M,,R,35,329,25,14:23,N,tail fallen off in capture
+4/19/21,12:44,43,U,68,13.8,M,,R,16,333,23,14:43,N,
+4/19/21,12:48,44,X,64,12.1,F,Y,R,37,349,23,14:53,N,
+4/19/21,13:10,45,T,63,9.8,F,N,R,35,322,23,15:08,N,
+4/19/21,12:42,46,I,62,8,F,N,R,36,367,20,15:52,Y,hemolyzed
+4/19/21,12:54,47,J,59,8.2,M,,R,29,352,21,16:00,N,
+4/19/21,13:11,48,K,70,12.3,F,Y,R,24,353,21,16:20,N,unreliable time
+4/19/21,12:42,49,P,72,13.5,M,,R,29,335,24,16:30,N,"1st sample broken in centrifuge, analyzed 2nd sample, unreliable time"
+4/19/21,12:50,50,Q,64,11,F,Y,R,35,366,23,16:40,Y,"hemolyzed, unreliable time"
+4/19/21,12:55,51,H,68,11.8,F,N,R,35,350,23,17:00,Y,hemolyzed
+4/19/21,13:11,52,N,63,12.6,M,,R,36,319,21,16:09,N,
+4/19/21,13:04,53,F,65,12.9,M,,R,34,346,,,N,
+4/26/21,12:32,54,119,70,11.5,M,,R,37,388,26,13:07,N,
+4/26/21,12:32,55,134,46,3.2,F,N,R,37,373,27,13:16,N,
+4/26/21,12:38,57,U,65,10.3,F,N,R,30,388,26,13:27,N,
+4/26/21,12:40,58,V,72,14.7,M,,R,33,417,25,13:38,N,Wow!
+4/26/21,12:41,59,R,71,11.9,F,Y,R+L,35,428,23,14:01,N,failed to get blood sample from right eye
+4/26/21,12:35,60,C,68,7.3,F,Y,R,32,408,26,14:12,N,
+4/26/21,12:45,61,M,67,11.1,M,,R,42,384,27,14:19,N,missing end of tail
+4/26/21,12:47,62,H,51,5.2,M,,R,40,400,26,14:28,N,
+4/26/21,12:50,63,G,68,11.4,F,N,R,34,405,25,14:40,N,
+4/26/21,12:57,64,A,65,10.3,M,,R,30,378,22,15:20,Y,hemolyzed
+4/26/21,12:40,65,K,48,4,M,,R,40,394,25,15:26,Maybe,maybe hemolyzed
+4/26/21,12:50,66,O,73,13.7,M,,R,38,371,24,15:35,Y,definitely hemolyzed
+4/26/21,13:02,67,103,64,10.5,M,,R,32,402,24,15:41,N,missing end of tail
+4/26/21,13:07,68,X,72,14.1,F,Y,R,33,413,22,15:49,N,
+4/26/21,13:23,69,J,70,12.8,M,,R,49,418,24,15:57,N,
+4/26/21,13:17,70,110,69,11.8,M,,R,43,422,23,16:04,N,still bleeding a lot
+4/26/21,12:55,71,P,68,12.5,F,Y,R,37,412,22,16:11,N,
+4/26/21,13:02,72,F,70,14.2,M,,R,33,366,23,16:20,Y,hemolyzed
+4/26/21,12:45,73,L,66,9.7,M,,R,37,405,22,16:28,N,
+4/26/21,13:11,74,125,65,12.3,M,,R,37,393,21,16:37,N,
+4/26/21,13:02,75,112,68,12.8,M,,R,52,423,21,16:47,N,
+4/26/21,13:07,76,D,67,11.4,M,,R,36,398,21,16:57,N,
+4/26/21,15:44,77,137,71,13.5,M,,R,38,384,22,17:05,N,
+4/26/21,15:25,78,108,64,10.3,F,N,R,28,401,21,17:14,N,
+4/26/21,15:34,79,101,65,11.3,M,,R,37,383,21,17:24,Y,hemolyzed
+4/26/21,15:57,80,140,68,13.7,M,,R,34,409,,,N,evaporimeter iced over

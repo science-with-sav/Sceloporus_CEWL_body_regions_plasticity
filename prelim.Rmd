@@ -1,0 +1,337 @@
+---
+title: "BIO 324, Herpetology CURE"
+author: "Savannah Weaver"
+date: "Spring Quarter 2021"
+output: pdf_document
+---
+
+# Packages
+
+```{r setup, include=FALSE}
+if (!require("tidyverse")) install.packages("tidyverse")
+library("tidyverse")
+if (!require("UsingR")) install.packages("UsingR")
+library("UsingR")
+```
+
+
+
+# Data
+
+### Morphometrics and Blood Data
+
+variables:
+-
+
+```{r}
+morpho_blood_dat <- read.csv("./data/Herpetology_Data.csv",
+                             na.strings=c("","NA") # fix empty cells
+                             ) %>%
+  dplyr::mutate(date = as.Date(date, format = "%m/%d/%y"),
+                sex_M_F = as.factor(sex_M_F),
+                gravid_Y_N = as.factor(gravid_Y_N),
+                blood_sample_eye = as.factor(blood_sample_eye),
+                hemolyzed. = as.factor(hemolyzed.)
+                )
+summary(morpho_blood_dat)
+```
+
+
+### CEWL Data
+
+```{r}
+# week 1
+CEWL_April_05 <- read.csv("./data/4-5-21-CEWL.csv") %>%
+  dplyr::mutate(week = "1") %>% # add weekend index for throughout season
+  # I have to do this for each one 
+  # so they all have the same number of columns for joining
+  dplyr::select(Date, Time, Status,
+                ID = Comments,
+                TEWL_g_m2h = TEWL..g..m2h.., # rename
+                CV = CV...., # rename
+                SSWL_g_m2 = SSWL..g..m2.., # rename
+                ambient_temp_C = AmbT..C., # rename
+                ambient_RH_percent = AmbRH...., # rename
+                week
+                )
+
+# week 2
+CEWL_April_19 <- read.csv("./data/4-19-21-CEWL.csv") %>%
+  dplyr::mutate(week = "2") %>% # add weekend index for throughout season
+  # I have to do this for each one 
+  # so they all have the same number of columns for joining
+  dplyr::select(Date, Time, Status,
+                ID = Comments,
+                TEWL_g_m2h = TEWL..g..m2h.., # rename
+                CV = CV...., # rename
+                SSWL_g_m2 = SSWL..g..m2.., # rename
+                ambient_temp_C = AmbT..C., # rename
+                ambient_RH_percent = AmbRH...., # rename
+                week
+                )
+
+# week 3
+CEWL_April_26 <- read.csv("./data/4-26-21-CEWL.csv") %>%
+  dplyr::mutate(week = "3") %>% # add weekend index for throughout season
+  # I have to do this for each one 
+  # so they all have the same number of columns for joining
+  dplyr::select(Date, Time, Status,
+                ID = Comments,
+                TEWL_g_m2h = TEWL..g..m2h.., # rename
+                CV = CV...., # rename
+                SSWL_g_m2 = SSWL..g..m2.., # rename
+                ambient_temp_C = AmbT..C., # rename
+                ambient_RH_percent = AmbRH...., # rename
+                week
+                )
+
+# merge all CEWL datafiles & reformat
+CEWL <- CEWL_April_05 %>%
+  # join
+  rbind(., CEWL_April_19, CEWL_April_26) %>%
+  # remove any unsuccessful measurements
+  dplyr::filter(Status == "Normal") %>%
+  # reformat data
+  dplyr::mutate(date_time = as.POSIXct(paste(Date, Time), format = "%m/%d/%y %I:%M:%S %p"),
+                # date only
+                Date = as.Date(Date, format = "%m/%d/%y"),
+                # time with arbitrary date, need to figure out how to remove
+                Time = as.POSIXct(Time, format = "%I:%M:%S %p"),
+                # extract individual ID number
+                individual_ID = as.numeric(substring(ID, 1, 2)),
+                # extract body region for CEWL measurement
+                region = as.factor(substring(ID, 4, 7)),
+                week = as.numeric(week)
+                ) %>%
+  dplyr::select(-ID, -Status
+                )
+summary(CEWL)
+unique(CEWL$region)
+```
+
+
+
+
+# Figures
+
+## Hct ~ SVL
+
+```{r}
+dat %>% 
+  ggplot(data = .) + 
+  geom_point(aes(x = SVL_mm,
+                 y = hematocrit_percent, 
+                 #color = tmt
+                 ), 
+             size = 1, 
+             alpha = 0.6) + 
+  #scale_colour_manual(name = "Treatment", 
+   #                   #labels = c("Burrow", "Open", "Shrub"), 
+    #                  values = c("salmon1", "royalblue") ) +
+  #scale_shape_discrete(name = "Microhabitat", 
+   #                    labels = c("Burrow", "Open", "Shrub") ) + 
+  stat_smooth(aes(x = SVL_mm, 
+                  y = hematocrit_percent, 
+                  #color = tmt
+                  ), 
+              formula = y ~ x, 
+              method = "lm", 
+              se = F, 
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  xlab("SVL") + 
+  ylab("Hct") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0,
+        #legend.position = c(0.9, 0.145)
+)
+```
+
+
+
+## Osml ~ SVL
+
+```{r}
+dat %>% 
+  ggplot(data = .) + 
+  geom_point(aes(x = SVL_mm,
+                 y = osmolality_mmol_kg, 
+                 #color = tmt
+                 ), 
+             size = 1, 
+             alpha = 0.6) + 
+  #scale_colour_manual(name = "Treatment", 
+   #                   #labels = c("Burrow", "Open", "Shrub"), 
+    #                  values = c("salmon1", "royalblue") ) +
+  #scale_shape_discrete(name = "Microhabitat", 
+   #                    labels = c("Burrow", "Open", "Shrub") ) + 
+  stat_smooth(aes(x = SVL_mm, 
+                  y = osmolality_mmol_kg, 
+                  #color = tmt
+                  ), 
+              formula = y ~ x, 
+              method = "lm", 
+              se = F, 
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  xlab("SVL") + 
+  ylab("Osmolality") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0,
+        #legend.position = c(0.9, 0.145)
+)
+```
+
+
+## Hematocrit ~ Mass
+
+```{r}
+dat %>% 
+  ggplot(data = .) + 
+  geom_point(aes(x = mass_g,
+                 y = hematocrit_percent, 
+                 #color = tmt
+                 ), 
+             size = 1, 
+             alpha = 0.6) + 
+  #scale_colour_manual(name = "Treatment", 
+   #                   #labels = c("Burrow", "Open", "Shrub"), 
+    #                  values = c("salmon1", "royalblue") ) +
+  #scale_shape_discrete(name = "Microhabitat", 
+   #                    labels = c("Burrow", "Open", "Shrub") ) + 
+  stat_smooth(aes(x = mass_g, 
+                  y = hematocrit_percent, 
+                  #color = tmt
+                  ), 
+              formula = y ~ x, 
+              method = "lm", 
+              se = F, 
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  xlab("Mass") + 
+  ylab("Hematocrit") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0,
+        #legend.position = c(0.9, 0.145)
+)
+```
+
+## Osml ~ Mass
+
+```{r}
+dat %>% 
+  ggplot(data = .) + 
+  geom_point(aes(x = mass_g,
+                 y = osmolality_mmol_kg, 
+                 #color = tmt
+                 ), 
+             size = 1, 
+             alpha = 0.6) + 
+  #scale_colour_manual(name = "Treatment", 
+   #                   #labels = c("Burrow", "Open", "Shrub"), 
+    #                  values = c("salmon1", "royalblue") ) +
+  #scale_shape_discrete(name = "Microhabitat", 
+   #                    labels = c("Burrow", "Open", "Shrub") ) + 
+  stat_smooth(aes(x = mass_g, 
+                  y = osmolality_mmol_kg, 
+                  #color = tmt
+                  ), 
+              formula = y ~ x, 
+              method = "lm", 
+              se = F, 
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  xlab("Mass") + 
+  ylab("Osmolality") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0,
+        #legend.position = c(0.9, 0.145)
+)
+```
+
+
+## Hct ~ Sex
+
+```{r}
+dat %>% 
+  ggplot(data = .) + 
+  geom_boxplot(aes(x = sex_M_F, 
+                   y = hematocrit_percent, 
+                   color = sex_M_F
+                   ), 
+               size = 1,
+               alpha = 0.6) + 
+  scale_colour_manual(name = "Sex", 
+                      #labels = c("Shrubbed", "Shrubless"), 
+                      values = c("green4", "salmon1") ) +
+  theme_classic() + 
+  xlab("Sex") + 
+  ylab("Hematocrit") + 
+  theme(text = element_text(color = "black", family = "sans", size = 12),
+        axis.text = element_text(color = "black", family = "sans", size = 10),
+        legend.text.align = 0,
+        legend.position = "none"
+)
+```
+
+
+
+## Osml ~ Sex
+
+```{r}
+dat %>% 
+  ggplot(data = .) + 
+  geom_boxplot(aes(x = sex_M_F, 
+                   y = osmolality_mmol_kg, 
+                   color = sex_M_F
+                   ), 
+               size = 1,
+               alpha = 0.6) + 
+  scale_colour_manual(name = "Sex", 
+                      #labels = c("Shrubbed", "Shrubless"), 
+                      values = c("green4", "salmon1") ) +
+  theme_classic() + 
+  xlab("Sex") + 
+  ylab("Osmolality") + 
+  theme(text = element_text(color = "black", family = "sans", size = 12),
+        axis.text = element_text(color = "black", family = "sans", size = 10),
+        legend.text.align = 0,
+        legend.position = "none"
+)
+```
+
+
+## Osml Histogram
+
+
+## CEWL ~ Osml
+
+
+
+
+
+
