@@ -2,7 +2,7 @@
 title: "Cal Poly Herpetology CURE - Baseline Analyses"
 authors: "Savannah Weaver, Dylan Stephens, Jenna Heaphy"
 date: "Spring Quarter 2021"
-output: pdf_document
+output: github_document
 ---
 
 # Packages
@@ -683,7 +683,7 @@ CEWL %>%
 
 # Models
 
-
+when2meet
 
 
    
@@ -701,7 +701,7 @@ CEWL %>%
 
 
 
-
+# Ideas
 
 
 
