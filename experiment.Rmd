@@ -1,0 +1,218 @@
+---
+title: "BIO 324, Herpetology CURE"
+author: "Savannah Weaver"
+date: "Spring Quarter 2021"
+output: pdf_document
+---
+
+# Packages
+
+```{r setup, include=FALSE}
+if (!require("tidyverse")) install.packages("tidyverse")
+library("tidyverse")
+if (!require("UsingR")) install.packages("UsingR")
+library("UsingR")
+```
+
+
+
+# Data
+
+### From Baseline
+
+```{r baseline data}
+baseline <- read.csv("./data/Herpetology_Data.csv",
+                             na.strings=c("","NA") # fix empty cells
+                             ) %>%
+  dplyr::mutate(date = as.Date(date, format = "%m/%d/%y"),
+                collect_time = as.POSIXct(collect_time, format = "%H:%M"),
+                processing_time = as.POSIXct(processing_time, format = "%H:%M"),
+                sex_M_F = as.factor(sex_M_F),
+                gravid_Y_N = as.factor(gravid_Y_N),
+                blood_sample_eye = as.factor(blood_sample_eye),
+                hemolyzed. = as.factor(hemolyzed.),
+                individual_ID = as.character(individual_ID)
+                ) %>%
+  dplyr::filter(osmolality_mmol_kg <= 500) # remove one point I think inaccurate
+summary(morpho_blood_dat)
+```
+
+
+### Experiment Checkup Data
+
+
+
+
+### Post-Experiment CEWL Data
+
+```{r CEWL data}
+# week 1
+CEWL_April_05 <- read.csv("./data/4-5-21-CEWL.csv",
+                          na.strings=c("","NA")) %>%
+  dplyr::mutate(week = "1") %>% # add weekend index for throughout season
+  # I have to do this for each one 
+  # so they all have the same number of columns for joining
+  dplyr::select(date = Date, 
+                Time, Status,
+                ID = Comments,
+                TEWL_g_m2h = TEWL..g..m2h.., # rename
+                CV = CV...., # rename
+                SSWL_g_m2 = SSWL..g..m2.., # rename
+                ambient_temp_C = AmbT..C., # rename
+                ambient_RH_percent = AmbRH...., # rename
+                week
+                )
+
+# week 2
+CEWL_April_19 <- read.csv("./data/4-19-21-CEWL.csv",
+                          na.strings=c("","NA")) %>%
+  dplyr::mutate(week = "2") %>% # add weekend index for throughout season
+  # I have to do this for each one 
+  # so they all have the same number of columns for joining
+  dplyr::select(date = Date, 
+                Time, Status,
+                ID = Comments,
+                TEWL_g_m2h = TEWL..g..m2h.., # rename
+                CV = CV...., # rename
+                SSWL_g_m2 = SSWL..g..m2.., # rename
+                ambient_temp_C = AmbT..C., # rename
+                ambient_RH_percent = AmbRH...., # rename
+                week
+                )
+
+# week 3
+CEWL_April_26 <- read.csv("./data/4-26-21-CEWL.csv",
+                          na.strings=c("","NA")) %>%
+  dplyr::mutate(week = "3") %>% # add weekend index for throughout season
+  # I have to do this for each one 
+  # so they all have the same number of columns for joining
+  dplyr::select(date = Date, 
+                Time, Status,
+                ID = Comments,
+                TEWL_g_m2h = TEWL..g..m2h.., # rename
+                CV = CV...., # rename
+                SSWL_g_m2 = SSWL..g..m2.., # rename
+                ambient_temp_C = AmbT..C., # rename
+                ambient_RH_percent = AmbRH...., # rename
+                week
+                )
+
+# merge all CEWL datafiles & reformat
+CEWL <- CEWL_April_05 %>%
+  # join
+  rbind(., CEWL_April_19, CEWL_April_26) %>%
+  # remove any unsuccessful measurements
+  dplyr::filter(Status == "Normal") %>%
+  # reformat data
+  dplyr::mutate(date_time = as.POSIXct(paste(date, Time), format = "%m/%d/%y %I:%M:%S %p"),
+                # date only
+                date = as.Date(date, format = "%m/%d/%y"),
+                # time with arbitrary date, need to figure out how to remove
+                Time = as.POSIXct(Time, format = "%I:%M:%S %p"),
+                # extract individual ID number
+                individual_ID = as.numeric(substring(ID, 1, 2)),
+                # extract body region for CEWL measurement
+                region = as.factor(substring(ID, 4, 7)),
+                week = as.factor(week),
+                individual_ID = as.character(individual_ID)
+                ) %>%
+  dplyr::select(-ID, -Status
+                ) %>%
+  dplyr::filter(complete.cases(.))
+summary(CEWL)
+unique(CEWL$region)
+```
+
+
+### Split CEWL Data
+
+```{r}
+# select each CEWL region separately 
+CEWL_dorsum <- CEWL %>%
+  dplyr::filter(region == "dors") %>%
+  dplyr::select(date, individual_ID, 
+                dorsum_TEWL_g_m2h = TEWL_g_m2h)
+CEWL_ventrum <- CEWL %>%
+  dplyr::filter(region == "vent") %>%
+  dplyr::select(date, individual_ID, 
+                ventrum_TEWL_g_m2h = TEWL_g_m2h)
+CEWL_dewlap <- CEWL %>%
+  dplyr::filter(region == "dewl") %>%
+  dplyr::select(date, individual_ID, 
+                dewlap_TEWL_g_m2h = TEWL_g_m2h)
+CEWL_head <- CEWL %>%
+  dplyr::filter(region == "head") %>%
+  dplyr::select(date, individual_ID, 
+                head_TEWL_g_m2h = TEWL_g_m2h)
+CEWL_mitepatch <- CEWL %>%
+  dplyr::filter(region == "mite") %>%
+  dplyr::select(date, individual_ID, 
+                mitepatch_TEWL_g_m2h = TEWL_g_m2h)
+
+# also get average across body regions
+CEWL_avg <- CEWL %>%
+  group_by(individual_ID) %>%
+  summarise(avg_CEWL = mean(TEWL_g_m2h)) %>%
+  dplyr::select(individual_ID, avg_CEWL)
+```
+
+
+### Rearrange and Join
+
+```{r join data}
+# join all CEWL regions to morpho and blood data
+data_full <- morpho_blood_dat %>%
+  left_join(CEWL_dorsum, by = c("date", "individual_ID")) %>%
+  left_join(CEWL_ventrum, by = c("date", "individual_ID")) %>%
+  left_join(CEWL_dewlap, by = c("date", "individual_ID")) %>%
+  left_join(CEWL_head, by = c("date", "individual_ID")) %>%
+  left_join(CEWL_mitepatch, by = c("date", "individual_ID")) %>%
+  left_join(CEWL_avg, by = "individual_ID")
+```
+
+
+### Join Differently 
+
+```{r}
+CEWL_plus <- CEWL %>%
+  left_join(morpho_blood_dat, by = c("date", "individual_ID")
+            )
+```
+
+
+
+
+# Data Cleaning
+
+
+## Histograms
+
+
+
+
+
+# Basic Figures
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
