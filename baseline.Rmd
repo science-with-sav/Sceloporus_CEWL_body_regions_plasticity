@@ -5,6 +5,14 @@ date: "Spring Quarter 2021"
 output: github_document
 ---
 
+
+# Rules :)
+
+1. Write blurbs before/after code chunks to explain wtf it is and why helpful/important. For example, listing variables (otherwise I've done a poor job with this on this Rmd).
+2. Comment on your code, especially to point out what doesn't work, questions you have, or uncertainties.
+3. No deleting other peoples work! You can delete your own as you work on it, but otherwise keep everything. You can keep versions of things (with notes explaining that!). I may delete versions that become irrelevant, but often code will become helpful later.
+
+
 # Packages
 
 ```{r setup, include=FALSE}
@@ -198,7 +206,17 @@ CEWL_plus <- CEWL %>%
 
 ## Histograms
 
+example code that will not work as-is:
 
+```{r}
+CEWL_rep_avg %>% #dataframe
+  ggplot(., aes(x = TEWL_CV)) + # set up 
+  geom_histogram(color = "black", fill="steelblue", bins=50) + # plot type
+  theme_classic() + # make pretty
+  xlab("Coefficient of Variation") + 
+  ylab("Count") +
+  labs(title = "All Three Replicates")
+```
 
 
 
@@ -683,7 +701,16 @@ CEWL %>%
 
 # Models
 
-when2meet
+example that will not work as-is:
+
+```{r, models}
+mod4 <- nlme::lme(data = CEWL_sub, # dataframe
+                  TEWL_g_m2h ~ replicate, # DV ~ IV
+                  random = ~ 1|ID # random effects that are not IVs of interest
+                  ) 
+summary(mod4)
+```
+
 
 
    
@@ -704,6 +731,23 @@ when2meet
 # Ideas
 
 
+a.	CEWL ~ body mass & CEWL ~ SVL  Do we need to correct for size, or do we avoid this by measuring local CEWL instead of TEWL?
+b.	Calculate estimates of TEWL based on equations presented in (6).  How much do the estimates vary depending on which CEWL we use? Can we figure out how to use all of our different CEWL measurements to calculate what we think would be an accurate TEWL?
+c.	Singular GLMs with 1-2 independent variables:
+i.	CEWL ~ body region
+1.	All tests will include body region since this is our primary a priori hypothesis.
+ii.	CEWL ~ body region + blood osmolarity
+iii.	CEWL ~ body region + hematocrit
+iv.	CEWL ~ body region + cloacal temperature
+v.	CEWL ~ body region + ambient temperature 
+vi.	CEWL ~ body region + ambient humidity
+vii.	CEWL ~ body region + sex
+viii.	CEWL ~ body region + gravidity
+ix.	CEWL ~ body region + number of eggs
+x.	CEWL ~ body region + individual ID
+d.	Multiple regression GLM:
+i.	CEWL ~ fixed effects: body region, blood osmolarity, hematocrit, body mass, SVL, sex, gravidity, number of eggs; likely random effect: ID
+ii.	Model selection
 
 
 
