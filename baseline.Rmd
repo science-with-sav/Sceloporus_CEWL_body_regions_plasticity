@@ -19,6 +19,8 @@ output: github_document
 if (!require("tidyverse")) install.packages("tidyverse")
 library("tidyverse")
 if (!require("UsingR")) install.packages("UsingR")
+if (!require("MASS")) install.packages("MASS")
+library("MASS")
 ```
 
 ## ggbiplot
@@ -271,18 +273,21 @@ variables:
 morpho_blood_dat <- read.csv("./data/Herpetology_Data.csv",
                              na.strings=c("","NA") # fix empty cells
                              ) %>%
-  dplyr::mutate(date = as.Date(date, format = "%m/%d/%y"),
+  dplyr::mutate(collect_date_time = as.POSIXct(paste(date, collect_time), "%m/%d/%y %H:%M"),
+                date = as.Date(date, format = "%m/%d/%y"),
                 collect_time = as.POSIXct(collect_time, format = "%H:%M"),
                 processing_time = as.POSIXct(processing_time, format = "%H:%M"),
                 sex_M_F = as.factor(sex_M_F),
                 gravid_Y_N = as.factor(gravid_Y_N),
                 blood_sample_eye = as.factor(blood_sample_eye),
                 hemolyzed. = as.factor(hemolyzed.),
-                individual_ID = as.character(individual_ID)
+                #individual_ID = as.character(individual_ID)
                 ) %>%
   dplyr::filter(osmolality_mmol_kg <= 500) # remove one point I think inaccurate
 summary(morpho_blood_dat)
 ```
+
+SAVANNAH: make date-time variable, interpolate weather data to match it, then join
 
 
 ### CEWL Data
@@ -398,6 +403,22 @@ CEWL_avg <- CEWL %>%
   dplyr::select(individual_ID, avg_CEWL)
 ```
 
+### Weather Data
+```{r}
+Weather_April_05 <- read.csv("./data/4_5Weather.csv", sep = ";")
+Weather_April_19 <- read.csv("./data/4_19Weather.csv", sep = ";")
+Weather_May_03 <- read.csv("./data/5_3Weather.csv", sep = ";")
+Weather_May_10 <- read.csv("./data/5_10Weather.csv", sep = ";")
+Weather_May_17 <- read.csv("./data/5_17Weather.csv", sep = ";")
+
+# Join all of the weather
+Weather_full <- full_join(Weather_April_05, Weather_April_19)
+Weather_full <- full_join(Weather_full, Weather_May_03)
+Weather_full <- full_join(Weather_full, Weather_May_10)
+Weather_full <- full_join(Weather_full, Weather_May_17) %>%
+
+```
+
 
 ### Rearrange and Join
 
@@ -420,7 +441,6 @@ CEWL_plus <- CEWL %>%
   left_join(morpho_blood_dat, by = c("date", "individual_ID")
             )
 ```
-
 
 
 
@@ -934,7 +954,6 @@ summary(mod4)
 ```
 
 
-
 # PCA
 ```{r}
 
@@ -972,9 +991,117 @@ ggbiplot(data2.pca, labels=rownames(data.pca), ellipse=T, groups=sex_list_sub)
 ggbiplot(data.pca, labels=rownames(data.pca), ellipse=T, choices= c(3,4), groups=sex_list_sub)
 ```
 
+# Check Model Assumptions
+```{r}
+
+# Potential normality violation
+hist(CEWL_plus$TEWL_g_m2h)
+
+# Center by SD scaling
+CEWL_scaled <- CEWL_plus
+CEWL_scaled$TEWL_scaled <- scale(CEWL_scaled$TEWL_g_m2h, center=T, scale=T)
+
+
+```
+
+
+# General Linear Models
+## CEWL ~ body region
+
+```{r}
+# GLM
+glm1 <- lm(TEWL_g_m2h ~ region, data=CEWL)
+summary(glm1)
+
+# base 
+plot(TEWL_g_m2h ~ region, data=CEWL, ylab="TEWL", xlab="region", pch=20, col="blue")
+abline(reg=glm1, col="orange")
+
+# ggplot
+ggplot(CEWL) + 
+  geom_point(aes(region, TEWL_g_m2h), alpha=0.25, color="blue") + 
+  geom_smooth(aes(region, TEWL_g_m2h, color="orange"), method="lm", se=T) + 
+  labs(x="region", y="TEWL_g_m2h", title="")
+
+visreg(glm1, overlay=T)
+
+# Model assumptions
+plot(glm1, which = 3)
+
+```
+
+## CEWL ~ body region + blood osmolarity
+```{r}
+glm2 <- lm(TEWL_g_m2h ~ osmolality_mmol_kg + region*osmolality_mmol_kg, data=CEWL_plus)
+summary(glm2)
+
+# base 
+visreg(glm2, "osmolality_mmol_kg", by="region", overlay=T)
+
+# Facet ggplot
+ggplot(aes(osmolality_mmol_kg, TEWL_g_m2h), data = CEWL_plus) + 
+  geom_point() + 
+  facet_wrap(~ region)# create a facet for each mountain range
+
+```
+
+## CEWL ~ body region + hematocrit
+```{r}
+glm3 <- lm(TEWL_g_m2h ~ hematocrit_percent + region*hematocrit_percent, data=CEWL_plus)
+summary(glm3)
+
+# base 
+visreg(glm3, "hematocrit_percent", by="region", overlay=T, band=F)
+
+```
+
+## CEWL ~ body region + cloacal temperature
+```{r}
+glm4 <- lm(TEWL_g_m2h ~ cloacal_temp_C + region*cloacal_temp_C, data=CEWL_plus)
+summary(glm4)
+
+# base 
+visreg(glm4, "cloacal_temp_C", by="region", overlay=T, band=F)
+
+```
+
+## CEWL ~ body region + sex
+```{r}
+glm5 <- lm(TEWL_g_m2h ~ sex_M_F + region*sex_M_F, data=CEWL_plus)
+summary(glm5)
+
+# base 
+visreg(glm5, "sex_M_F", by="region", overlay=T, band=F)
+
+```
+
+
+## CEWL ~ body region + gravidity
+```{r}
+glm5 <- lm(TEWL_g_m2h ~ gravid_Y_N + region*gravid_Y_N, data=CEWL_plus)
+summary(glm5)
+
+# base 
+visreg(glm5, "gravid_Y_N", by="region", overlay=T, band=F)
+
+```
+
+## CEWL ~ body region + individual ID
+```{r}
+CEWL_plus$individual_ID<- as.numeric(CEWL_plus$individual_ID)
+
+glm6 <- lm(TEWL_g_m2h ~ individual_ID + region*individual_ID, data=CEWL_plus)
+summary(glm6)
+
+# base 
+visreg(glm6, "individual_ID", by="region", overlay=T, band=F)
+
+```
+
+## CEWL ~ fixed effects: body region, blood osmolarity, hematocrit, body mass, SVL, sex, gravidity, number of eggs; likely random effect: ID
+
 
 # Ideas
-
 
 a.	CEWL ~ body mass & CEWL ~ SVL  Do we need to correct for size, or do we avoid this by measuring local CEWL instead of TEWL?
 b.	Calculate estimates of TEWL based on equations presented in (6).  How much do the estimates vary depending on which CEWL we use? Can we figure out how to use all of our different CEWL measurements to calculate what we think would be an accurate TEWL?
