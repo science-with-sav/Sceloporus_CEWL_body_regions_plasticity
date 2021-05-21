@@ -1,28 +1,28 @@
 date,collect_time,individual_ID,sock_ID,SVL_mm,mass_g,sex_M_F,gravid_Y_N,blood_sample_eye,hematocrit_percent,osmolality_mmol_kg,cloacal_temp_C,processing_time,hemolyzed,notes
-4/5/21,10:40,1,12,59,8,F,N,R,23,331,22,13:33,N,unreliable time; unreliable hematocrit estimate
-4/5/21,10:55,2,15,70,13.1,M,,R,34,337,26,13:31,N,unreliable time; unreliable hematocrit estimate
-4/5/21,10:25,3,58,69,12.2,M,,R,15,309,26,13:39,N,unreliable time; unreliable hematocrit estimate
-4/5/21,10:38,4,121,48,4.2,M,,R,19,341,26,14:02,Y,unreliable time; unreliable hematocrit estimate; plasma hemolyzed
-4/5/21,10:17,5,140,50,4.1,M,,R,14,354,25,13:59,Y,unreliable time; unreliable hematocrit estimate; plasma hemolyzed
-4/5/21,10:47,6,108,48,4.6,M,,L,7,355,24,14:06,N,unreliable time; unreliable hematocrit estimate
-4/5/21,10:39,7,110,63,9.4,F,N,R,16,321,,14:13,N,unreliable time; unreliable hematocrit estimate
-4/5/21,10:42,8,137,42,2.3,M,,R,6,304,23,14:20,N,unreliable time; unreliable hematocrit estimate; tail broken off
-4/5/21,13:27,9,122,46,3.1,F,N,L,1,,23,14:43,,unreliable time; unreliable hematocrit estimate; inadequate blood sample for osmolality
-4/5/21,13:40,10,29,68,12.5,M,,R,38,324,22,15:04,N,unreliable hematocrit estimate
-4/5/21,13:39,11,127,65,10,M,,R,12,310,23,15:14,N,unreliable hematocrit estimate
-4/5/21,13:35,12,134,65,12.2,M,,R,27,341,22,15:25,Y,unreliable hematocrit estimate; plasma hemolyzed
-4/5/21,13:26,13,138,70,13.8,M,,R,20,336,22,15:38,N,unreliable hematocrit estimate
-4/5/21,14:04,14,119,65,10.6,M,,R,25,341,22,15:46,N,unreliable hematocrit estimate
-4/5/21,13:58,15,126,67,14.1,M,,R,10,300,22,15:54,N,unreliable hematocrit estimate
-4/5/21,13:28,16,72,63,8.1,M,,R,22,316,21,16:08,N,unreliable hematocrit estimate
-4/5/21,13:41,17,124,64,12.5,M,,R,19,296,21,16:16,N,unreliable hematocrit estimate
-4/5/21,13:50,18,114,72,12.3,M,,R,25,303,21,16:27,N,unreliable hematocrit estimate
-4/5/21,,19,80,66,11.5,M,,R,4,525,22,16:37,N,unreliable hematocrit estimate; very small plasma sample - unsure if accurate!! okay to remove from analyses later
-4/5/21,15:03,20,112,65,9.3,M,,R,17,327,20,,N,unreliable hematocrit estimate
-4/5/21,,21,18,66,13.9,M,,R,34,307,21,,N,unreliable hematocrit estimate
-4/5/21,14:40,22,109,58,6.4,M,,L,16,336,,,N,unreliable hematocrit estimate
-4/5/21,14:20,24,102,60,6.5,M,,R,18,325,21,17:38,N,unreliable hematocrit estimate
-4/5/21,14:36,25,82,62,10.8,M,,R,1,,,,,unreliable hematocrit estimate
+4/5/21,10:40,1,12,59,8,F,N,R,,331,22,13:33,N,unreliable time; unreliable hematocrit estimate
+4/5/21,10:55,2,15,70,13.1,M,,R,,337,26,13:31,N,unreliable time; unreliable hematocrit estimate
+4/5/21,10:25,3,58,69,12.2,M,,R,,309,26,13:39,N,unreliable time; unreliable hematocrit estimate
+4/5/21,10:38,4,121,48,4.2,M,,R,,341,26,14:02,Y,unreliable time; unreliable hematocrit estimate; plasma hemolyzed
+4/5/21,10:17,5,140,50,4.1,M,,R,,354,25,13:59,Y,unreliable time; unreliable hematocrit estimate; plasma hemolyzed
+4/5/21,10:47,6,108,48,4.6,M,,L,,355,24,14:06,N,unreliable time; unreliable hematocrit estimate
+4/5/21,10:39,7,110,63,9.4,F,N,R,,321,,14:13,N,unreliable time; unreliable hematocrit estimate
+4/5/21,10:42,8,137,42,2.3,M,,R,,304,23,14:20,N,unreliable time; unreliable hematocrit estimate; tail broken off
+4/5/21,13:27,9,122,46,3.1,F,N,L,,,23,14:43,,unreliable time; unreliable hematocrit estimate; inadequate blood sample for osmolality
+4/5/21,13:40,10,29,68,12.5,M,,R,,324,22,15:04,N,unreliable hematocrit estimate
+4/5/21,13:39,11,127,65,10,M,,R,,310,23,15:14,N,unreliable hematocrit estimate
+4/5/21,13:35,12,134,65,12.2,M,,R,,341,22,15:25,Y,unreliable hematocrit estimate; plasma hemolyzed
+4/5/21,13:26,13,138,70,13.8,M,,R,,336,22,15:38,N,unreliable hematocrit estimate
+4/5/21,14:04,14,119,65,10.6,M,,R,,341,22,15:46,N,unreliable hematocrit estimate
+4/5/21,13:58,15,126,67,14.1,M,,R,,300,22,15:54,N,unreliable hematocrit estimate
+4/5/21,13:28,16,72,63,8.1,M,,R,,316,21,16:08,N,unreliable hematocrit estimate
+4/5/21,13:41,17,124,64,12.5,M,,R,,296,21,16:16,N,unreliable hematocrit estimate
+4/5/21,13:50,18,114,72,12.3,M,,R,,303,21,16:27,N,unreliable hematocrit estimate
+4/5/21,,19,80,66,11.5,M,,R,,,22,16:37,N,unreliable hematocrit estimate; very small plasma sample - unsure if accurate!! okay to remove from analyses later
+4/5/21,15:03,20,112,65,9.3,M,,R,,327,20,,N,unreliable hematocrit estimate
+4/5/21,,21,18,66,13.9,M,,R,,307,21,,N,unreliable hematocrit estimate
+4/5/21,14:40,22,109,58,6.4,M,,L,,336,,,N,unreliable hematocrit estimate
+4/5/21,14:20,24,102,60,6.5,M,,R,,325,21,17:38,N,unreliable hematocrit estimate
+4/5/21,14:36,25,82,62,10.8,M,,R,,,,,,unreliable hematocrit estimate
 4/5/21,13:25,26,103,64,7.7,F,N,R,,340,21,16:45,N,unreliable hematocrit estimate
 4/5/21,14:03,27,139,69,14.1,M,,R,,293,21,17:00,N,
 4/5/21,13:28,28,16,66,12.8,M,,L,,328,,,N,

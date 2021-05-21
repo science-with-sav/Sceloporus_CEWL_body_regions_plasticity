@@ -1,29 +1,43 @@
 ---
 title: "Cal Poly Herpetology CURE - Baseline Analyses"
-authors: "Savannah Weaver, Dylan Stephens, Jenna Heaphy"
+authors: "Savannah Weaver & Dylan Stephens"
 date: "Spring Quarter 2021"
 output: github_document
 ---
 
-
-# Rules :)
-
-1. Write blurbs before/after code chunks to explain wtf it is and why helpful/important. For example, listing variables (otherwise I've done a poor job with this on this Rmd).
-2. Comment on your code, especially to point out what doesn't work, questions you have, or uncertainties.
-3. No deleting other peoples work! You can delete your own as you work on it, but otherwise keep everything. You can keep versions of things (with notes explaining that!). I may delete versions that become irrelevant, but often code will become helpful later.
-
+# to-do
+- name each code chunk
 
 # Packages
 
 ```{r setup, include=FALSE}
 if (!require("tidyverse")) install.packages("tidyverse")
-library("tidyverse")
+library("tidyverse") # workflow and plots
+if (!require("zoo")) install.packages("zoo")
+library("zoo") # interpolation using na.approx
+if (!require("weathermetrics")) install.packages("weathermetrics")
+library("weathermetrics") # F to C conversion
 if (!require("UsingR")) install.packages("UsingR")
+library("UsingR")
 if (!require("MASS")) install.packages("MASS")
 library("MASS")
+if (!require("visreg")) install.packages("visreg")
+library("visreg")
 ```
 
-## ggbiplot
+
+# Background and Goals
+
+This data was collected April - May 2021 during a course-based undergraduate research experience (CURE) in Herpetology, taught by Emily Taylor at Cal Poly, San Luis Obispo. This part of the study was conducted to describe the variation in hydrophysiology in *Sceloporus occidentalis* and to investigate that drives that variation. Please refer to **doi:** for full details.
+
+In this document, we investigate differences in cutaneous evaporative water loss (CEWL) across body regions and dependent on environment, body size, health, and hydration. 
+
+
+# ggbiplot
+
+I'm not sure what to apply this to? - Savannah
+
+
 ```{r}
 # 
 #  ggbiplot.r
@@ -253,50 +267,98 @@ ggbiplot <- function(pcobj, choices = 1:2, scale = 1, pc.biplot = TRUE,
 
 ### Morphometrics and Blood Data
 
-variables:
+This data was collected upon capture of each lizard.
+
+Variables in this dataframe:
 - date
 - collection/capture time for each lizard
 - individual ID for each lizard
-- sock ID used to capture each lizard
+- sock ID used to capture each lizard (removed, not relevant to analyses)
 - SVL = snout-vent length
 - mass in grams
 - sex
-- if female, whether or not gravid
+- if female, whether or not gravid (with eggs)
 - which eye the blood sample was taken from
 - percent hematocrit = percent of blood that's red blood cells
 - osmolality = a proxy of hydration, should be inversely related to water content of a lizard (this is the average of 1-3 replicates)
 - cloacal temperature at the time of CEWL measurement
 - processing time for each lizard, when all measurements were finished
-- hemolyzed whether or not red blood cells burst and contaminated plasma
+- hemolyzed = whether or not red blood cells burst and contaminated plasma
+
+Before loading in this data, some incorrectly-measured hematocrit and osmolality were omitted:
+- hematocrit for individuals 1-16, due to observer error
+- osmolality for individual 19, due to instrumental error
 
 ```{r morpho blood data}
-morpho_blood_dat <- read.csv("./data/Herpetology_Data.csv",
+# load and format data
+morpho_blood_dat <- read.csv("./data/Herpetology_Data.csv", # filename
                              na.strings=c("","NA") # fix empty cells
                              ) %>%
-  dplyr::mutate(collect_date_time = as.POSIXct(paste(date, collect_time), "%m/%d/%y %H:%M"),
+  dplyr::mutate(# put date and time together
+                collect_date_time = (paste(date, collect_time)), 
+                # replace some date-time values that have missing times
+                collect_date_time = replace(collect_date_time, 
+                                            collect_date_time == "4/5/21 NA", NA),
+                # correctly format date-time variable
+                collect_date_time = as.POSIXct(collect_date_time, 
+                                               format = "%m/%d/%y %H:%M"),
+                # correctly format date-only variable
                 date = as.Date(date, format = "%m/%d/%y"),
-                collect_time = as.POSIXct(collect_time, format = "%H:%M"),
-                processing_time = as.POSIXct(processing_time, format = "%H:%M"),
+                # correctly format collection time variable
+                # format extracts just time after posix adds arbitrary date
+                collect_time = format(as.POSIXct(collect_time, 
+                                                 format = "%H:%M"),
+                                      format = "%H:%M"),
+                # correctly format processing time variable
+                processing_time = format(as.POSIXct(processing_time, 
+                                                    format = "%H:%M"), 
+                                         format = "%H:%M"),
+                # set sex variable as a factor, not character
                 sex_M_F = as.factor(sex_M_F),
+                # set gravidity variable as a factor, not character
                 gravid_Y_N = as.factor(gravid_Y_N),
+                # set blood sample eye variable as a factor, not character
                 blood_sample_eye = as.factor(blood_sample_eye),
-                hemolyzed. = as.factor(hemolyzed.),
-                #individual_ID = as.character(individual_ID)
+                # set hemolyzed variable as a factor, not character
+                hemolyzed = as.factor(hemolyzed)
                 ) %>%
-  dplyr::filter(osmolality_mmol_kg <= 500) # remove one point I think inaccurate
+  # remove two columns not relevant for statistics
+  dplyr::select(-sock_ID, -notes)
 summary(morpho_blood_dat)
 ```
 
-SAVANNAH: make date-time variable, interpolate weather data to match it, then join
+I want to test if any IDs are missing, and which they are.
+
+```{r}
+test <- c(seq(1, 150, by = 1))
+lost <- test[test %nin% morpho_blood_dat$individual_ID]
+lost
+```
+
+Individuals 23 and 56 actually both do not exist because those numbers were skipped when assigning IDs, so we have all the individuals measured in the dataframe.
 
 
 ### CEWL Data
 
+First, load it all in and merge.
+
+Variables in this dataframe are:
+- date
+- time
+- date_time combined variable
+- individual_ID for each lizard measured
+- region = where on the body CEWL was measured
+- TEWL_g_m2h = CEWL measurement value in grams/sq-meter/hour
+- CV = coefficient of variation of the measurements immediately before the final measurement
+- SSWL_g_m2 = ?
+- ambient_temp_C = temperature when and where measurement was taken
+- ambient_RH_percent = relative humidity when and where measurement was taken
+
 ```{r CEWL data}
 # week 1
-CEWL_April_05 <- read.csv("./data/capture_CEWL/4-5-21-CEWL.csv",
-                          na.strings=c("","NA")) %>%
-  dplyr::mutate(week = "1") %>% # add weekend index for throughout season
+CEWL_April_05 <- read.csv("./data/capture_CEWL/4-5-21-CEWL.csv", # filename
+                          na.strings=c("","NA")) %>% # fix empty cells
+  # rename and select the pertinent variables/cols
   # I have to do this for each one 
   # so they all have the same number of columns for joining
   dplyr::select(date = Date, 
@@ -306,16 +368,12 @@ CEWL_April_05 <- read.csv("./data/capture_CEWL/4-5-21-CEWL.csv",
                 CV = CV...., # rename
                 SSWL_g_m2 = SSWL..g..m2.., # rename
                 ambient_temp_C = AmbT..C., # rename
-                ambient_RH_percent = AmbRH...., # rename
-                week
+                ambient_RH_percent = AmbRH....
                 )
 
 # week 2
 CEWL_April_19 <- read.csv("./data/capture_CEWL/4-19-21-CEWL.csv",
                           na.strings=c("","NA")) %>%
-  dplyr::mutate(week = "2") %>% # add weekend index for throughout season
-  # I have to do this for each one 
-  # so they all have the same number of columns for joining
   dplyr::select(date = Date, 
                 Time, Status,
                 ID = Comments,
@@ -323,16 +381,12 @@ CEWL_April_19 <- read.csv("./data/capture_CEWL/4-19-21-CEWL.csv",
                 CV = CV...., # rename
                 SSWL_g_m2 = SSWL..g..m2.., # rename
                 ambient_temp_C = AmbT..C., # rename
-                ambient_RH_percent = AmbRH...., # rename
-                week
+                ambient_RH_percent = AmbRH....
                 )
 
 # week 3
 CEWL_April_26 <- read.csv("./data/capture_CEWL/4-26-21-CEWL.csv",
                           na.strings=c("","NA")) %>%
-  dplyr::mutate(week = "3") %>% # add weekend index for throughout season
-  # I have to do this for each one 
-  # so they all have the same number of columns for joining
   dplyr::select(date = Date, 
                 Time, Status,
                 ID = Comments,
@@ -340,38 +394,85 @@ CEWL_April_26 <- read.csv("./data/capture_CEWL/4-26-21-CEWL.csv",
                 CV = CV...., # rename
                 SSWL_g_m2 = SSWL..g..m2.., # rename
                 ambient_temp_C = AmbT..C., # rename
-                ambient_RH_percent = AmbRH...., # rename
-                week
+                ambient_RH_percent = AmbRH....
+                )
+
+# week 4
+CEWL_May_3 <- read.csv("./data/capture_CEWL/5-3-21-CEWL.csv",
+                          na.strings=c("","NA")) %>%
+  dplyr::select(date = Date, 
+                Time, Status,
+                ID = Comments,
+                TEWL_g_m2h = TEWL..g..m2h.., # rename
+                CV = CV...., # rename
+                SSWL_g_m2 = SSWL..g..m2.., # rename
+                ambient_temp_C = AmbT..C., # rename
+                ambient_RH_percent = AmbRH....
+                )
+
+# week 5
+CEWL_May_10 <- read.csv("./data/capture_CEWL/5-10-21-CEWL.csv",
+                          na.strings=c("","NA")) %>%
+  dplyr::select(date = Date, 
+                Time, Status,
+                ID = Comments,
+                TEWL_g_m2h = TEWL..g..m2h.., # rename
+                CV = CV...., # rename
+                SSWL_g_m2 = SSWL..g..m2.., # rename
+                ambient_temp_C = AmbT..C., # rename
+                ambient_RH_percent = AmbRH....
+                )
+
+# week 6
+CEWL_May_17 <- read.csv("./data/capture_CEWL/5-17-21-CEWL.csv",
+                          na.strings=c("","NA")) %>%
+  dplyr::select(date = Date, 
+                Time, Status,
+                ID = Comments,
+                TEWL_g_m2h = TEWL..g..m2h.., # rename
+                CV = CV...., # rename
+                SSWL_g_m2 = SSWL..g..m2.., # rename
+                ambient_temp_C = AmbT..C., # rename
+                ambient_RH_percent = AmbRH....
                 )
 
 # merge all CEWL datafiles & reformat
-CEWL <- CEWL_April_05 %>%
-  # join
-  rbind(., CEWL_April_19, CEWL_April_26) %>%
+CEWL <- CEWL_April_05 %>% # week 1
+  # join with weeks 2-6
+  rbind(., CEWL_April_19, 
+        CEWL_April_26,
+        CEWL_May_3,
+        CEWL_May_10,
+        CEWL_May_17
+        ) %>%
   # remove any unsuccessful measurements
   dplyr::filter(Status == "Normal") %>%
+  # extract individual_ID and region separately from the "ID" variable
+  separate(ID, c("individual_ID", "region")) %>%
   # reformat data
-  dplyr::mutate(date_time = as.POSIXct(paste(date, Time), format = "%m/%d/%y %I:%M:%S %p"),
-                # date only
+  dplyr::mutate(# paste and format date-time variable
+                CEWL_date_time = as.POSIXct(paste(date, Time), 
+                                            format = "%m/%d/%y %I:%M:%S %p"),
+                # reformat date only
                 date = as.Date(date, format = "%m/%d/%y"),
-                # time with arbitrary date, need to figure out how to remove
-                Time = as.POSIXct(Time, format = "%I:%M:%S %p"),
-                # extract individual ID number
-                individual_ID = as.numeric(substring(ID, 1, 2)),
-                # extract body region for CEWL measurement
-                region = as.factor(substring(ID, 4, 7)),
-                week = as.factor(week),
-                individual_ID = as.character(individual_ID)
+                # reformat time 
+                # format extracts just time after posix adds arbitrary date
+                # but then it's a character again... 
+                Time = format(as.POSIXct(Time, format = "%I:%M:%S %p"), 
+                              format = "%H:%M:%S"),
+                # format individual ID as a number
+                individual_ID = as.numeric(individual_ID),
+                # set body region as a factor variable after getting only the consistent characters due to typos
+                region = as.factor(substring(region, 1, 4))
                 ) %>%
-  dplyr::select(-ID, -Status
-                ) %>%
+  # remove cols not relecant to stats
+  dplyr::select(-Status) %>%
+  # remove any rows with missing values
   dplyr::filter(complete.cases(.))
 summary(CEWL)
-unique(CEWL$region)
 ```
 
-
-### Split CEWL Data
+Next, split CEWL data by region and compute the average among them.
 
 ```{r}
 # select each CEWL region separately 
@@ -403,24 +504,8 @@ CEWL_avg <- CEWL %>%
   dplyr::select(individual_ID, avg_CEWL)
 ```
 
-### Weather Data
-```{r}
-Weather_April_05 <- read.csv("./data/4_5Weather.csv", sep = ";")
-Weather_April_19 <- read.csv("./data/4_19Weather.csv", sep = ";")
-Weather_May_03 <- read.csv("./data/5_3Weather.csv", sep = ";")
-Weather_May_10 <- read.csv("./data/5_10Weather.csv", sep = ";")
-Weather_May_17 <- read.csv("./data/5_17Weather.csv", sep = ";")
 
-# Join all of the weather
-Weather_full <- full_join(Weather_April_05, Weather_April_19)
-Weather_full <- full_join(Weather_full, Weather_May_03)
-Weather_full <- full_join(Weather_full, Weather_May_10)
-Weather_full <- full_join(Weather_full, Weather_May_17) %>%
-
-```
-
-
-### Rearrange and Join
+Finally, rearrange and re-join CEWL data.
 
 ```{r join data}
 # join all CEWL regions to morpho and blood data
@@ -434,56 +519,270 @@ data_full <- morpho_blood_dat %>%
 ```
 
 
-### Join Differently 
+### Weather Data
+
+This data was obtained from <put link here> to test the effect of ambient conditions on CEWL. This is different from the ambient conditions already measured with CEWL, which are the temperature and humidity around the measurement device at the time of measurement. We think that the temperature, humidity, *wind speed*, and *solar radiation* the lizard was exposed to prior to capture may also affect CEWL.
+
+@ Dylan: did it not have wind speed and solar radiation available? those would be super helpful. Also, we need to know whether daylight savings is included or not bc if not, we need to shift the times by an hour.
 
 ```{r}
-CEWL_plus <- CEWL %>%
-  left_join(morpho_blood_dat, by = c("date", "individual_ID")
+# load in csvs and put all in one dataframe
+weather <- read.csv("./data/weather/4_5Weather.csv", sep = ';') %>%
+  rbind(read.csv("./data/weather/4_19Weather.csv", sep = ';')) %>%
+  rbind(read.csv("./data/weather/5_3Weather.csv", sep = ';')) %>%
+  rbind(read.csv("./data/weather/5_10Weather.csv", sep = ';')) %>%
+  rbind(read.csv("./data/weather/5_17Weather.csv", sep = ';')) %>%
+  # add a variable for combined date-time
+  mutate(collect_date_time = as.POSIXct(paste(Date, Time),
+                                format = "%m/%d/%y %I:%M:%S %p")) %>%
+  # remove lonely date and time
+  dplyr::select(-Date, -Time)
+```
+
+The weather data is only every 15 minutes, but I want to match it to any minute measurement, so I need to interpolate the values for each minute.
+
+First, make a separate dataframe with every minute for each of those days.
+
+```{r}
+all_times <- data.frame(collect_date_time = c(# April 5
+                           seq(from = as.POSIXct("2021-04-05 10:00"),
+                               to = as.POSIXct("2021-04-05 16:00"),
+                               by="min"),
+                           # April 19
+                           seq(from = as.POSIXct("2021-04-19 10:00"),
+                               to = as.POSIXct("2021-04-19 16:00"),
+                               by="min"),
+                           # April 26
+                           seq(from = as.POSIXct("2021-04-26 10:00"),
+                               to = as.POSIXct("2021-04-26 16:00"),
+                               by="min"),
+                           # May 3
+                           seq(from = as.POSIXct("2021-05-03 10:00"),
+                               to = as.POSIXct("2021-05-03 16:00"),
+                               by="min"),
+                           # May 10
+                           seq(from = as.POSIXct("2021-05-10 10:00"),
+                               to = as.POSIXct("2021-05-10 16:00"),
+                               by="min"),
+                           # May 17
+                           seq(from = as.POSIXct("2021-05-17 10:00"),
+                               to = as.POSIXct("2021-05-17 16:00"),
+                               by="min")
+                           ))
+
+```
+
+Next, merge the weather data into the times dataframe and interpolate the temperature and humidity between measurements.
+
+```{r}
+all_times_weather <- all_times %>% # time only dataframe
+  # add weather measurements based on matching date-time
+  left_join(weather, by = 'collect_date_time') %>%
+  # convert temperature units, thanks America
+  mutate(temp_C = fahrenheit.to.celsius(Temperature_F, round = 2),
+         # interpolate temperatures
+         temp_C_interpol = na.approx(temp_C),
+         # interpolate humidities
+         RH_percent_interpol = na.approx(RH_percent)
+         ) %>%
+  # keep only the relevant variables
+  dplyr::select(collect_date_time, temp_C_interpol, RH_percent_interpol)
+```
+
+
+
+### Join Data 
+
+There are several CEWL measurements for each of the other measures, so I'm going to join two ways. Each way allows slightly different analyses.
+
+First, with CEWL as the primary dataframe. This means each of the other variables will be duplicated for each lizards CEWL measurements.
+
+```{r}
+all_data_long <- CEWL %>%
+  left_join(morpho_blood_dat, 
+            by = c("date", "individual_ID")
+            ) %>%
+  left_join(all_times_weather, 
+            by = c("collect_date_time")
+            )
+```
+
+Second, with morpho_blood_dat as the primary dataframe, and each region's CEWL measurement as an individual column.
+
+```{r}
+all_data_wide <- morpho_blood_dat %>%
+  left_join(all_times_weather, 
+            by = c("collect_date_time")
+            ) %>%
+  left_join(CEWL_dewlap,
+            by = c("date", "individual_ID")
+            ) %>%
+  left_join(CEWL_dorsum,
+            by = c("date", "individual_ID")
+            ) %>%
+  left_join(CEWL_head,
+            by = c("date", "individual_ID")
+            ) %>%
+  left_join(CEWL_mitepatch,
+            by = c("date", "individual_ID")
+            ) %>%
+  left_join(CEWL_ventrum,
+            by = c("date", "individual_ID")
             )
 ```
 
 
+# Check Data Distributions
 
-# Data Cleaning
+## Histograms & Q-Q Plots
 
-
-## Histograms
-
-example code that will not work as-is:
+### SVL
+skewed left
 
 ```{r}
-CEWL_rep_avg %>% #dataframe
-  ggplot(., aes(x = TEWL_CV)) + # set up 
-  geom_histogram(color = "black", fill="steelblue", bins=50) + # plot type
-  theme_classic() + # make pretty
-  xlab("Coefficient of Variation") + 
-  ylab("Count") +
-  labs(title = "All Three Replicates")
+all_data_wide %>%
+  ggplot(., aes(x = SVL_mm)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("SVL (mm)") + 
+  ylab("Count")
+simple.eda(all_data_wide$SVL_mm)
+```
+
+### mass
+slightly skewed left, but nearly a bell curve:
+
+```{r}
+all_data_wide %>%
+  ggplot(., aes(x = mass_g)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("Mass (g)") + 
+  ylab("Count")
+simple.eda(all_data_wide$mass_g)
+```
+
+### hematocrit 
+looks pretty normally distributed around ~35%:
+
+```{r}
+all_data_wide %>%
+  ggplot(., aes(x = hematocrit_percent)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("Hematocrit (%)") + 
+  ylab("Count")
+simple.eda(all_data_wide$hematocrit_percent)
+```
+
+### osmolality 
+also pretty normally distributed around ~370:
+
+```{r}
+all_data_wide %>%
+  ggplot(., aes(x = osmolality_mmol_kg)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("Osmolality (mmol/kg)") + 
+  ylab("Count")
+simple.eda(all_data_wide$osmolality_mmol_kg)
+```
+
+### cloacal temperature 
+seems normally distributed:
+
+```{r}
+all_data_wide %>%
+  ggplot(., aes(x = cloacal_temp_C)) +
+  geom_histogram(color = "black", fill="steelblue", bins=10) + 
+  theme_classic() +
+  xlab("cloacal temperature (C)") + 
+  ylab("Count")
+simple.eda(all_data_wide$cloacal_temp_C)
+```
+
+### dewlap CEWL 
+very skewed to the right:
+
+```{r}
+all_data_wide %>%
+  ggplot(., aes(x = dewlap_TEWL_g_m2h)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("Dewlap CEWL (g/m^2/h)") + 
+  ylab("Count")
+simple.eda(all_data_wide$dewlap_TEWL_g_m2h)
+```
+
+### dorsum CEWL 
+slightly skewed to the right:
+
+```{r}
+all_data_wide %>%
+  ggplot(., aes(x = dorsum_TEWL_g_m2h)) +
+  geom_histogram(color = "black", fill="steelblue", bins=40) + 
+  theme_classic() +
+  xlab("Dorsum CEWL (g/m^2/h)") + 
+  ylab("Count")
+simple.eda(all_data_wide$dorsum_TEWL_g_m2h)
+```
+
+### head CEWL 
+very skewed to the right:
+
+```{r}
+all_data_wide %>%
+  ggplot(., aes(x = head_TEWL_g_m2h)) +
+  geom_histogram(color = "black", fill="steelblue", bins=40) + 
+  theme_classic() +
+  xlab("Head CEWL (g/m^2/h)") + 
+  ylab("Count")
+simple.eda(all_data_wide$head_TEWL_g_m2h)
+```
+
+### mite patch CEWL 
+very skewed to the right:
+
+```{r}
+all_data_wide %>%
+  ggplot(., aes(x = mitepatch_TEWL_g_m2h)) +
+  geom_histogram(color = "black", fill="steelblue", bins=40) + 
+  theme_classic() +
+  xlab("Mite Patch CEWL (g/m^2/h)") + 
+  ylab("Count")
+simple.eda(all_data_wide$mitepatch_TEWL_g_m2h)
+```
+
+### ventrum CEWL 
+slightly skewed to the right, somewhat evenly distributed:
+
+```{r}
+all_data_wide %>%
+  ggplot(., aes(x = ventrum_TEWL_g_m2h)) +
+  geom_histogram(color = "black", fill="steelblue", bins=30) + 
+  theme_classic() +
+  xlab("Ventrum CEWL (g/m^2/h)") + 
+  ylab("Count")
+simple.eda(all_data_wide$ventrum_TEWL_g_m2h)
 ```
 
 
+# Basic Figs & GLMs
 
-# Basic Figures
+## What affects hydration & health?
 
-## Hct ~ SVL
+### Hct ~ SVL
 
 ```{r}
-data_full %>% 
+all_data_wide %>% 
   ggplot(data = .) + 
   geom_point(aes(x = SVL_mm,
                  y = hematocrit_percent, 
-                 #color = tmt
                  ), 
              size = 1, 
              alpha = 0.6) + 
-  #scale_colour_manual(name = "Treatment", 
-   #                   #labels = c("Burrow", "Open", "Shrub"), 
-    #                  values = c("salmon1", "royalblue") ) +
-  #scale_shape_discrete(name = "Microhabitat", 
-   #                    labels = c("Burrow", "Open", "Shrub") ) + 
   stat_smooth(aes(x = SVL_mm, 
                   y = hematocrit_percent, 
-                  #color = tmt
                   ), 
               formula = y ~ x, 
               method = "lm", 
@@ -501,31 +800,23 @@ data_full %>%
                                  family = "sans", 
                                  size = 10),
         legend.text.align = 0,
-        #legend.position = c(0.9, 0.145)
 )
 ```
 
 
 
-## Osml ~ SVL
+### Osml ~ SVL
 
 ```{r}
-data_full %>% 
+all_data_wide %>% 
   ggplot(data = .) + 
   geom_point(aes(x = SVL_mm,
                  y = osmolality_mmol_kg, 
-                 #color = tmt
                  ), 
              size = 1, 
              alpha = 0.6) + 
-  #scale_colour_manual(name = "Treatment", 
-   #                   #labels = c("Burrow", "Open", "Shrub"), 
-    #                  values = c("salmon1", "royalblue") ) +
-  #scale_shape_discrete(name = "Microhabitat", 
-   #                    labels = c("Burrow", "Open", "Shrub") ) + 
   stat_smooth(aes(x = SVL_mm, 
                   y = osmolality_mmol_kg, 
-                  #color = tmt
                   ), 
               formula = y ~ x, 
               method = "lm", 
@@ -543,30 +834,22 @@ data_full %>%
                                  family = "sans", 
                                  size = 10),
         legend.text.align = 0,
-        #legend.position = c(0.9, 0.145)
 )
 ```
 
 
-## Hematocrit ~ Mass
+### Hematocrit ~ Mass
 
 ```{r}
-data_full %>% 
+all_data_wide %>% 
   ggplot(data = .) + 
   geom_point(aes(x = mass_g,
                  y = hematocrit_percent, 
-                 #color = tmt
                  ), 
              size = 1, 
-             alpha = 0.6) + 
-  #scale_colour_manual(name = "Treatment", 
-   #                   #labels = c("Burrow", "Open", "Shrub"), 
-    #                  values = c("salmon1", "royalblue") ) +
-  #scale_shape_discrete(name = "Microhabitat", 
-   #                    labels = c("Burrow", "Open", "Shrub") ) + 
+             alpha = 0.6) +
   stat_smooth(aes(x = mass_g, 
                   y = hematocrit_percent, 
-                  #color = tmt
                   ), 
               formula = y ~ x, 
               method = "lm", 
@@ -584,26 +867,19 @@ data_full %>%
                                  family = "sans", 
                                  size = 10),
         legend.text.align = 0,
-        #legend.position = c(0.9, 0.145)
 )
 ```
 
-## Osml ~ Mass
+### Osml ~ Mass
 
 ```{r}
-data_full %>% 
+all_data_wide %>% 
   ggplot(data = .) + 
   geom_point(aes(x = mass_g,
                  y = osmolality_mmol_kg, 
-                 #color = tmt
                  ), 
              size = 1, 
              alpha = 0.6) + 
-  #scale_colour_manual(name = "Treatment", 
-   #                   #labels = c("Burrow", "Open", "Shrub"), 
-    #                  values = c("salmon1", "royalblue") ) +
-  #scale_shape_discrete(name = "Microhabitat", 
-   #                    labels = c("Burrow", "Open", "Shrub") ) + 
   stat_smooth(aes(x = mass_g, 
                   y = osmolality_mmol_kg), 
               formula = y ~ x, 
@@ -622,15 +898,14 @@ data_full %>%
                                  family = "sans", 
                                  size = 10),
         legend.text.align = 0,
-        #legend.position = c(0.9, 0.145)
 )
 ```
 
 
-## Hct ~ Sex
+### Hct ~ Sex
 
 ```{r}
-data_full %>% 
+all_data_wide %>% 
   ggplot(data = .) + 
   geom_boxplot(aes(x = sex_M_F, 
                    y = hematocrit_percent, 
@@ -639,7 +914,6 @@ data_full %>%
                size = 1,
                alpha = 0.6) + 
   scale_colour_manual(name = "Sex", 
-                      #labels = c("Shrubbed", "Shrubless"), 
                       values = c("green4", "salmon1") ) +
   theme_classic() + 
   xlab("Sex") + 
@@ -653,10 +927,10 @@ data_full %>%
 
 
 
-## Osml ~ Sex
+### Osml ~ Sex
 
 ```{r}
-data_full %>% 
+all_data_wide %>% 
   ggplot(data = .) + 
   geom_boxplot(aes(x = sex_M_F, 
                    y = osmolality_mmol_kg, 
@@ -665,7 +939,6 @@ data_full %>%
                size = 1,
                alpha = 0.6) + 
   scale_colour_manual(name = "Sex", 
-                      #labels = c("Shrubbed", "Shrubless"), 
                       values = c("green4", "salmon1") ) +
   theme_classic() + 
   xlab("Sex") + 
@@ -678,12 +951,9 @@ data_full %>%
 ```
 
 
+## What affects evaporative water loss?
 
-# Important Figures
-
-
-## CEWL ~ Body Region
-
+### CEWL ~ Body Region
 
 ```{r}
 CEWL %>% 
@@ -709,10 +979,10 @@ CEWL %>%
 ```
 
 
-## All CEWL ~ Osml
+### All CEWL ~ Osml
 
 ```{r}
-CEWL_plus %>% 
+all_data_long %>% 
   ggplot(data = .) + 
   geom_point(aes(x = osmolality_mmol_kg,
                  y = TEWL_g_m2h, 
@@ -741,14 +1011,13 @@ CEWL_plus %>%
                                  family = "sans", 
                                  size = 10),
         legend.text.align = 0,
-        #legend.position = c(0.9, 0.145)
 )
 ```
 
-## Dorsum CEWL ~ Osmolality 
+### Dorsum CEWL ~ Osmolality 
 
 ```{r}
-data_full %>% 
+all_data_wide %>% 
   ggplot(data = .) + 
   geom_point(aes(x = osmolality_mmol_kg,
                  y = dorsum_TEWL_g_m2h, 
@@ -778,10 +1047,10 @@ data_full %>%
 
 
 
-## Ventrum CEWL ~ Osmolality 
+### Ventrum CEWL ~ Osmolality 
 
 ```{r}
-data_full %>% 
+all_data_wide %>% 
   ggplot(data = .) + 
   geom_point(aes(x = osmolality_mmol_kg,
                  y = ventrum_TEWL_g_m2h, 
@@ -811,10 +1080,10 @@ data_full %>%
 
 
 
-## Dewlap CEWL ~ Osmolality 
+### Dewlap CEWL ~ Osmolality 
 
 ```{r}
-data_full %>% 
+all_data_wide %>% 
   ggplot(data = .) + 
   geom_point(aes(x = osmolality_mmol_kg,
                  y = dewlap_TEWL_g_m2h, 
@@ -844,10 +1113,10 @@ data_full %>%
 
 
 
-## Mite Patch CEWL ~ Osmolality 
+### Mite Patch CEWL ~ Osmolality 
 
 ```{r}
-data_full %>% 
+all_data_wide %>% 
   ggplot(data = .) + 
   geom_point(aes(x = osmolality_mmol_kg,
                  y = mitepatch_TEWL_g_m2h, 
@@ -876,10 +1145,10 @@ data_full %>%
 ```
 
 
-## Head CEWL ~ Osmolality 
+### Head CEWL ~ Osmolality 
 
 ```{r}
-data_full %>% 
+all_data_wide %>% 
   ggplot(data = .) + 
   geom_point(aes(x = osmolality_mmol_kg,
                  y = head_TEWL_g_m2h, 
@@ -908,22 +1177,58 @@ data_full %>%
 ```
 
 
-## CEWL ~ Week
+### All CEWL ~ Hematocrit
+
+```{r}
+all_data_long %>% 
+  ggplot(data = .) + 
+  geom_point(aes(x = osmolality_mmol_kg,
+                 y = TEWL_g_m2h, 
+                 color = region
+                 ), 
+             size = 1, 
+             alpha = 0.6) + 
+  scale_colour_manual(values = c("palegreen4", "lightblue4", 
+                                 "plum4", "lightpink3", "seashell4")) +
+  stat_smooth(aes(x = osmolality_mmol_kg, 
+                  y = TEWL_g_m2h, 
+                  color = region
+                  ), 
+              formula = y ~ x, 
+              method = "lm", 
+              se = F, 
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  xlab("Osmolality") + 
+  ylab("CEWL") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0,
+)
+```
+
+### CEWL ~ Week
 
 ```{r}
 CEWL %>% 
   ggplot(data = .) + 
-  geom_boxplot(aes(x = week, 
+  geom_boxplot(aes(x = as.factor(date), 
                    y = TEWL_g_m2h, 
-                   color = week
+                   color = as.factor(date)
                    ), 
                size = 1,
                alpha = 0.6) + 
   facet_wrap(~region) + # could not figure out how to change facet labels without changing underlying data
-  scale_color_manual(values = c("royalblue1", "mediumorchid", "seagreen4")) +
+  scale_color_manual(values = c("royalblue1", "mediumorchid", "seagreen4",
+                                "royalblue1", "mediumorchid", "seagreen4")) +
   scale_x_discrete(breaks = c(1,2,3)) +
   theme_classic() + 
-  xlab("Week") + 
+  xlab("Date") + 
   ylab("CEWL") + 
   theme(text = element_text(color = "black", family = "sans", size = 12),
         axis.text = element_text(color = "black", family = "sans", size = 10),
@@ -935,26 +1240,8 @@ CEWL %>%
 
 
 
-# Weather Data
-
-Acess data to weather
-http://www.itrc.org/databases/precip/
-
-
-# Models
-
-example that will not work as-is:
-
-```{r, models}
-mod4 <- nlme::lme(data = CEWL_sub, # dataframe
-                  TEWL_g_m2h ~ replicate, # DV ~ IV
-                  random = ~ 1|ID # random effects that are not IVs of interest
-                  ) 
-summary(mod4)
-```
-
-
 # PCA
+
 ```{r}
 
 ## Subset data
@@ -991,21 +1278,11 @@ ggbiplot(data2.pca, labels=rownames(data.pca), ellipse=T, groups=sex_list_sub)
 ggbiplot(data.pca, labels=rownames(data.pca), ellipse=T, choices= c(3,4), groups=sex_list_sub)
 ```
 
-# Check Model Assumptions
-```{r}
-
-# Potential normality violation
-hist(CEWL_plus$TEWL_g_m2h)
-
-# Center by SD scaling
-CEWL_scaled <- CEWL_plus
-CEWL_scaled$TEWL_scaled <- scale(CEWL_scaled$TEWL_g_m2h, center=T, scale=T)
 
 
-```
 
+# Basic Models
 
-# General Linear Models
 ## CEWL ~ body region
 
 ```{r}
@@ -1024,13 +1301,14 @@ ggplot(CEWL) +
   labs(x="region", y="TEWL_g_m2h", title="")
 
 visreg(glm1, overlay=T)
+# I really like this visualization style, but I think I'll try to do it in ggplot
 
 # Model assumptions
 plot(glm1, which = 3)
-
 ```
 
 ## CEWL ~ body region + blood osmolarity
+
 ```{r}
 glm2 <- lm(TEWL_g_m2h ~ osmolality_mmol_kg + region*osmolality_mmol_kg, data=CEWL_plus)
 summary(glm2)
@@ -1042,20 +1320,20 @@ visreg(glm2, "osmolality_mmol_kg", by="region", overlay=T)
 ggplot(aes(osmolality_mmol_kg, TEWL_g_m2h), data = CEWL_plus) + 
   geom_point() + 
   facet_wrap(~ region)# create a facet for each mountain range
-
 ```
 
 ## CEWL ~ body region + hematocrit
+
 ```{r}
 glm3 <- lm(TEWL_g_m2h ~ hematocrit_percent + region*hematocrit_percent, data=CEWL_plus)
 summary(glm3)
 
 # base 
 visreg(glm3, "hematocrit_percent", by="region", overlay=T, band=F)
-
 ```
 
 ## CEWL ~ body region + cloacal temperature
+
 ```{r}
 glm4 <- lm(TEWL_g_m2h ~ cloacal_temp_C + region*cloacal_temp_C, data=CEWL_plus)
 summary(glm4)
@@ -1066,6 +1344,7 @@ visreg(glm4, "cloacal_temp_C", by="region", overlay=T, band=F)
 ```
 
 ## CEWL ~ body region + sex
+
 ```{r}
 glm5 <- lm(TEWL_g_m2h ~ sex_M_F + region*sex_M_F, data=CEWL_plus)
 summary(glm5)
@@ -1077,6 +1356,7 @@ visreg(glm5, "sex_M_F", by="region", overlay=T, band=F)
 
 
 ## CEWL ~ body region + gravidity
+
 ```{r}
 glm5 <- lm(TEWL_g_m2h ~ gravid_Y_N + region*gravid_Y_N, data=CEWL_plus)
 summary(glm5)
@@ -1087,6 +1367,7 @@ visreg(glm5, "gravid_Y_N", by="region", overlay=T, band=F)
 ```
 
 ## CEWL ~ body region + individual ID
+
 ```{r}
 CEWL_plus$individual_ID<- as.numeric(CEWL_plus$individual_ID)
 
@@ -1097,6 +1378,29 @@ summary(glm6)
 visreg(glm6, "individual_ID", by="region", overlay=T, band=F)
 
 ```
+
+
+
+
+# GLMM
+
+Potential explanatory variables and explanation for why/why not to include:
+- 
+example that will not work as-is:
+
+```{r, models}
+mod4 <- nlme::lme(data = CEWL_sub, # dataframe
+                  TEWL_g_m2h ~ replicate, # DV ~ IV
+                  random = ~ 1|ID # random effects that are not IVs of interest
+                  ) 
+summary(mod4)
+```
+
+
+
+
+
+
 
 ## CEWL ~ fixed effects: body region, blood osmolarity, hematocrit, body mass, SVL, sex, gravidity, number of eggs; likely random effect: ID
 

@@ -112,13 +112,16 @@ pwr.anova.test(k = 4, # number of groups (M/F x control/hydration)
                sig.level = 0.05, 
                power = 0.9
                  )
+# not complicated enough to use for more than a 1-way ANOVA
 ```
 
 
 
 
 
-
+- run a model on the data I currently have is --> look at mean squared error then use that as my variability estimate
+- might have to ignore trial effect for now
+- another package is cluster power... can email him packages if I'm interested in them
 
 
 
