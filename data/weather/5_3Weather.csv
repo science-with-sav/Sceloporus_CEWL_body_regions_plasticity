@@ -1,4 +1,4 @@
-Date;Time;Temperature (°F);Relative Humidity (% RH)
+Date;Time;Temperature_F;RH_percent
 5/3/21;12:00:00 AM;48.5;100.0
 5/3/21;12:15:00 AM;48.5;100.0
 5/3/21;12:30:00 AM;49.6;100.0

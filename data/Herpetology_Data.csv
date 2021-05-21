@@ -1,4 +1,4 @@
-date,collect_time,individual_ID,sock_ID,SVL_mm,mass_g,sex_M_F,gravid_Y_N,blood_sample_eye,hematocrit_percent,osmolality_mmol_kg,cloacal_temp_C,processing_time,hemolyzed?,notes
+date,collect_time,individual_ID,sock_ID,SVL_mm,mass_g,sex_M_F,gravid_Y_N,blood_sample_eye,hematocrit_percent,osmolality_mmol_kg,cloacal_temp_C,processing_time,hemolyzed,notes
 4/5/21,10:40,1,12,59,8,F,N,R,23,331,22,13:33,N,unreliable time; unreliable hematocrit estimate
 4/5/21,10:55,2,15,70,13.1,M,,R,34,337,26,13:31,N,unreliable time; unreliable hematocrit estimate
 4/5/21,10:25,3,58,69,12.2,M,,R,15,309,26,13:39,N,unreliable time; unreliable hematocrit estimate
@@ -98,7 +98,7 @@ date,collect_time,individual_ID,sock_ID,SVL_mm,mass_g,sex_M_F,gravid_Y_N,blood_s
 5/3/21,13:06,99,129,70,13,M,,R,36,373,24,,Y,hemolyzed
 5/10/21,12:33,100,H,63,9.4,F,Y,R,36,384,26,,N,
 5/10/21,12:36,101,J,66,11,M,,R,46,373,24,,Y,hemolyzed
-5/10/21,12:38,102,N,68,13.3,M,,R&L,"33,37",373,25,,N,
+5/10/21,12:38,102,N,68,13.3,M,,R&L,35,373,25,,N,
 5/10/21,12:36,103,126,69,15,M,,R,54,347,24,,N,
 5/10/21,12:34,104,L,70,13.1,M,,,39,355,24,,N,
 5/10/21,12:35,105,X,69,10.9,M,,,34,338,24,,N,"stub tail, in regrow process"
