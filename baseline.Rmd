@@ -945,7 +945,7 @@ all_data_wide %>%
                       values = c("green4", "salmon1") ) +
   theme_classic() + 
   xlab("Sex") + 
-  ylab("Hematocrit") + 
+  ylab("Hematocrit (%)") + 
   theme(text = element_text(color = "black", family = "sans", size = 12),
         axis.text = element_text(color = "black", family = "sans", size = 10),
         legend.text.align = 0,
@@ -953,7 +953,7 @@ all_data_wide %>%
 )
 
 # glm
-glm_hct_sex <- lm(hematocrit_percent ~ sex_M_F,
+glm_hct_sex <- glm(hematocrit_percent ~ sex_M_F,
            data = all_data_wide)
 summary(glm_hct_sex)
 ```
@@ -1207,10 +1207,17 @@ all_data_wide %>%
         axis.text = element_text(color = "black", family = "sans", size = 10),
         legend.text.align = 0,
         legend.position = "none"
-)
+) -> osml_date_fig
+
+#ggsave(filename = "max_points.png",
+ #      plot = max_points,
+  #     path = "./exported_figures",
+   #    device = "png",
+    #   dpi = 2400,
+     #  width = 7, height = 5)
 
 # glm
-glm_osml_wk <- lm(osmolality_mmol_kg ~ date,
+glm_osml_wk <- glm(osmolality_mmol_kg ~ date,
            data = all_data_wide)
 summary(glm_osml_wk)
 ```
@@ -1273,7 +1280,7 @@ all_data_wide %>%
               alpha = 1 ) + 
   theme_classic() + 
   xlab("Ambient Relative Humidity at Capture (%)") + 
-  ylab("Osmolality") + 
+  ylab("Osmolality (mmol/kg)") + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
                             size = 12),
@@ -1346,8 +1353,8 @@ all_data_wide %>%
               size = 1.6, 
               alpha = 1 ) + 
   theme_classic() + 
-  xlab("Ambient Temperature at Capture (C)") + 
-  ylab("Osmolality") + 
+  xlab("Ambient Temperature at Capture (°C)") + 
+  ylab("Osmolality (mmol/kg)") + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
                             size = 12),
@@ -1455,6 +1462,17 @@ Health seems to be affected by:
 - mass (NS)
 - sex (*)
 - capture temp & RH (NS)
+
+
+Quick regression of individual_ID ~ date:
+
+```{r}
+glm_date_ID <- lm(individual_ID ~ date,
+           data = all_data_wide)
+summary(glm_date_ID)
+```
+
+
 
 
 ## What affects evaporative water loss?
@@ -1845,8 +1863,8 @@ all_data_long %>%
               size = 1.6, 
               alpha = 1 ) + 
   theme_classic() + 
-  xlab("Cloacal Temperature") + 
-  ylab("CEWL") + 
+  xlab("Cloacal Temperature (°C)") + 
+  ylab("CEWL (g/m^2/hr)") + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
                             size = 12),
@@ -2202,8 +2220,8 @@ all_data_long %>%
               size = 1.6, 
               alpha = 1 ) + 
   theme_classic() + 
-  xlab("Mass") + 
-  ylab("CEWL") + 
+  xlab("Mass (g)") + 
+  ylab("CEWL (g/m^2/hr)") + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
                             size = 12),
@@ -2478,7 +2496,31 @@ summary(hydrat_mod7)
 ```
 
 
-The best model to predict hydration is based on ambient temperature at capture as a fixed effect and individual_ID as a random effect. Using the interaction between RH * temperature gives just as good a model.
+The best model to predict hydration is based on ambient temperature at capture as a fixed effect and individual_ID as a random effect (hydrat_mod5). Using the interaction between RH * temperature gives just as good a model (hydrat_mod7). Both have AIC of 1217. 
+
+
+### Conclusion
+
+Now save both of the best two models.
+
+```{r}
+# save step 6 summary object
+osml_best_mod1 <- summary(hydrat_mod5)
+# extract stats table from summary object
+osml_best_mod1_vals <- data.frame(osml_best_mod1$tTable)
+# export 
+write.csv(osml_best_mod1_vals, "osml_best_mod1_vals.csv")
+
+# save step 9 summary object
+osml_best_mod2 <- summary(hydrat_mod7)
+# extract stats table from summary object
+osml_best_mod2_vals <- data.frame(osml_best_mod2$tTable)
+# export 
+write.csv(osml_best_mod2_vals, "osml_best_mod2_vals.csv")
+```
+
+
+
 
 
 ## CEWL
@@ -2811,7 +2853,14 @@ write.csv(CEWL_best_mod2_vals, "CEWL_2nd_best_mod_vals.csv")
 
 
 
-to-do:
+# to-do:
+
+1. add a region*mass interaction effect for CEWL
+2. add in rain events to see if they match-up with drops in osmolality
+3. would an ANOVA be better to determine differences between each of the body regions? I think GLM only compares each to dewlap, not each to each.
+
+
+
 b.	Calculate estimates of TEWL based on equations presented in (6).  How much do the estimates vary depending on which CEWL we use? Can we figure out how to use all of our different CEWL measurements to calculate what we think would be an accurate TEWL?
 
 
