@@ -526,11 +526,9 @@ data_full <- morpho_blood_dat %>%
 
 ### Weather Data
 
-This data was obtained from http://www.itrc.org/databases/precip/ (Adcon Server Data) to test the effect of ambient conditions on CEWL. This is different from the ambient conditions already measured with CEWL, which are the temperature and humidity around the measurement device at the time of measurement. We think that the temperature, humidity, *wind speed*, and *solar radiation* the lizard was exposed to prior to capture may also affect CEWL.
+This data was obtained from http://www.itrc.org/databases/precip/ (Adcon Server Data) to test the effect of ambient conditions on CEWL. This is different from the ambient conditions already measured with CEWL, which are the temperature and humidity around the measurement device at the time of measurement. We think that the temperature, humidity, wind speed, and solar radiation the lizard was exposed to prior to capture may also affect CEWL.
 
-@ Dylan: did it not have wind speed and solar radiation available? those would be super helpful. Also, we need to know whether daylight savings is included or not bc if not, we need to shift the times by an hour.
-
-@ Savannah: Wind Speed and Solar radiation are also available, I have downloaded the new csvs which should be included now into the big dataframe. I sent an email to ITRC to ask about daylight savings because there is nothing mentioned about it I feel like it would match the time on campus. 
+tbd = daylight savings
 
 ```{r}
 # load in csvs and put all in one dataframe
@@ -586,18 +584,22 @@ all_times_weather <- all_times %>% # time only dataframe
   # add weather measurements based on matching date-time
   left_join(weather, by = 'collect_date_time') %>%
   # convert temperature units, thanks America
-  mutate(temp_C = fahrenheit.to.celsius(Temperature...F., round = 2),
+  mutate(temp_C = fahrenheit.to.celsius(Temperature_F, round = 2),
          # interpolate temperatures
          temp_C_interpol = na.approx(temp_C),
          # interpolate humidities
-         RH_percent_interpol = na.approx(Relative.Humidity....RH.),
+         RH_percent_interpol = na.approx(RH_percent),
          # interpolate Wind Speeds
-         Wind_mph_interpol = na.approx(Wind.Speed..ave...mph.),
+         Wind_mph_interpol = na.approx(Wind_Speed_mph),
          # interpolate solar radiation
-         Solar_rad_Wm2_interpol = na.approx(Pyranometer.0.2000.W.m²..W.m².)
+         Solar_rad_Wm2_interpol = na.approx(Pyranometer_W_m)
          ) %>%
   # keep only the relevant variables
-  dplyr::select(collect_date_time, temp_C_interpol, RH_percent_interpol, Wind_mph_interpol, Solar_rad_Wm2_interpol)
+  dplyr::select(collect_date_time, 
+                temp_C_interpol, 
+                RH_percent_interpol, 
+                Wind_mph_interpol, 
+                Solar_rad_Wm2_interpol)
 
 ```
 
@@ -796,6 +798,16 @@ simple.eda(all_data_wide$ventrum_TEWL_g_m2h)
 # Normality test if p > .05, data is normal. Data is not normal
 shapiro.test(all_data_wide$ventrum_TEWL_g_m2h)
 ```
+
+
+## Transformations
+
+### Variable A
+
+
+### Variable B
+
+
 
 
 # Basic Figs & GLMs
@@ -1220,7 +1232,9 @@ summary(glm_hct_wk)
 
 
 ### Osml ~ Week
+
 - Sig difference in osmolarity by week
+
 ```{r}
 all_data_wide %>% 
   ggplot(data = .) + 
@@ -1253,6 +1267,16 @@ summary(glm_osml_wk)
 ```
 
 There was a little rain on April 27.... could that be why there was a slight drop in osmolality?! Not sure if the May 3-> 10 drop was because of rain or fixing the osmometer, though... Need to look for better daily rainfall records, maybe look in relation to humidity?.
+
+Also try a pairwise ANOVA test:
+
+```{r}
+osml_date_aov <- aov(osmolality_mmol_kg ~ as.factor(date), 
+                     data = all_data_wide)
+TukeyHSD(osml_date_aov)
+```
+
+
 
 ### Humidity ~ Week
 - Significant difference in humidity by week
@@ -1598,6 +1622,19 @@ TukeyHSD(anova1)
 # Model assumptions
 plot(glm1, which = 3)
 ```
+
+
+I think that the way the GLM tests differences is not preferable. It tests how different each category is from the one reference category, rather than testing differences of each region against each other region, in a pairwise test. So, I will try an ANOVA to see if I can get those pairwise statistics.
+
+```{r}
+# one-way ANOVA
+CEWL_region_aov <- aov(data = all_data_long,
+                       TEWL_g_m2h ~ region)
+# post-hoc pairwise analysis
+TukeyHSD(CEWL_region_aov)
+```
+
+
 
 
 
@@ -3132,13 +3169,12 @@ write.csv(CEWL_best_mod2_vals, "CEWL_best_mod2_vals.csv")
 
 # to-do:
 
-1. add a region*mass interaction effect for CEWL
 2. add in rain events to see if they match-up with drops in osmolality
-3. do osmolality ~ cm rain in the past week?
+3. do osmolality ~ cm rain in the past week? (cumulative rain, or dew, or RH?)
 3. would an ANOVA be better to determine differences between each of the body regions? I think GLM only compares each to dewlap, not each to each.
 - ANOVA with tukey, I added tukey in above at the CEWL versus region. Could make a visualizationon box graph with different letters.
 4. look at how model stats are presented in tables and model it after that
-
+5. convert all RH to VPD
 
 b.	Calculate estimates of TEWL based on equations presented in (6).  How much do the estimates vary depending on which CEWL we use? Can we figure out how to use all of our different CEWL measurements to calculate what we think would be an accurate TEWL?
 

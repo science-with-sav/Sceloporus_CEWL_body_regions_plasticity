@@ -1,4 +1,4 @@
-Date;Time;Pyranometer 0-2000 W/m² (W/m²);Temperature (°F);Wind Speed (ave) (mph);Relative Humidity (% RH)
+Date;Time;Pyranometer_W_m;Temperature_F;Wind_Speed_mph;RH_percent
 5/3/21;12:00:00 AM;0.0;48.5;0.1;100.0
 5/3/21;12:15:00 AM;0.0;48.5;0.1;100.0
 5/3/21;12:30:00 AM;0.0;49.6;0.1;100.0
