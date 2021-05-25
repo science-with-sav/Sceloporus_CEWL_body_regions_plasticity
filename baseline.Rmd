@@ -1148,22 +1148,41 @@ all_data_wide %>%
                    color = sex_M_F
                    ), 
                size = 1,
-               alpha = 0.6) + 
-  scale_colour_manual(name = "Sex", 
-                      values = c("green4", "salmon1") ) +
+               alpha = 1) + 
   theme_classic() + 
   xlab("Sex") + 
   ylab("Hematocrit (%)") + 
-  theme(text = element_text(color = "black", family = "sans", size = 12),
-        axis.text = element_text(color = "black", family = "sans", size = 10),
+  annotate("text", x = 1.5, y = 45, 
+           label = "paste(italic(p), \" = 0.0152\")", 
+           parse = TRUE,
+           size = 6) +
+  ylim(10, 50) +
+  scale_x_discrete(labels = c("F" = "Female",
+                              "M" = "Male")) +
+  scale_color_brewer(palette = "Set2") +
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 18),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 14),
         legend.text.align = 0,
         legend.position = "none"
-)
+) -> hct_sex_fig
+hct_sex_fig
+
+# export figure
+ggsave(filename = "hct_sex_fig.tiff",
+       plot = hct_sex_fig,
+       path = "./final_figures",
+       device = "tiff",
+       dpi = 1200,
+       width = 6, height = 4)
 
 # glms
-glm_hct_sex <- glm(hematocrit_percent ~ sex_M_F,
+aov_hct_sex <- aov(hematocrit_percent ~ sex_M_F,
            data = all_data_wide)
-summary(glm_hct_sex)
+TukeyHSD(aov_hct_sex)
 glm_hct_sex_mass <- glm(hematocrit_percent ~ sex_M_F*mass_g - mass_g,
            data = all_data_wide)
 summary(glm_hct_sex_mass)
@@ -1418,20 +1437,40 @@ all_data_wide %>%
                size = 1,
                alpha = 0.6) + 
   theme_classic() + 
-  xlab("Sampling Date") + 
-  ylab("Osmolality") + 
-  theme(text = element_text(color = "black", family = "sans", size = 12),
-        axis.text = element_text(color = "black", family = "sans", size = 10),
+  xlab("Date") + 
+  ylab("Osmolality (mmol / kg)") + 
+  annotate("text", x = 1, y = 365, label = "a", size = 6) +
+  annotate("text", x = 2, y = 390, label = "b", size = 6) +
+  annotate("text", x = 3, y = 437, label = "c", size = 6) +
+  annotate("text", x = 4, y = 427, label = "c", size = 6) +
+  annotate("text", x = 5, y = 417, label = "d", size = 6) +
+  annotate("text", x = 6, y = 447, label = "d", size = 6) +
+  scale_x_discrete(labels = c("2021-04-05" = "Apr 5", 
+                              "2021-04-19" = "Apr 19",
+                              "2021-04-26" = "Apr 26",
+                              "2021-05-03" = "May 3", 
+                              "2021-05-10" = "May 10",
+                              "2021-05-17" = "May 17")) +
+  scale_color_brewer(palette = "Set2") +
+  ylim(300, 450) +
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 18),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 14),
         legend.text.align = 0,
         legend.position = "none"
 ) -> osml_date_fig
 osml_date_fig
-#ggsave(filename = "max_points.png",
- #      plot = max_points,
-  #     path = "./exported_figures",
-   #    device = "png",
-    #   dpi = 2400,
-     #  width = 7, height = 5)
+
+# export figure
+ggsave(filename = "osml_date_fig.tiff",
+       plot = osml_date_fig,
+       path = "./final_figures",
+       device = "tiff",
+       dpi = 1200,
+       width = 6, height = 4)
 
 # glm
 glm_osml_wk <- glm(osmolality_mmol_kg ~ date,
@@ -1582,26 +1621,45 @@ all_data_wide %>%
                  y = osmolality_mmol_kg, 
                  ), 
              size = 1, 
-             alpha = 0.6) + 
+             alpha = 0.4) + 
   stat_smooth(aes(x = abs_humidity_g_m3_interpol, 
                   y = osmolality_mmol_kg), 
               formula = y ~ x, 
               method = "lm", 
               se = F, 
-              color = "gray",
+              color = "royalblue",
               size = 1.6, 
               alpha = 1 ) + 
   theme_classic() + 
-  xlab("Absolute Humidity") + 
-  ylab("Osmolality (mmol/kg)") + 
+  xlab(bquote('Absolute Humidity at Capture (g / '*m^2*')')) + 
+  ylab("Osmolality (mmol / kg)") + 
+  xlim(8, 12) +
+  ylim(300, 450) +
+  annotate("text", x = 8.5, y = 440, 
+           label = "paste(italic(R) ^ 2, \" = 0.036\")", 
+           parse = TRUE,
+           size = 6) +
+  annotate("text", x = 8.5, y = 428, 
+           label = "paste(italic(p), \" = 0.0126\")", 
+           parse = TRUE,
+           size = 6) +
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 12),
+                            size = 18),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 10),
+                                 size = 14),
         legend.text.align = 0,
-)
+) -> osml_abhum_fig
+osml_abhum_fig
+
+# export figure
+ggsave(filename = "osml_abhum_fig.tiff",
+       plot = osml_abhum_fig,
+       path = "./final_figures",
+       device = "tiff",
+       dpi = 1200,
+       width = 6, height = 4)
 
 # glm
 glm_osml_abshum <- lm(osmolality_mmol_kg ~ abs_humidity_g_m3_interpol,
@@ -1857,7 +1915,7 @@ all_data_wide %>%
                  y = osmolality_mmol_kg, 
                  ), 
              size = 1, 
-             alpha = 0.6) + 
+             alpha = 0.4) + 
   stat_smooth(aes(x = temp_C_interpol, 
                   y = osmolality_mmol_kg), 
               formula = y ~ x, 
@@ -1868,15 +1926,34 @@ all_data_wide %>%
               alpha = 1 ) + 
   theme_classic() + 
   xlab("Ambient Temperature at Capture (°C)") + 
-  ylab("Osmolality (mmol/kg)") + 
+  ylab("Osmolality (mmol / kg)") + 
+  annotate("text", x = 22, y = 320, 
+           label = "paste(italic(R) ^ 2, \" = 0.2952\")", 
+           parse = TRUE,
+           size = 6) +
+  annotate("text", x = 22, y = 308, 
+           label = "paste(italic(p), \" < 0.0001\")", 
+           parse = TRUE,
+           size = 6) +
+  xlim(14, 24) +
+  ylim(300,450) +
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 12),
+                            size = 18),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 10),
+                                 size = 14),
         legend.text.align = 0,
-)
+) -> osml_temp_fig
+osml_temp_fig
+
+# export figure
+ggsave(filename = "osml_temp_fig.tiff",
+       plot = osml_temp_fig,
+       path = "./final_figures",
+       device = "tiff",
+       dpi = 1200,
+       width = 6, height = 4)
 
 # glm
 glm_osml_temp <- lm(osmolality_mmol_kg ~ temp_C_interpol,
@@ -2007,28 +2084,53 @@ Potential relationships:
 
 ### CEWL ~ Body Region
 
+figure:
+
 ```{r}
 CEWL %>% 
   ggplot(data = .) + 
-  geom_boxplot(aes(x = region, 
+  geom_boxplot(aes(x = reorder(region, TEWL_g_m2h), 
                    y = TEWL_g_m2h, 
                    color = region
                    ), 
                size = 1,
-               alpha = 0.6) + 
-  scale_color_manual(values = c("palegreen4", "lightblue4", 
-                                 "plum4", "lightpink3", "seashell4")) +
-  scale_x_discrete(labels = c("Dewlap", "Dorsum", "Head",
-                              "Mite Patch", "Ventrum")) +
+               alpha = 1) +
+  scale_x_discrete(labels = c("Dewlap", "Dorsum",
+                              "Mite Patch", "Head", "Ventrum")) +
   theme_classic() + 
   xlab("Body Region") + 
-  ylab("CEWL") + 
-  theme(text = element_text(color = "black", family = "sans", size = 12),
-        axis.text = element_text(color = "black", family = "sans", size = 10),
+  ylab(bquote('CEWL (g / '*m^2~h*')')) + 
+  annotate("text", x = 1, y = 65, label = "a", size = 6) +
+  annotate("text", x = 2, y = 62, label = "a", size = 6) +
+  annotate("text", x = 3, y = 105, label = "b", size = 6) +
+  annotate("text", x = 4, y = 92, label = "b", size = 6) +
+  annotate("text", x = 5, y = 75, label = "b", size = 6) +
+  scale_color_brewer(palette = "Set2") +
+  ylim(1, 110) +
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 18),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 14),
         legend.text.align = 0,
         legend.position = "none"
-)
+) -> CEWL_region_fig
+CEWL_region_fig
 
+# export figure
+ggsave(filename = "CEWL_region_fig.tiff",
+       plot = CEWL_region_fig,
+       path = "./final_figures",
+       device = "tiff",
+       dpi = 1200,
+       width = 6, height = 4)
+```
+
+
+stats:
+
+```{r}
 # GLM
 glm1 <- lm(TEWL_g_m2h ~ region, data = CEWL)
 summary(glm1)
@@ -2053,6 +2155,7 @@ TukeyHSD(anova1)
 # Model assumptions
 plot(glm1, which = 3)
 ```
+
 
 
 I think that the way the GLM tests differences is not preferable. It tests how different each category is from the one reference category, rather than testing differences of each region against each other region, in a pairwise test. So, I will try an ANOVA to see if I can get those pairwise statistics.
@@ -2392,6 +2495,8 @@ visreg(glm3, "hematocrit_percent", by="region", overlay=T, band=F)
 
 ### CEWL ~ Cloacal Temperature
 
+figure:
+
 ```{r}
 all_data_long %>% 
   ggplot(data = .) + 
@@ -2400,9 +2505,7 @@ all_data_long %>%
                  color = region
                  ), 
              size = 1, 
-             alpha = 0.6) + 
-  scale_colour_manual(values = c("palegreen4", "lightblue4", 
-                                 "plum4", "lightpink3", "seashell4")) +
+             alpha = 0.4) + 
   stat_smooth(aes(x = cloacal_temp_C, 
                   y = TEWL_g_m2h, 
                   color = region
@@ -2411,19 +2514,45 @@ all_data_long %>%
               method = "lm", 
               se = F, 
               size = 1.6, 
-              alpha = 1 ) + 
+              alpha = 1) + 
   theme_classic() + 
   xlab("Cloacal Temperature (°C)") + 
-  ylab("CEWL (g/m^2/hr)") + 
+  ylab(bquote('CEWL (g / '*m^2~h*')')) + 
+  #annotate("text", x = 1, y = 65, label = "a", size = 6) +
+  scale_color_brewer(palette = "Set2",
+                     labels = c("Dewlap", "Dorsum", "Head",
+                              "Mite Patch", "Ventrum"),
+                     name = "") +
+  ylim(1, 100) +
+  xlim(20, 28) +
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 12),
+                            size = 18),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 10),
+                                 size = 14),
+        legend.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 12),
         legend.text.align = 0,
-)
+        legend.position = c(0.9, 0.85)
+  #) +
+  #guides(color = guide_legend(nrow = 2, byrow = TRUE)
+         ) -> CEWL_ctemp_fig
+CEWL_ctemp_fig
 
+# export figure
+ggsave(filename = "CEWL_ctemp_fig.tiff",
+       plot = CEWL_ctemp_fig,
+       path = "./final_figures",
+       device = "tiff",
+       dpi = 1200,
+       width = 6, height = 4)
+```
+
+stats:
+
+```{r}
 # glms
 # CEWL ~ region + ctemp
 glm4 <- lm(TEWL_g_m2h ~ region*cloacal_temp_C,
@@ -2453,6 +2582,7 @@ summary(glm4_mitepatch)
 # base visualization
 visreg(glm4, "cloacal_temp_C", by="region", overlay=T, band=F)
 ```
+
 
 
 ### CEWL ~ Capture Temperature
@@ -2577,6 +2707,61 @@ glm8_mitepatch <- lm(mitepatch_TEWL_g_m2h ~ RH_percent_interpol,
            data = all_data_wide)
 summary(glm8_mitepatch)
 ```
+
+
+### CEWL ~ Abs Humidity
+
+```{r}
+all_data_long %>% 
+  ggplot(data = .) + 
+  geom_jitter(aes(x = abs_humidity_g_m3_interpol,
+                 y = TEWL_g_m2h, 
+                 color = region
+                 ), 
+             size = 1, 
+             alpha = 0.4) + 
+  stat_smooth(aes(x = abs_humidity_g_m3_interpol, 
+                  y = TEWL_g_m2h, 
+                  color = region
+                  ), 
+              formula = y ~ x, 
+              method = "lm", 
+              se = F, 
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  xlab('Absolute Humidity at Capture (g / '*m^3~')') + 
+  ylab(bquote('CEWL (g / '*m^2~h*')')) + 
+  #annotate("text", x = 1, y = 65, label = "a", size = 6) +
+  scale_color_brewer(palette = "Set2",
+                     labels = c("Dewlap", "Dorsum",
+                              "Head", "Mite Patch", "Ventrum"),
+                     name = "") +
+  ylim(1, 100) +
+  xlim(8, 12) +
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 18),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 14),
+        legend.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 12),
+        legend.text.align = 0,
+        legend.position = c(0.15, 0.85)
+         ) -> CEWL_abshum_fig
+CEWL_abshum_fig
+
+# export figure
+ggsave(filename = "CEWL_abshum_fig.tiff",
+       plot = CEWL_abshum_fig,
+       path = "./final_figures",
+       device = "tiff",
+       dpi = 1200,
+       width = 6, height = 4)
+```
+
 
 
 ### CEWL ~ Measurement Temperature
@@ -2841,9 +3026,9 @@ all_data_long %>%
                  color = region
                  ), 
              size = 1, 
-             alpha = 0.6) + 
-  scale_colour_manual(values = c("palegreen4", "lightblue4", 
-                                 "plum4", "lightpink3", "seashell4")) +
+             alpha = 0.4) + 
+  #scale_colour_manual(values = c("palegreen4", "lightblue4", 
+   #                              "plum4", "lightpink3", "seashell4")) +
   stat_smooth(aes(x = mass_g, 
                   y = TEWL_g_m2h, 
                   color = region
@@ -2855,15 +3040,37 @@ all_data_long %>%
               alpha = 1 ) + 
   theme_classic() + 
   xlab("Mass (g)") + 
-  ylab("CEWL (g/m^2/hr)") + 
+  ylab(bquote('CEWL (g / '*m^2~h*')')) + 
+  #annotate("text", x = 1, y = 65, label = "a", size = 6) +
+  scale_color_brewer(palette = "Set2",
+                     labels = c("Dewlap", "Dorsum",
+                              "Head", "Mite Patch", "Ventrum"),
+                     name = "") +
+  ylim(1, 100) +
+  xlim(2, 16) +
+  scale_x_continuous(breaks = c(seq(2, 16, by = 2))) +
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 12),
+                            size = 18),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 10),
+                                 size = 14),
+        legend.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 12),
         legend.text.align = 0,
-)
+        legend.position = c(0.15, 0.85)
+         ) -> CEWL_mass_fig
+CEWL_mass_fig
+
+# export figure
+ggsave(filename = "CEWL_mass_fig.tiff",
+       plot = CEWL_mass_fig,
+       path = "./final_figures",
+       device = "tiff",
+       dpi = 1200,
+       width = 6, height = 4)
+
 
 # glm
 glm11 <- lm(TEWL_g_m2h ~ region*mass_g,
@@ -3765,6 +3972,9 @@ write.csv(CEWL_best_mod2_vals, "CEWL_best_mod2_vals.csv")
 
 
 # to-do:
+
+region*abshum interaction??
+
 
 look at how model stats are presented in tables and model it after that
 
