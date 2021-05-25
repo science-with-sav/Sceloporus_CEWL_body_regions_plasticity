@@ -22,7 +22,7 @@ library("PerformanceAnalytics") # pretty multicollinearity plots
 if (!require("UsingR")) install.packages("UsingR")
 library("UsingR")
 if (!require("MASS")) install.packages("MASS")
-library("MASS") # model selection
+library("MASS") # model selection & box-cox
 if (!require("nlme")) install.packages("nlme")
 library("nlme") # for GLMMs
 if (!require("visreg")) install.packages("visreg")
@@ -311,13 +311,9 @@ morpho_blood_dat <- read.csv("./data/Herpetology_Data.csv", # filename
                 date = as.Date(date, format = "%m/%d/%y"),
                 # correctly format collection time variable
                 # format extracts just time after posix adds arbitrary date
-                collect_time = format(as.POSIXct(collect_time, 
-                                                 format = "%H:%M"),
-                                      format = "%H:%M"),
+                collect_time = (as.POSIXct(collect_time, format = "%H:%M")),
                 # correctly format processing time variable
-                processing_time = format(as.POSIXct(processing_time, 
-                                                    format = "%H:%M"), 
-                                         format = "%H:%M"),
+                processing_time = (as.POSIXct(processing_time, format = "%H:%M")),
                 # set sex variable as a factor, not character
                 sex_M_F = as.factor(sex_M_F),
                 # set gravidity variable as a factor, not character
@@ -325,14 +321,16 @@ morpho_blood_dat <- read.csv("./data/Herpetology_Data.csv", # filename
                 # set blood sample eye variable as a factor, not character
                 blood_sample_eye = as.factor(blood_sample_eye),
                 # set hemolyzed variable as a factor, not character
-                hemolyzed = as.factor(hemolyzed)
+                hemolyzed = as.factor(hemolyzed),
+                # compute holding time as capture time - cloacal measurement time:
+                hold_time = as.numeric(processing_time - collect_time)
                 ) %>%
   # remove two columns not relevant for statistics
   dplyr::select(-sock_ID, -notes)
 summary(morpho_blood_dat)
 ```
 
-I want to test if any IDs are missing, and which they are.
+I want to test if any IDs are missing, and which ones if so.
 
 ```{r}
 test <- c(seq(1, 150, by = 1))
@@ -341,6 +339,17 @@ lost
 ```
 
 Individuals 23 and 56 actually both do not exist because those numbers were skipped when assigning IDs, so we have all the individuals measured in the dataframe.
+
+
+Finally, compute some mean values for each sampling day:
+
+```{r}
+mean_blood_dat <- morpho_blood_dat %>%
+  dplyr::filter(complete.cases(osmolality_mmol_kg)) %>%
+  group_by(date) %>%
+  summarise(mean_osml = mean(osmolality_mmol_kg))
+```
+
 
 
 ### CEWL Data
@@ -358,6 +367,7 @@ Variables in this dataframe are:
 - SSWL_g_m2 = ?
 - ambient_temp_C = temperature when and where measurement was taken
 - ambient_RH_percent = relative humidity when and where measurement was taken
+- abs_humidity = computed from RH using formula on this website: https://carnotcycle.wordpress.com/2012/08/04/how-to-convert-relative-humidity-to-absolute-humidity/
 
 ```{r CEWL data}
 # week 1
@@ -468,7 +478,9 @@ CEWL <- CEWL_April_05 %>% # week 1
                 # format individual ID as a number
                 individual_ID = as.numeric(individual_ID),
                 # set body region as a factor variable after getting only the consistent characters due to typos
-                region = as.factor(substring(region, 1, 4))
+                region = as.factor(substring(region, 1, 4)),
+                # convert RH to absolute humidity
+                abs_humidity_g_m3 = ((6.112 * exp((17.67*ambient_temp_C)/(ambient_temp_C + 243.5)) * ambient_RH_percent * 2.1674) / (273.15 + ambient_temp_C))
                 ) %>%
   # remove cols not relecant to stats
   dplyr::select(-Status) %>%
@@ -592,16 +604,103 @@ all_times_weather <- all_times %>% # time only dataframe
          # interpolate Wind Speeds
          Wind_mph_interpol = na.approx(Wind_Speed_mph),
          # interpolate solar radiation
-         Solar_rad_Wm2_interpol = na.approx(Pyranometer_W_m)
+         Solar_rad_Wm2_interpol = na.approx(Pyranometer_W_m),
+         # compute absolute humidity
+         abs_humidity_g_m3_interpol = ((6.112 * exp((17.67*temp_C_interpol)/(temp_C_interpol + 243.5)) * RH_percent_interpol * 2.1674) / (273.15 + temp_C_interpol))
          ) %>%
   # keep only the relevant variables
   dplyr::select(collect_date_time, 
                 temp_C_interpol, 
                 RH_percent_interpol, 
+                abs_humidity_g_m3_interpol,
                 Wind_mph_interpol, 
                 Solar_rad_Wm2_interpol)
-
+summary(all_times_weather)
 ```
+
+
+
+### Rain & Humidity
+
+Load data:
+
+```{r}
+rain_humd <- read.csv("./data/weather/rain_humidity.csv", sep = ';') %>%
+  # add a variable for combined date-time
+  mutate(date_time = as.POSIXct(paste(Date, Time),
+                                format = "%m/%d/%y %I:%M:%S %p"),
+         # fix date only variable format
+         Date = as.POSIXct(Date, format = "%m/%d/%y"),
+         # convert temperature units, thanks America
+         temp_C = fahrenheit.to.celsius(Temp_F, round = 2),
+         # compute absolute humidity
+         abs_humidity_g_m3 = ((6.112 * exp((17.67*temp_C)/(temp_C + 243.5)) * RH_percent * 2.1674) / (273.15 + temp_C))
+         )
+summary(rain_humd)
+```
+
+Compute cumulative values in the days leading up to lizard capture days:
+
+```{r}
+# for April 5
+cumul_water_4_05 <- rain_humd %>%
+  dplyr::filter(Date < '2021-04-05' & Date > '2021-03-28') %>%
+  summarise(total_precip = sum(Precip_inches),
+            avg_abs_humd = mean(abs_humidity_g_m3)
+            ) %>%
+  mutate(sample_date = as.Date("2021-04-05", format = "%Y-%m-%d"))
+
+# for April 19
+cumul_water_4_19 <- rain_humd %>%
+  dplyr::filter(Date < '2021-04-19' & Date > '2021-04-11') %>%
+  summarise(total_precip = sum(Precip_inches),
+            avg_abs_humd = mean(abs_humidity_g_m3)
+            ) %>%
+  mutate(sample_date = as.Date("2021-04-19", format = "%Y-%m-%d"))
+
+# for April 26
+cumul_water_4_26 <- rain_humd %>%
+  dplyr::filter(Date < '2021-04-26' & Date > '2021-03-18') %>%
+  summarise(total_precip = sum(Precip_inches),
+            avg_abs_humd = mean(abs_humidity_g_m3)
+            ) %>%
+  mutate(sample_date = as.Date("2021-04-26", format = "%Y-%m-%d"))
+
+# for May 3
+cumul_water_5_03 <- rain_humd %>%
+  dplyr::filter(Date < '2021-05-03' & Date > '2021-04-25') %>%
+  summarise(total_precip = sum(Precip_inches),
+            avg_abs_humd = mean(abs_humidity_g_m3)
+            ) %>%
+  mutate(sample_date = as.Date("2021-05-03", format = "%Y-%m-%d"))
+
+# for May 10
+cumul_water_5_10 <- rain_humd %>%
+  dplyr::filter(Date < '2021-05-10' & Date > '2021-05-02') %>%
+  summarise(total_precip = sum(Precip_inches),
+            avg_abs_humd = mean(abs_humidity_g_m3)
+            ) %>%
+  mutate(sample_date = as.Date("2021-05-10", format = "%Y-%m-%d"))
+
+# for May 17
+cumul_water_5_17 <- rain_humd %>%
+  dplyr::filter(Date < '2021-05-17' & Date > '2021-05-09') %>%
+  summarise(total_precip = sum(Precip_inches),
+            avg_abs_humd = mean(abs_humidity_g_m3)
+            ) %>%
+  mutate(sample_date = as.Date("2021-05-17", format = "%Y-%m-%d"))
+
+# join them
+cumul_water <- cumul_water_4_05 %>%
+  rbind(cumul_water_4_19) %>%
+  rbind(cumul_water_4_26) %>%
+  rbind(cumul_water_5_03) %>%
+  rbind(cumul_water_5_10) %>%
+  rbind(cumul_water_5_17) %>%
+  mutate(prior_rain_Y_N = c("N", "N", "N", "Y", "N", "Y"))
+```
+
+
 
 
 ### Join Data 
@@ -624,6 +723,9 @@ Second, with morpho_blood_dat as the primary dataframe, and each region's CEWL m
 
 ```{r}
 all_data_wide <- morpho_blood_dat %>%
+  left_join(cumul_water, 
+            by = c("date" = "sample_date")
+            ) %>%
   left_join(all_times_weather, 
             by = c("collect_date_time")
             ) %>%
@@ -643,6 +745,17 @@ all_data_wide <- morpho_blood_dat %>%
             by = c("date", "individual_ID")
             )
 ```
+
+Join the osmolality and rain by week data:
+
+```{r}
+osml_rain_wk <- cumul_water %>%
+  left_join(mean_blood_dat, by = c("sample_date" = "date")) %>%
+  # compute osml change between weeks
+  mutate(osml_change = mean_osml - lag(mean_osml))
+```
+
+
 
 
 # Check Data Distributions
@@ -696,7 +809,7 @@ shapiro.test(all_data_wide$hematocrit_percent)
 
 ### osmolality 
 also pretty normally distributed around ~370:
-- normal: only variable to pass normality test
+- normal: only variable to pass normality test (LOL)
 ```{r}
 all_data_wide %>%
   ggplot(., aes(x = osmolality_mmol_kg)) +
@@ -802,10 +915,66 @@ shapiro.test(all_data_wide$ventrum_TEWL_g_m2h)
 
 ## Transformations
 
-### Variable A
+This function is in the MASS package, which we already have loaded:
+https://rdrr.io/cran/MASS/man/boxcox.html
+
+@ dylan I also didn't test any of the temp/humidity variables for normality...
+
+### SVL
+
+```{r}
+
+```
+
+### mass
+
+```{r}
+
+```
+
+### hematocrit 
+
+```{r}
+
+```
 
 
-### Variable B
+### cloacal temperature 
+
+```{r}
+
+```
+
+### dewlap CEWL 
+
+```{r}
+
+```
+
+### dorsum CEWL 
+
+```{r}
+
+```
+
+### head CEWL 
+
+```{r}
+
+```
+
+### mite patch CEWL 
+
+```{r}
+
+```
+
+### ventrum CEWL 
+
+```{r}
+
+```
+
 
 
 
@@ -991,12 +1160,16 @@ all_data_wide %>%
         legend.position = "none"
 )
 
-# glm
+# glms
 glm_hct_sex <- glm(hematocrit_percent ~ sex_M_F,
            data = all_data_wide)
 summary(glm_hct_sex)
+glm_hct_sex_mass <- glm(hematocrit_percent ~ sex_M_F*mass_g - mass_g,
+           data = all_data_wide)
+summary(glm_hct_sex_mass)
 ```
 
+Hematocrit is significantly predicted by sex, but the interaction between sex and mass is ~nonexistent. 
 
 
 ### Osml ~ Sex
@@ -1252,7 +1425,7 @@ all_data_wide %>%
         legend.text.align = 0,
         legend.position = "none"
 ) -> osml_date_fig
-
+osml_date_fig
 #ggsave(filename = "max_points.png",
  #      plot = max_points,
   #     path = "./exported_figures",
@@ -1305,7 +1478,62 @@ summary(glm_hum_wk)
 
 ```
 
-### Humidity ~ Osmolarity
+try for absolute humidity:
+
+```{r}
+all_data_wide %>% 
+  ggplot(data = .) + 
+  geom_boxplot(aes(x = as.factor(date), 
+                   y = abs_humidity_g_m3_interpol, 
+                   color = as.factor(date)
+                   ), 
+               size = 1,
+               alpha = 0.6) + 
+  theme_classic() + 
+  xlab("Sampling Date") + 
+  ylab("Absolute Humidity") + 
+  theme(text = element_text(color = "black", family = "sans", size = 12),
+        axis.text = element_text(color = "black", family = "sans", size = 10),
+        legend.text.align = 0,
+        legend.position = "none"
+)
+
+# glm
+glm_abshum_wk <- glm(abs_humidity_g_m3_interpol ~ as.factor(date),
+           data = all_data_wide)
+summary(glm_abshum_wk)
+aov_abshum_wk <- aov(abs_humidity_g_m3_interpol ~ as.factor(date),
+           data = all_data_wide)
+TukeyHSD(aov_abshum_wk)
+```
+
+
+### Osml, Humidity, Week
+
+```{r}
+all_data_wide %>% 
+  ggplot(data = .) + 
+  geom_boxplot(aes(x = as.factor(date), 
+                   y = osmolality_mmol_kg, 
+                   color = as.factor(date)
+                   ), 
+               size = 1,
+               alpha = 0.6) + 
+  geom_jitter(aes(x = as.factor(date), 
+                   y = 35*abs_humidity_g_m3_interpol)) +
+  theme_classic() + 
+  xlab("Sampling Date") + 
+  ylab("Osmolality (mmol/kg)") + 
+  theme(text = element_text(color = "black", family = "sans", size = 12),
+        axis.text = element_text(color = "black", family = "sans", size = 10),
+        legend.text.align = 0,
+        legend.position = "none"
+)
+```
+
+
+
+### Osml ~ R. Humidity
 - Sig difference, negative relationship. With every percent increase in relative humidity osmolarity drops 1.2.
 ```{r}
 all_data_wide %>% 
@@ -1344,8 +1572,211 @@ summary(glm_osml_hum)
 That's a pretty good relationship... 
 
 
+### Osml ~ Abs. Humidity
+
+
+```{r}
+all_data_wide %>% 
+  ggplot(data = .) + 
+  geom_point(aes(x = abs_humidity_g_m3_interpol,
+                 y = osmolality_mmol_kg, 
+                 ), 
+             size = 1, 
+             alpha = 0.6) + 
+  stat_smooth(aes(x = abs_humidity_g_m3_interpol, 
+                  y = osmolality_mmol_kg), 
+              formula = y ~ x, 
+              method = "lm", 
+              se = F, 
+              color = "gray",
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  xlab("Absolute Humidity") + 
+  ylab("Osmolality (mmol/kg)") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0,
+)
+
+# glm
+glm_osml_abshum <- lm(osmolality_mmol_kg ~ abs_humidity_g_m3_interpol,
+           data = all_data_wide)
+summary(glm_osml_abshum)
+```
+
+*positive* correlation...
+
+
+### Osml ~ Avg. Abs. Humidity
+
+```{r}
+all_data_wide %>% 
+  ggplot(data = .) + 
+  geom_point(aes(x = avg_abs_humd,
+                 y = osmolality_mmol_kg, 
+                 ), 
+             size = 1, 
+             alpha = 0.6) + 
+  stat_smooth(aes(x = avg_abs_humd, 
+                  y = osmolality_mmol_kg), 
+              formula = y ~ x, 
+              method = "lm", 
+              se = F, 
+              color = "gray",
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  xlab("Prior Week's Average Absolute Humidity") + 
+  ylab("Osmolality (mmol/kg)") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0,
+)
+
+# glm
+glm_osml_avgabshum <- lm(osmolality_mmol_kg ~ avg_abs_humd,
+           data = all_data_wide)
+summary(glm_osml_avgabshum)
+```
+
+*positive* correlation...
+
+
+
+### Osml ~ Rain
+
+```{r}
+all_data_wide %>% 
+  ggplot(data = .) + 
+  geom_point(aes(x = total_precip,
+                 y = osmolality_mmol_kg, 
+                 ), 
+             size = 1, 
+             alpha = 0.6) + 
+  stat_smooth(aes(x = total_precip, 
+                  y = osmolality_mmol_kg), 
+              formula = y ~ x, 
+              method = "lm", 
+              se = F, 
+              color = "gray",
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  xlab("Prior Week's Total Precipitation (inches)") + 
+  ylab("Osmolality (mmol/kg)") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0,
+)
+```
+
+This isn't really helpful considering how little variation in precipitation there was.
+
+Maybe try a binary predictor of whether or not there was rain in the week prior to sampling:
+
+```{r}
+# ANOVA
+osml_rain_aov <- aov(data = all_data_wide, 
+                     osmolality_mmol_kg ~ prior_rain_Y_N)
+TukeyHSD(osml_rain_aov)
+
+# plot
+all_data_wide %>% 
+  ggplot(data = .) + 
+  geom_boxplot(aes(x = prior_rain_Y_N, 
+                   y = osmolality_mmol_kg, 
+                   color = prior_rain_Y_N
+                   ), 
+               size = 1,
+               alpha = 0.6) + 
+  theme_classic() + 
+  xlab("Whether it Rained in the Last Week") + 
+  ylab("Osmolality (mmol/kg)") + 
+  theme(text = element_text(color = "black", family = "sans", size = 12),
+        axis.text = element_text(color = "black", family = "sans", size = 10),
+        legend.text.align = 0,
+        legend.position = "none"
+)
+```
+
+Wow, very counter to our predictions.
+
+But, actually, we're not after the osmolality values themselves, but whether it increases or decreases... so what if I did change in mean osmolality ~ whether or not it rained in the past week?
+
+```{r}
+# plot
+osml_rain_wk %>% 
+  ggplot(data = .) + 
+  geom_boxplot(aes(x = prior_rain_Y_N, 
+                   y = osml_change, 
+                   color = prior_rain_Y_N
+                   ), 
+               size = 1,
+               alpha = 0.6) + 
+  theme_classic() + 
+  xlab("Whether it Rained in the Last Week") + 
+  ylab("Change in Osmolality (mmol/kg)") + 
+  theme(text = element_text(color = "black", family = "sans", size = 12),
+        axis.text = element_text(color = "black", family = "sans", size = 10),
+        legend.text.align = 0,
+        legend.position = "none"
+)
+
+# glm of change ~ inches precip
+osml_precip_glm <- glm(data = osml_rain_wk, osml_change ~ total_precip)
+summary(osml_precip_glm)
+```
+
+Try Linear plot again:
+
+```{r}
+osml_rain_wk %>% 
+  ggplot(data = .) + 
+  geom_point(aes(x = total_precip,
+                 y = osml_change, 
+                 ), 
+             size = 1, 
+             alpha = 0.6) + 
+  stat_smooth(aes(x = total_precip, 
+                  y = osml_change), 
+              formula = y ~ x, 
+              method = "lm", 
+              se = F, 
+              color = "gray",
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  xlab("Prior Week's Total Precipitation (inches)") + 
+  ylab("Change in Osmolality (mmol/kg)") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0,
+)
+```
+
+
+
 ### Hct ~ Humidity
-- barely not significant (p=0.0734), 
+
+- almost significant (p=0.0734)
+
 ```{r}
 all_data_wide %>% 
   ggplot(data = .) + 
@@ -2536,6 +2967,48 @@ glm12 <- lm(TEWL_g_m2h ~ region*date,
 summary(glm12)
 ```
 
+
+### CEWL ~ holding time
+
+```{r}
+all_data_long %>% 
+  ggplot(data = .) + 
+  geom_point(aes(x = hold_time,
+                 y = TEWL_g_m2h, 
+                 color = region
+                 ), 
+             size = 1, 
+             alpha = 0.6) + 
+  scale_colour_manual(values = c("palegreen4", "lightblue4", 
+                                 "plum4", "lightpink3", "seashell4")) +
+  stat_smooth(aes(x = hold_time, 
+                  y = TEWL_g_m2h, 
+                  color = region
+                  ), 
+              formula = y ~ x, 
+              method = "lm", 
+              se = F, 
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  xlab("Holding Time (minutes)") + 
+  ylab("CEWL (g/m^2/hr)") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0,
+)
+
+htime_CEWL_glm <- glm(data = all_data_long, TEWL_g_m2h ~ hold_time + region)
+summary(htime_CEWL_glm)
+```
+
+Holding time is still significant, even after regional differences are accounted for. 
+
+
 ## Conclusion
 
 visually, CEWL seems to be affected by:
@@ -2549,6 +3022,7 @@ visually, CEWL seems to be affected by:
 - individual ID - significant
 - mass & SVL - both significant overall
 - week/date - significant
+- hold time - significant
 
 *not* affected by sex, gravidity, or measurement RH (not visually or statistically significant)
 
@@ -2633,7 +3107,8 @@ hydrat_mod_dat <- all_data_wide %>%
                 individual_ID,
                 osmolality_mmol_kg,
                 temp_C_interpol,
-                RH_percent_interpol
+                RH_percent_interpol,
+                abs_humidity_g_m3_interpol
                 ) %>%
   dplyr::filter(complete.cases(.))
 ```
@@ -2718,6 +3193,18 @@ Deleting RH is also not an improvement, AIC is much higher and the model is sign
 
 I would conclude that the two best models are best in their fullest version.
 
+However, we realized that absolute humidity would be better to use since it's decoupled from temperature, unlike relative humidity.
+
+This does not affect hydration model 5m but we can try replacing absolute humidity for relative humidity in model 7:
+
+```{r}
+hydrat_mod7_step3 <- nlme::lme(data = hydrat_mod_dat,
+                         osmolality_mmol_kg ~ abs_humidity_g_m3_interpol * temp_C_interpol, random = ~1|individual_ID) 
+summary(hydrat_mod7_step3)
+```
+
+This greatly improved the model! Absolute humidity is much better than relative humidity to incorporate into the model.
+
 
 ### Conclusion
 
@@ -2732,7 +3219,7 @@ osml_best_mod1_vals <- data.frame(osml_best_mod1$tTable)
 write.csv(osml_best_mod1_vals, "osml_best_mod1_vals.csv")
 
 # save step 9 summary object
-osml_best_mod2 <- summary(hydrat_mod7)
+osml_best_mod2 <- summary(hydrat_mod7_step3)
 # extract stats table from summary object
 osml_best_mod2_vals <- data.frame(osml_best_mod2$tTable)
 # export 
@@ -2759,6 +3246,7 @@ Prep dataframe for models:
 CEWL_mod_dat <- all_data_long %>% 
   # select variables of interest
   dplyr::select(date,
+                #hold_time,
                 individual_ID,
                 mass_g,
                 SVL_mm,
@@ -2768,7 +3256,10 @@ CEWL_mod_dat <- all_data_long %>%
                 cloacal_temp_C,
                 temp_C_interpol,
                 RH_percent_interpol,
-                ambient_temp_C
+                abs_humidity_g_m3_interpol,
+                ambient_temp_C,
+                ambient_RH_percent,
+                abs_humidity_g_m3
                 ) %>%
   dplyr::filter(complete.cases(.))
 ```
@@ -2798,6 +3289,7 @@ collinear variables that should not be used in combination:
 - mass and SVL
 - temperature and RH at capture (same from hydration multicollinearity)
 - date and individual_ID
+- the various measures of humidity
 
 
 ### Models
@@ -3142,13 +3634,118 @@ anova(CEWL_mod9_step10, CEWL_mod9_step15)
 In this case, steps 10 and 15 are equally as good as each other, with exactly the same AIC values. Since the singular mass term was a significant predictor in step 10, I think it should be kept in this version of the model. 
 
 
-### Conclusion
+### Updates 
 
-Steps 10 and 13 were the best models.
+We decided that cloacal temperature should be a random effect. Step 13->16 and step 10->17 with cloacal temperature as a random effect in each now.
 
 ```{r}
-# save step 10 summary object
-CEWL_best_mod1 <- summary(CEWL_mod9_step10)
+# cloacal temperature as a random instead of fixed effect in step 13->16
+CEWL_mod9_step16 <- nlme::lme(data = CEWL_mod_dat,
+                         TEWL_g_m2h ~ region*mass_g - mass_g, 
+                          random = c(~1|individual_ID, ~1|cloacal_temp_C)) 
+summary(CEWL_mod9_step16)
+
+# compare
+anova(CEWL_mod9_step13, CEWL_mod9_step16)
+
+# no cloacal temperature at all
+CEWL_mod9_step17 <- nlme::lme(data = CEWL_mod_dat,
+                         TEWL_g_m2h ~ region*mass_g - mass_g, 
+                          random = c(~1|individual_ID)) 
+summary(CEWL_mod9_step17)
+
+# compare
+anova(CEWL_mod9_step17, CEWL_mod9_step16)
+
+# cloacal temperature as a random instead of fixed effect in step 10->18
+CEWL_mod9_step18 <- nlme::lme(data = CEWL_mod_dat,
+                         TEWL_g_m2h ~ region*mass_g +
+                          temp_C_interpol*RH_percent_interpol -
+                           temp_C_interpol, 
+                          random = c(~1|individual_ID, ~1|cloacal_temp_C)) 
+summary(CEWL_mod9_step18)
+
+# compare
+anova(CEWL_mod9_step10, CEWL_mod9_step18)
+
+# no cloacal temperature at all
+CEWL_mod9_step19 <- nlme::lme(data = CEWL_mod_dat,
+                         TEWL_g_m2h ~ region*mass_g +
+                          temp_C_interpol*RH_percent_interpol -
+                           temp_C_interpol, 
+                          random = ~1|individual_ID) 
+summary(CEWL_mod9_step19)
+
+# compare
+anova(CEWL_mod9_step18, CEWL_mod9_step19)
+```
+
+Cloacal temperature is better as a fixed effect in both cases. It's better to omit cloacal temperature than it is to change it to a random effect. 
+
+
+Steps 10 and 13 are still the best models, but we decided absolute humidity would be better than relative humidity, so we need to try that substitution for each of the best-models.
+
+Step 10 with absolute humidity instead of RH:
+
+```{r}
+# replace RH with abs humidity
+CEWL_mod9_step20 <- nlme::lme(data = CEWL_mod_dat,
+                         TEWL_g_m2h ~ region*mass_g + cloacal_temp_C +
+                          temp_C_interpol*abs_humidity_g_m3_interpol -
+                           temp_C_interpol, 
+                          random = ~1|individual_ID) 
+summary(CEWL_mod9_step20)
+
+# compare
+anova(CEWL_mod9_step10, CEWL_mod9_step20)
+```
+
+Switching from relative to absolute humidity does improve the model AIC slightly!
+
+Step 13 had no temperature or humidity variable, so it's unaffected.
+
+Lastly, we need to see if adding the holding time affects CEWL measures when the other important variables are already accounted for.
+
+```{r}
+# add hold time to step 20
+#CEWL_mod9_step21 <- nlme::lme(data = CEWL_mod_dat,
+ #                        TEWL_g_m2h ~ region*mass_g + cloacal_temp_C +
+  #                         hold_time +
+   #                       temp_C_interpol*abs_humidity_g_m3_interpol -
+    #                       temp_C_interpol, 
+     #                     random = ~1|individual_ID) 
+#summary(CEWL_mod9_step21)
+
+# compare
+#anova(CEWL_mod9_step20, CEWL_mod9_step21)
+```
+
+It does *not* improve the model.
+
+Check for step 13:
+
+```{r}
+# remove individual mass term from step 11
+#CEWL_mod9_step22 <- nlme::lme(data = CEWL_mod_dat,
+ #                        TEWL_g_m2h ~ region*mass_g + cloacal_temp_C -
+  #                         mass_g + hold_time, 
+   #                       random = ~1|individual_ID) 
+#summary(CEWL_mod9_step22)
+
+# compare
+#anova(CEWL_mod9_step13, CEWL_mod9_step22)
+```
+
+It does *not* improve the model.
+
+I commented-out the hold_time things because including it decreased the number of observations due to NA removals.
+
+
+### Conclusion
+
+```{r}
+# save step 20 summary object
+CEWL_best_mod1 <- summary(CEWL_mod9_step20)
 # extract stats table from summary object
 CEWL_best_mod1_vals <- data.frame(CEWL_best_mod1$tTable)
 # export 
@@ -3169,16 +3766,13 @@ write.csv(CEWL_best_mod2_vals, "CEWL_best_mod2_vals.csv")
 
 # to-do:
 
-2. add in rain events to see if they match-up with drops in osmolality
-3. do osmolality ~ cm rain in the past week? (cumulative rain, or dew, or RH?)
-3. would an ANOVA be better to determine differences between each of the body regions? I think GLM only compares each to dewlap, not each to each.
-- ANOVA with tukey, I added tukey in above at the CEWL versus region. Could make a visualizationon box graph with different letters.
-4. look at how model stats are presented in tables and model it after that
-5. convert all RH to VPD
+look at how model stats are presented in tables and model it after that
 
-b.	Calculate estimates of TEWL based on equations presented in (6).  How much do the estimates vary depending on which CEWL we use? Can we figure out how to use all of our different CEWL measurements to calculate what we think would be an accurate TEWL?
+maybe: Calculate estimates of TEWL based on equations presented in (6).  How much do the estimates vary depending on which CEWL we use? Can we figure out how to use all of our different CEWL measurements to calculate what we think would be an accurate TEWL?
 
 
+# What to Present in the Paper
 
-
-
+- SLR for hct
+- top 2 GLMM for osmolality (including random effects)
+- top 2 GLMM for CEWL (including random effects)
