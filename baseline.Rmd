@@ -2,11 +2,11 @@
 title: "Cal Poly Herpetology CURE - Baseline Analyses"
 authors: "Savannah Weaver & Dylan Stephens"
 date: "Spring Quarter 2021"
-output: github_document
+output: 
+  github_document:
+    toc: TRUE
 ---
 
-# to-do
-- name each code chunk
 
 # Packages
 
@@ -39,9 +39,7 @@ In this document, we investigate differences in cutaneous evaporative water loss
 
 # ggbiplot
 
-I'm not sure what to apply this to? - Savannah
-
-Principle Component Analyses Plots - Dylan
+Code to prep for Principle Component Analyses Plots
 
 
 ```{r}
@@ -1172,12 +1170,12 @@ all_data_wide %>%
 hct_sex_fig
 
 # export figure
-ggsave(filename = "hct_sex_fig.tiff",
-       plot = hct_sex_fig,
-       path = "./final_figures",
-       device = "tiff",
-       dpi = 1200,
-       width = 6, height = 4)
+#ggsave(filename = "hct_sex_fig.tiff",
+ #      plot = hct_sex_fig,
+  #     path = "./final_figures",
+   #    device = "tiff",
+    #   dpi = 1200,
+     #  width = 6, height = 4)
 
 # glms
 aov_hct_sex <- aov(hematocrit_percent ~ sex_M_F,
@@ -1465,12 +1463,12 @@ all_data_wide %>%
 osml_date_fig
 
 # export figure
-ggsave(filename = "osml_date_fig.tiff",
-       plot = osml_date_fig,
-       path = "./final_figures",
-       device = "tiff",
-       dpi = 1200,
-       width = 6, height = 4)
+#ggsave(filename = "osml_date_fig.tiff",
+ #      plot = osml_date_fig,
+  #     path = "./final_figures",
+   #    device = "tiff",
+    #   dpi = 1200,
+     #  width = 6, height = 4)
 
 # glm
 glm_osml_wk <- glm(osmolality_mmol_kg ~ date,
@@ -1654,12 +1652,12 @@ all_data_wide %>%
 osml_abhum_fig
 
 # export figure
-ggsave(filename = "osml_abhum_fig.tiff",
-       plot = osml_abhum_fig,
-       path = "./final_figures",
-       device = "tiff",
-       dpi = 1200,
-       width = 6, height = 4)
+#ggsave(filename = "osml_abhum_fig.tiff",
+ #      plot = osml_abhum_fig,
+  #     path = "./final_figures",
+   #    device = "tiff",
+    #   dpi = 1200,
+     #  width = 6, height = 4)
 
 # glm
 glm_osml_abshum <- lm(osmolality_mmol_kg ~ abs_humidity_g_m3_interpol,
@@ -1948,12 +1946,12 @@ all_data_wide %>%
 osml_temp_fig
 
 # export figure
-ggsave(filename = "osml_temp_fig.tiff",
-       plot = osml_temp_fig,
-       path = "./final_figures",
-       device = "tiff",
-       dpi = 1200,
-       width = 6, height = 4)
+#ggsave(filename = "osml_temp_fig.tiff",
+ #      plot = osml_temp_fig,
+  #     path = "./final_figures",
+   #    device = "tiff",
+    #   dpi = 1200,
+     #  width = 6, height = 4)
 
 # glm
 glm_osml_temp <- lm(osmolality_mmol_kg ~ temp_C_interpol,
@@ -2119,12 +2117,12 @@ CEWL %>%
 CEWL_region_fig
 
 # export figure
-ggsave(filename = "CEWL_region_fig.tiff",
-       plot = CEWL_region_fig,
-       path = "./final_figures",
-       device = "tiff",
-       dpi = 1200,
-       width = 6, height = 4)
+#ggsave(filename = "CEWL_region_fig.tiff",
+ #      plot = CEWL_region_fig,
+  #     path = "./final_figures",
+   #    device = "tiff",
+    #   dpi = 1200,
+     #  width = 6, height = 4)
 ```
 
 
@@ -2542,12 +2540,12 @@ all_data_long %>%
 CEWL_ctemp_fig
 
 # export figure
-ggsave(filename = "CEWL_ctemp_fig.tiff",
-       plot = CEWL_ctemp_fig,
-       path = "./final_figures",
-       device = "tiff",
-       dpi = 1200,
-       width = 6, height = 4)
+#ggsave(filename = "CEWL_ctemp_fig.tiff",
+ #      plot = CEWL_ctemp_fig,
+  #     path = "./final_figures",
+   #    device = "tiff",
+    #   dpi = 1200,
+     #  width = 6, height = 4)
 ```
 
 stats:
@@ -2754,12 +2752,12 @@ all_data_long %>%
 CEWL_abshum_fig
 
 # export figure
-ggsave(filename = "CEWL_abshum_fig.tiff",
-       plot = CEWL_abshum_fig,
-       path = "./final_figures",
-       device = "tiff",
-       dpi = 1200,
-       width = 6, height = 4)
+#ggsave(filename = "CEWL_abshum_fig.tiff",
+ #      plot = CEWL_abshum_fig,
+  #     path = "./final_figures",
+   #    device = "tiff",
+    #   dpi = 1200,
+     #  width = 6, height = 4)
 ```
 
 
@@ -3064,12 +3062,12 @@ all_data_long %>%
 CEWL_mass_fig
 
 # export figure
-ggsave(filename = "CEWL_mass_fig.tiff",
-       plot = CEWL_mass_fig,
-       path = "./final_figures",
-       device = "tiff",
-       dpi = 1200,
-       width = 6, height = 4)
+#ggsave(filename = "CEWL_mass_fig.tiff",
+ #      plot = CEWL_mass_fig,
+  #     path = "./final_figures",
+   #    device = "tiff",
+    #   dpi = 1200,
+     #  width = 6, height = 4)
 
 
 # glm
@@ -3255,15 +3253,15 @@ data.pca <- prcomp(locations, center=T, scale. = T)
 summary(data.pca)
 
 #### CEWL avg PCA
-data2.pca <- prcomp(explanatory, center=T, scale. = T)
-summary(data2.pca)
+#data2.pca <- prcomp(explanatory, center=T, scale. = T)
+#summary(data2.pca)
 
 ## Plots
 ### CEWL all locations, gender groups
 ggbiplot(data.pca, labels=rownames(data.pca))
 
 ### CEWL avg, gender groups
-ggbiplot(data2.pca, labels=rownames(data.pca))
+#ggbiplot(data2.pca, labels=rownames(data.pca))
 
 ```
 
@@ -3464,6 +3462,8 @@ CEWL_mod_dat <- all_data_long %>%
                 temp_C_interpol,
                 RH_percent_interpol,
                 abs_humidity_g_m3_interpol,
+                Wind_mph_interpol,
+                Solar_rad_Wm2_interpol,
                 ambient_temp_C,
                 ambient_RH_percent,
                 abs_humidity_g_m3
@@ -3911,6 +3911,87 @@ Switching from relative to absolute humidity does improve the model AIC slightly
 
 Step 13 had no temperature or humidity variable, so it's unaffected.
 
+We also observed a potential interaction between region*absolute humidity, so I'll try adding that to step20:
+
+```{r}
+# try a region * abs humidity interaction
+CEWL_mod9_step21 <- nlme::lme(data = CEWL_mod_dat,
+                         TEWL_g_m2h ~ region*mass_g + cloacal_temp_C +
+                           region*abs_humidity_g_m3_interpol +
+                          temp_C_interpol*abs_humidity_g_m3_interpol -
+                           temp_C_interpol, 
+                          random = ~1|individual_ID) 
+summary(CEWL_mod9_step21)
+
+# compare
+anova(CEWL_mod9_step20, CEWL_mod9_step21)
+```
+
+
+*Unsure whether or not to add it...* The region*humidity interaction is significant, and with it, the model has a lower AIC, but it also makes the model much more complicated...
+
+Try adding solar radiation:
+
+```{r}
+# try adding to step 20
+CEWL_mod9_step22 <- nlme::lme(data = CEWL_mod_dat,
+                         TEWL_g_m2h ~ region*mass_g + 
+                           cloacal_temp_C +
+                           Solar_rad_Wm2_interpol +
+                           temp_C_interpol*abs_humidity_g_m3_interpol -
+                           temp_C_interpol, 
+                          random = ~1|individual_ID) 
+summary(CEWL_mod9_step22)
+
+# compare to without
+anova(CEWL_mod9_step20, CEWL_mod9_step22)
+
+# try adding to step 13
+CEWL_mod9_step23 <- nlme::lme(data = CEWL_mod_dat,
+                         TEWL_g_m2h ~ region*mass_g + 
+                           cloacal_temp_C +
+                           Solar_rad_Wm2_interpol, 
+                          random = ~1|individual_ID) 
+summary(CEWL_mod9_step23)
+
+# compare to without
+anova(CEWL_mod9_step13, CEWL_mod9_step23)
+```
+
+Solar radiation does not improve either model, go without.
+
+
+Try adding wind speed:
+
+```{r}
+# try adding wind speed to step 20
+CEWL_mod9_step24 <- nlme::lme(data = CEWL_mod_dat,
+                         TEWL_g_m2h ~ region*mass_g + 
+                           cloacal_temp_C +
+                           Wind_mph_interpol +
+                           temp_C_interpol*abs_humidity_g_m3_interpol -
+                           temp_C_interpol, 
+                          random = ~1|individual_ID) 
+summary(CEWL_mod9_step24)
+
+# compare to without
+anova(CEWL_mod9_step20, CEWL_mod9_step24)
+
+# try adding to step 13
+CEWL_mod9_step25 <- nlme::lme(data = CEWL_mod_dat,
+                         TEWL_g_m2h ~ region*mass_g + 
+                           cloacal_temp_C +
+                           Wind_mph_interpol, 
+                          random = ~1|individual_ID) 
+summary(CEWL_mod9_step25)
+
+# compare to without
+anova(CEWL_mod9_step13, CEWL_mod9_step25)
+```
+
+Wind speed *does* seem to significantly improve step 20... 
+
+
 Lastly, we need to see if adding the holding time affects CEWL measures when the other important variables are already accounted for.
 
 ```{r}
@@ -3951,8 +4032,8 @@ I commented-out the hold_time things because including it decreased the number o
 ### Conclusion
 
 ```{r}
-# save step 20 summary object
-CEWL_best_mod1 <- summary(CEWL_mod9_step20)
+# save step 24 summary object
+CEWL_best_mod1 <- summary(CEWL_mod9_step24)
 # extract stats table from summary object
 CEWL_best_mod1_vals <- data.frame(CEWL_best_mod1$tTable)
 # export 
@@ -3972,9 +4053,6 @@ write.csv(CEWL_best_mod2_vals, "CEWL_best_mod2_vals.csv")
 
 
 # to-do:
-
-region*abshum interaction??
-
 
 look at how model stats are presented in tables and model it after that
 
