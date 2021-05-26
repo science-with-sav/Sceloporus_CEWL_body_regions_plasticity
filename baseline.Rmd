@@ -27,6 +27,8 @@ if (!require("nlme")) install.packages("nlme")
 library("nlme") # for GLMMs
 if (!require("visreg")) install.packages("visreg")
 library("visreg") # plot models
+if (!require("car")) install.packages("car")
+library("car") # Levene test
 ```
 
 
@@ -835,6 +837,36 @@ simple.eda(all_data_wide$cloacal_temp_C)
 shapiro.test(all_data_wide$cloacal_temp_C)
 ```
 
+### Checking Variance assumption
+```{r}
+
+leveneTest(TEWL_g_m2h ~ region, data=all_data_long)
+
+# Unequal variances, p val = 3.383e-10
+
+```
+
+
+
+### TEWL
+```{r}
+all_data_long %>%
+  ggplot(., aes(x = TEWL_g_m2h)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("TEWL_g_m2h") + 
+  ylab("Count")
+simple.eda(all_data_long$TEWL_g_m2h)
+# Normality test if p > .05, data is normal. Data is not normal
+shapiro.test(all_data_long$TEWL_g_m2h)
+
+# Log transformation
+shapiro.test(log(all_data_long$TEWL_g_m2h))
+# p-value improves to  0.00548, but is still significant
+
+```
+
+
 ### dewlap CEWL 
 very skewed to the right:
 - not normal
@@ -848,6 +880,11 @@ all_data_wide %>%
 simple.eda(all_data_wide$dewlap_TEWL_g_m2h)
 # Normality test if p > .05, data is normal. Data is not normal
 shapiro.test(all_data_wide$dewlap_TEWL_g_m2h)
+
+# Log transformation
+shapiro.test(log(all_data_wide$dewlap_TEWL_g_m2h))
+# p-value improves to 0.007235, but is still significant
+
 ```
 
 ### dorsum CEWL 
@@ -863,6 +900,10 @@ all_data_wide %>%
 simple.eda(all_data_wide$dorsum_TEWL_g_m2h)
 # Normality test if p > .05, data is normal. Data is not normal
 shapiro.test(all_data_wide$dorsum_TEWL_g_m2h)
+
+# log transform
+shapiro.test(log(all_data_wide$dorsum_TEWL_g_m2h))
+
 ```
 
 ### head CEWL 
@@ -878,6 +919,10 @@ all_data_wide %>%
 simple.eda(all_data_wide$head_TEWL_g_m2h)
 # Normality test if p > .05, data is normal. Data is not normal
 shapiro.test(all_data_wide$head_TEWL_g_m2h)
+
+# Log transform made data normal
+shapiro.test(log(all_data_wide$head_TEWL_g_m2h))
+
 ```
 
 ### mite patch CEWL 
@@ -893,6 +938,9 @@ all_data_wide %>%
 simple.eda(all_data_wide$mitepatch_TEWL_g_m2h)
 # Normality test if p > .05, data is normal. Data is not normal
 shapiro.test(all_data_wide$mitepatch_TEWL_g_m2h)
+
+# Log transform p-0.04107, close to being normal
+shapiro.test(log(all_data_wide$mitepatch_TEWL_g_m2h))
 ```
 
 ### ventrum CEWL 
@@ -908,6 +956,45 @@ all_data_wide %>%
 simple.eda(all_data_wide$ventrum_TEWL_g_m2h)
 # Normality test if p > .05, data is normal. Data is not normal
 shapiro.test(all_data_wide$ventrum_TEWL_g_m2h)
+
+# log transform didnt work 0.0006058
+shapiro.test(log(all_data_wide$ventrum_TEWL_g_m2h))
+```
+
+### Temperature 
+- non normal
+```{r}
+all_data_wide %>%
+  ggplot(., aes(x = temp_C_interpol)) +
+  geom_histogram(color = "black", fill="steelblue", bins=30) + 
+  theme_classic() +
+  xlab("Temperature") + 
+  ylab("Degrees")
+simple.eda(all_data_wide$temp_C_interpol)
+# Normality test if p > .05, data is normal. Data is not normal
+shapiro.test(all_data_wide$temp_C_interpol)
+
+# log transform 
+shapiro.test(log(all_data_wide$temp_C_interpol))
+
+```
+
+### Humidity
+- non normal
+```{r}
+all_data_wide %>%
+  ggplot(., aes(x = RH_percent_interpol)) +
+  geom_histogram(color = "black", fill="steelblue", bins=30) + 
+  theme_classic() +
+  xlab("Humidity") + 
+  ylab("Percentage")
+simple.eda(all_data_wide$RH_percent_interpol)
+# Normality test if p > .05, data is normal. Data is not normal
+shapiro.test(all_data_wide$RH_percent_interpol)
+
+# Doesn't fix non normality
+shapiro.test(log(all_data_wide$RH_percent_interpol))
+
 ```
 
 
