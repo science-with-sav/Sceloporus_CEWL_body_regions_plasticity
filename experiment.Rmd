@@ -21,7 +21,7 @@ library("UsingR")
 ### From Baseline
 
 ```{r baseline data}
-baseline <- read.csv("./data/Herpetology_Data.csv",
+capture_dat <- read.csv("./data/baseline_export.csv",
                              na.strings=c("","NA") # fix empty cells
                              ) %>%
   dplyr::mutate(date = as.Date(date, format = "%m/%d/%y"),
@@ -40,8 +40,47 @@ summary(morpho_blood_dat)
 
 ### Experiment Checkup Data
 
+Load data first.
+**NOTE: this is not all the data**
 
+```{r}
+exp_dat <- read.csv("./data/experimental_data.csv",
+                             na.strings=c("","NA") # fix empty cells
+                             ) %>%
+                # format date
+  dplyr::mutate(date = as.Date(date, format = "%m/%d/%y"),
+                # format time
+                time = as.POSIXct(time, format = "%H:%M"),
+                # format which eye bled as factor
+                blood_sample_eye = as.factor(blood_sample_eye),
+                # format as factor
+                hemolyzed = as.factor(hemolyzed),
+                # format as factor
+                rehydration = as.factor(rehydration)
+                ) %>%
+  # deselect notes
+  dplyr::select(-notes,) %>%
+  # remove one point I think inaccurate
+  dplyr::filter(osmolality_mmol_kg <= 500) %>% 
+  # join with treatment assignment key
+  left_join(read.csv("./data/exp_tmt_assignment.csv",
+                             na.strings=c("","NA") # fix empty cells
+                             ), by = 'individual_ID') %>%
+  # filter for only successful experiments
+  dplyr::filter(conclusion == 'complete') %>%
+                # format trial number as a factor
+  dplyr::mutate(trial_number = as.factor(trial_number),
+                # format treatment humidity as a factor
+                humidity_tmt_percent = as.factor(humidity_tmt_percent)
+                ) %>%
+  #deselect treatment assingment notes
+  dplyr::select(-notes)
+summary(exp_dat)
+```
 
+Create an experimental timeline within each trial. I'll summarize by trail, then use a capture date variable to compute the number of days lizards have been in the study. 
+
+I think I should load Herpetology CEWL and morpho_blood separately and join then to their respective dataframes bc I'm not interested in their interaction for this analysis, just how treatment affected those variables. 
 
 ### Post-Experiment CEWL Data
 
@@ -184,14 +223,57 @@ CEWL_plus <- CEWL %>%
 
 # Data Cleaning
 
-
 ## Histograms
 
+### Mass
+
+```{r}
+exp_dat %>%
+  ggplot(., aes(x = mass_g)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("Mass (g)") + 
+  ylab("Count")
+simple.eda(exp_dat$mass_g)
+shapiro.test(exp_dat$mass_g)
+```
+
+Mass distribution not normal, skewed to the left.
+
+### Hematocrit
+
+```{r}
+exp_dat %>%
+  ggplot(., aes(x = hematocrit_percent)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("Hematocrit (%)") + 
+  ylab("Count")
+simple.eda(exp_dat$hematocrit_percent)
+shapiro.test(exp_dat$hematocrit_percent)
+```
+
+Visually, looks slightly skewed to the right, but statistically, the distribution of hematocrit is normal.
+
+
+### Osmolality
+
+```{r}
+exp_dat %>%
+  ggplot(., aes(x = osmolality_mmol_kg)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("Osmolality (mmol / kg)") + 
+  ylab("Count")
+simple.eda(exp_dat$osmolality_mmol_kg)
+shapiro.test(exp_dat$osmolality_mmol_kg)
+```
+
+Visually, looks slightly skewed to the right, but statistically, the distribution of osmolality is normal.
 
 
 
 
-# Basic Figures
 
 
 
@@ -201,9 +283,55 @@ CEWL_plus <- CEWL %>%
 
 
 
+# Basic Figures & SLR
+
+
+### Mass ~ Time
+
+```{r}
+exp_dat %>% 
+  ggplot(data = .) + 
+  geom_point(aes(x = date,
+                 y = mass_g, 
+                 color = as.factor(individual_ID)
+                 ), 
+             size = 1, 
+             alpha = 0.6) +
+  stat_smooth(aes(x = date, 
+                  y = mass_g, 
+                  color = as.factor(individual_ID)
+                  ), 
+              formula = y ~ x, 
+              method = "lm", 
+              color = "gray",
+              se = F, 
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  xlab("Date") + 
+  ylab("Mass (g)") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0,
+)
+```
+
+### Hct ~ Time
+
+### Osml ~ Time
 
 
 
+
+
+
+
+
+# Export to Use for Power Analyses for Next Iteration of the Experiment
 
 
 
