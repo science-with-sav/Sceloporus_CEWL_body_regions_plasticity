@@ -29,6 +29,8 @@ if (!require("visreg")) install.packages("visreg")
 library("visreg") # plot models
 if (!require("car")) install.packages("car")
 library("car") # Levene test
+if (!require("onewaytests")) install.packages("onewaytests")
+library("onewaytests") # for Brown-Forsythe test
 ```
 
 
@@ -837,14 +839,6 @@ simple.eda(all_data_wide$cloacal_temp_C)
 shapiro.test(all_data_wide$cloacal_temp_C)
 ```
 
-### Checking Variance assumption
-```{r}
-
-leveneTest(TEWL_g_m2h ~ region, data=all_data_long)
-
-# Unequal variances, p val = 3.383e-10
-
-```
 
 
 
@@ -864,6 +858,9 @@ shapiro.test(all_data_long$TEWL_g_m2h)
 shapiro.test(log(all_data_long$TEWL_g_m2h))
 # p-value improves to  0.00548, but is still significant
 
+# also check variance
+leveneTest(TEWL_g_m2h ~ region, data=all_data_long)
+# Unequal variances, p val = 3.383e-10
 ```
 
 
@@ -968,8 +965,8 @@ all_data_wide %>%
   ggplot(., aes(x = temp_C_interpol)) +
   geom_histogram(color = "black", fill="steelblue", bins=30) + 
   theme_classic() +
-  xlab("Temperature") + 
-  ylab("Degrees")
+  xlab("Temperature (C)") + 
+  ylab("Count")
 simple.eda(all_data_wide$temp_C_interpol)
 # Normality test if p > .05, data is normal. Data is not normal
 shapiro.test(all_data_wide$temp_C_interpol)
@@ -983,33 +980,145 @@ shapiro.test(log(all_data_wide$temp_C_interpol))
 - non normal
 ```{r}
 all_data_wide %>%
-  ggplot(., aes(x = RH_percent_interpol)) +
+  ggplot(., aes(x = abs_humidity_g_m3_interpol)) +
   geom_histogram(color = "black", fill="steelblue", bins=30) + 
   theme_classic() +
-  xlab("Humidity") + 
-  ylab("Percentage")
-simple.eda(all_data_wide$RH_percent_interpol)
+  xlab("Absolute Humidity (g/m^3)") + 
+  ylab("Count")
+simple.eda(all_data_wide$abs_humidity_g_m3_interpol)
 # Normality test if p > .05, data is normal. Data is not normal
-shapiro.test(all_data_wide$RH_percent_interpol)
+shapiro.test(all_data_wide$abs_humidity_g_m3_interpol)
 
 # Doesn't fix non normality
-shapiro.test(log(all_data_wide$RH_percent_interpol))
+shapiro.test(log(all_data_wide$abs_humidity_g_m3_interpol))
 
 ```
 
+### Wind
+- non normal
+```{r}
+all_data_wide %>%
+  ggplot(., aes(x = Wind_mph_interpol)) +
+  geom_histogram(color = "black", fill="steelblue", bins=30) + 
+  theme_classic() +
+  xlab("Wind Speed (mph)") + 
+  ylab("Count")
+simple.eda(all_data_wide$Wind_mph_interpol)
+# Normality test if p > .05, data is normal. Data is not normal
+shapiro.test(all_data_wide$Wind_mph_interpol)
+
+# ln transformation doesn't fix non normality
+shapiro.test(log(all_data_wide$Wind_mph_interpol))
+```
+
+### Solar Radiation
+- non normal
+```{r}
+all_data_wide %>%
+  ggplot(., aes(x = Solar_rad_Wm2_interpol)) +
+  geom_histogram(color = "black", fill="steelblue", bins=30) + 
+  theme_classic() +
+  xlab("Solar Radiation (W/m^2)") + 
+  ylab("Count")
+simple.eda(all_data_wide$Solar_rad_Wm2_interpol)
+# Normality test if p > .05, data is normal. Data is not normal
+shapiro.test(all_data_wide$Solar_rad_Wm2_interpol)
+
+# Doesn't fix non normality
+shapiro.test(log(all_data_wide$Solar_rad_Wm2_interpol))
+```
+
+## Conclusion
+
+Osmolality was the only normally distributed variable. 
+
+The following variables were each had non-normal distributions:
+- SVL (skewed left)
+- mass (skewed left)
+- hct (skewed both ways??)
+- cloacal temp (skewed right)
+- CEWL overall (skewed right)
+- CEWL for each region individually (skewed right)
+- capture temp (multimodal)
+- capture humidity (multimodal and skewed left)
+- wind speed (multimodal)
+- solar radiation (multimodal)
+
+This will be important to keep in mind going forward. Once we have our model, we will need to vigorously check assumptions.
 
 ## Transformations
 
-This function is in the MASS package, which we already have loaded:
-https://rdrr.io/cran/MASS/man/boxcox.html
-
-@ dylan I also didn't test any of the temp/humidity variables for normality...
+I'm just going to start with simple log-transformations and hope that improves normality, then investigate potential other transformations if log-transforming does not work.
 
 ### SVL
 
-```{r}
+Was very skewed left. 
 
+```{r}
+# log transform
+SVL_transf <- morpho_blood_dat %>%
+  dplyr::select(SVL_mm) %>%
+  mutate(SVL_transf = log10(SVL_mm))
+
+# check normality again
+SVL_transf %>%
+  ggplot(., aes(x = SVL_transf)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("Log-transformed SVL (mm)") + 
+  ylab("Count")
+simple.eda(SVL_transf$SVL_transf)
+shapiro.test(SVL_transf$SVL_transf)
 ```
+
+It looks exactly the same as the original disribution using ln or log10. Next, try 1/SVL:
+
+```{r}
+# reciprocal transform
+SVL_transf2 <- morpho_blood_dat %>%
+  dplyr::select(SVL_mm) %>%
+  mutate(SVL_transf = 1/(SVL_mm))
+
+# check normality again
+SVL_transf2 %>%
+  ggplot(., aes(x = SVL_transf)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("1/ SVL (mm)") + 
+  ylab("Count")
+simple.eda(SVL_transf2$SVL_transf)
+shapiro.test(SVL_transf2$SVL_transf)
+```
+
+Now the skew is just the other direction...
+
+Try box-cox:
+
+```{r}
+SVL_SLR <- lm(SVL_mm ~ 1, data = morpho_blood_dat)
+
+MASS::boxcox(SVL_SLR, lambda = seq(6.5, 7, by = 0.1))
+```
+
+Try a transformation of SVL^6.7:
+
+```{r}
+# boxcox lambda = 6.7 transform
+SVL_transf3 <- morpho_blood_dat %>%
+  dplyr::select(SVL_mm) %>%
+  mutate(SVL_transf = (SVL_mm)^)
+
+# check normality again
+SVL_transf3 %>%
+  ggplot(., aes(x = SVL_transf)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("1/ SVL (mm)") + 
+  ylab("Count")
+simple.eda(SVL_transf3$SVL_transf)
+shapiro.test(SVL_transf3$SVL_transf)
+```
+
 
 ### mass
 
@@ -3354,7 +3463,7 @@ ggbiplot(data.pca, labels=rownames(data.pca))
 
 
 
-# GLMMs
+# LMMs
 
 ## Hydration
 
@@ -3381,7 +3490,8 @@ all_data_wide %>%
   # select variables of interest
   dplyr::select(individual_ID,
                 temp_C_interpol,
-                RH_percent_interpol
+                RH_percent_interpol,
+                abs_humidity_g_m3_interpol
                 ) %>% 
   # multicollinearity plot
   chart.Correlation(., histogram = F, pch = 19)
@@ -3389,7 +3499,7 @@ all_data_wide %>%
 
 Date and individual_ID are collinear, as are capture temperature and RH. Individual_ID is significantly correlated with capture RH, but the r-squared is relatively low, so I think it's okay to keep both. 
 
-In conclusion, individual_ID *or* date and capture temperature *or* RH should be used in the model.
+In conclusion, individual_ID *or* date and capture temperature *or* RH should be used in the model. Capture temperature and absolute humidity are not too collinear.
 
 Prep dataframe for computing models:
 
@@ -3498,7 +3608,7 @@ summary(hydrat_mod7_step3)
 This greatly improved the model! Absolute humidity is much better than relative humidity to incorporate into the model.
 
 
-### Conclusion
+### Best Models
 
 Now save both of the best two models.
 
@@ -3517,6 +3627,177 @@ osml_best_mod2_vals <- data.frame(osml_best_mod2$tTable)
 # export 
 write.csv(osml_best_mod2_vals, "osml_best_mod2_vals.csv")
 ```
+
+
+### Check LM Assumptions (Hydration Model 5)
+
+Linearity and Equal Variance
+
+Is the function **linear**? Is there **equal** variance of the residuals? The residuals should be homoskedactic relative to y_hat (or x). We don't care if there is a relationship between the residuals ~ dependent variable (actual y).
+
+Plotting residuals shows us whether the data meets linearity and equal variance assumptions:
+
+```{r}
+# calculate residuals
+qqnorm((hydrat_mod5), ~resid(.))
+
+res_hydrat_mod5 <- all_data_wide %>%
+  mutate(y_hat = 245.212600 + 6.470447*temp_C_interpol,
+         e = osmolality_mmol_kg - y_hat
+         )
+
+# plot
+ggplot(data = res_hydrat_mod5, aes(x = y_hat, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("predicted y (y-hat)") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 5") +
+  geom_hline(yintercept = 0)
+```
+
+It doesn't look like there's a clear linearity violation because there isn't a shape/pattern to the residuals, however the groupings makes it look like error variance is not equal. 
+
+
+Brown-Forsythe test to statistically check equal variance:
+
+H0: normally distributed (non-sig test is GOOD)
+HA: NOT normally distributed (reject nul == assumption not satisfied)
+
+```{r}
+# need to create the right data & format first
+bf_data <- res_hydrat_mod5 %>%
+  dplyr::filter(complete.cases(temp_C_interpol)) %>%
+  dplyr::mutate(middle = median(temp_C_interpol),
+                side = temp_C_interpol > middle)
+bf_data$side <- as.factor(bf_data$side)
+
+# now run test
+bf.test(formula = e ~ side, # y~x
+        data = bf_data, # dataframe
+        alpha = 0.05, # default 0.05
+        na.rm = TRUE, # remove missing data before running?
+        verbose = TRUE # print output to console?
+        )
+```
+
+Equal variance is satisfied.
+
+
+Now check normality. Is the distribution of residuals **normal**?
+
+use Shapiro-Wilk normality test:
+H0: data is NOT significantly different from normal distribution
+HA: data IS significantly different from normal distribution
+
+```{r}
+simple.eda(res_hydrat_mod5$e)
+shapiro.test(res_hydrat_mod5$e)
+```
+
+
+### Check LM Assumptions (Hydration Model 7 (Step 3))
+
+Linearity and Equal Variance
+
+Is the function **linear**? Is there **equal** variance of the residuals? The residuals should be homoskedactic relative to y_hat (or x). We don't care if there is a relationship between the residuals ~ dependent variable (actual y).
+
+Plotting residuals shows us whether the data meets linearity and equal variance assumptions:
+
+```{r}
+# calculate residuals
+qqnorm((hydrat_mod7_step3), ~resid(.))
+
+res_hydrat_mod7.3 <- all_data_wide %>%
+  mutate(y_hat = -646.060049 + 
+           86.119252*abs_humidity_g_m3_interpol +
+           53.378021*temp_C_interpol -
+           4.523101*abs_humidity_g_m3_interpol*temp_C_interpol,
+         e = osmolality_mmol_kg - y_hat
+         )
+
+# plot
+ggplot(data = res_hydrat_mod7.3, aes(x = y_hat, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("predicted y (y-hat)") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 7.3") +
+  geom_hline(yintercept = 0)
+```
+
+It doesn't look like there's a clear linearity violation, but there is a sort of negative trendline...
+
+Brown-Forsythe test to statistically check equal variance:
+
+H0: normally distributed (non-sig test is GOOD)
+HA: NOT normally distributed (reject nul == assumption not satisfied)
+
+```{r}
+# need to create the right data & format first
+bf_data <- res_hydrat_mod7.3 %>%
+  dplyr::filter(complete.cases(temp_C_interpol, 
+                               abs_humidity_g_m3_interpol)) %>%
+  dplyr::mutate(middle_temp = median(temp_C_interpol),
+                side_temp = as.factor(temp_C_interpol > middle_temp),
+                middle_hum = median(abs_humidity_g_m3_interpol),
+                side_hum = as.factor(abs_humidity_g_m3_interpol > middle_hum))
+
+# now run test
+bf.test(formula = e ~ side_temp, # y~x
+        data = bf_data, # dataframe
+        alpha = 0.05, # default 0.05
+        na.rm = TRUE, # remove missing data before running?
+        verbose = TRUE # print output to console?
+        )
+# now run test
+bf.test(formula = e ~ side_hum, # y~x
+        data = bf_data, # dataframe
+        alpha = 0.05, # default 0.05
+        na.rm = TRUE, # remove missing data before running?
+        verbose = TRUE # print output to console?
+        )
+```
+
+Equal variance *is* satisfied for both humidity and temperature.
+
+
+Now check normality. Is the distribution of residuals **normal**?
+
+use Shapiro-Wilk normality test:
+H0: data is NOT significantly different from normal distribution
+HA: data IS significantly different from normal distribution
+
+```{r}
+simple.eda(res_hydrat_mod7.3$e)
+shapiro.test(res_hydrat_mod7.3$e)
+```
+
+Residuals are normally distributed!
+
+
+### Transformations 
+
+Do we need to transform the variables in the two best hydration models?
+
+Model 5:
+- response variable normally distributed
+- predictor variable not normally distributed (multimodal, not skewed)
+- linearity not obviously violated
+- equal variance satisfied (Brown-Forsythe not significant)
+- normality satisfied (residuals normally distributed)
+
+Model 7.3:
+- response variable normally distributed
+- predictor variable 1 not normally distributed (multimodal, not skewed)
+- predictor variable 2 not normally distributed (multimodal and skewed)
+- linearity might be violated?
+- equal variance for predictor variable 1 satisfied (Brown-Forsythe not significant)
+- equal variance for predictor variable 2 satisfied (Brown-Forsythe not significant)
+- normality satisfied (residuals normally distributed)
+
+### Conclusion
+
 
 
 ## CEWL
@@ -3698,7 +3979,7 @@ CEWL_mod_simple <- glm(data = CEWL_mod_dat,
 dropterm(CEWL_mod_simple)
 ```
 
-It seems like no deletions would result in a delta-AIC >2, but I'll still try dropping some terms from the mixed-effect model.
+It seems like only deleting osmolality and/or ambient temperature would improve the model. Neither of those deletions would result in a delta-AIC >2, but I'll still try dropping some terms from the mixed-effect model.
 
 ```{r}
 # without osmolality
@@ -3908,7 +4189,7 @@ summary(CEWL_mod9_step14)
 anova(CEWL_mod9_step10, CEWL_mod9_step14)
 ```
 
-And, just like the other dropterm test, removing the individual region predictor makes the model significantly worse.
+Removing the individual region predictor makes the model significantly worse.
 
 Try mass:
 
@@ -4076,7 +4357,7 @@ summary(CEWL_mod9_step25)
 anova(CEWL_mod9_step13, CEWL_mod9_step25)
 ```
 
-Wind speed *does* seem to significantly improve step 20... 
+Wind speed *does* seem to significantly improve step 20, but not step 13... 
 
 
 Lastly, we need to see if adding the holding time affects CEWL measures when the other important variables are already accounted for.
@@ -4116,7 +4397,7 @@ It does *not* improve the model.
 I commented-out the hold_time things because including it decreased the number of observations due to NA removals.
 
 
-### Conclusion
+### Best Models
 
 ```{r}
 # save step 24 summary object
@@ -4136,10 +4417,806 @@ write.csv(CEWL_best_mod2_vals, "CEWL_best_mod2_vals.csv")
 
 
 
+### Check LM Assumptions (CEWL Model 13)
 
+Linearity and Equal Variance
+
+Is the function **linear**? Is there **equal** variance of the residuals? The residuals should be homoskedactic relative to y_hat (or x). We don't care if there is a relationship between the residuals ~ dependent variable (actual y).
+
+Plotting residuals shows us whether the data meets linearity and equal variance assumptions:
+
+```{r}
+# calculate residuals
+qqnorm((CEWL_mod9_step13), ~resid(.))
+
+res_CEWL_mod13 <- all_data_long %>%
+  mutate(y_hat = case_when(region == "dewl" ~ (2.1535856*cloacal_temp_C + 1.2316269*mass_g - 42.7468257),
+                           region == "dors" ~ (2.1535856*cloacal_temp_C + 0.2054408*mass_g - 42.7468257 + 12.0823088),
+                           region == "head" ~ (2.1535856*cloacal_temp_C - 0.3874094*mass_g - 42.7468257 + 24.4910799),
+                           region == "mite" ~ (2.1535856*cloacal_temp_C + 1.6153809*mass_g - 42.7468257 + 2.3449933),
+                           region == "vent" ~ (2.1535856*cloacal_temp_C + 1.4017840*mass_g - 42.7468257 + 8.8417357)),
+         e = TEWL_g_m2h - y_hat
+         )
+
+# plot
+ggplot(data = res_CEWL_mod13, aes(x = y_hat, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("predicted y (y-hat)") +
+  ylab("residuals (e)") +
+  ggtitle("CEWL Model 13 Residuals") +
+  geom_hline(yintercept = 0)
+```
+
+It's definitely making a fan shape. :(
+
+Brown-Forsythe test to statistically check equal variance:
+
+H0: normally distributed (non-sig test is GOOD)
+HA: NOT normally distributed (reject nul == assumption not satisfied)
+
+```{r}
+# need to create the right data & format first
+bf_data <- res_CEWL_mod13 %>%
+  dplyr::filter(complete.cases(cloacal_temp_C, mass_g, TEWL_g_m2h)) %>%
+  dplyr::mutate(middle_ct = median(cloacal_temp_C),
+                side_ct = as.factor(cloacal_temp_C > middle_ct),
+                middle_mass = median(mass_g),
+                side_mass = as.factor(mass_g > middle_mass))
+
+# now run test
+bf.test(formula = e ~ side_ct, # y~x
+        data = bf_data, # dataframe
+        alpha = 0.05, # default 0.05
+        na.rm = TRUE, # remove missing data before running?
+        verbose = TRUE # print output to console?
+        )
+bf.test(formula = e ~ side_mass, # y~x
+        data = bf_data, # dataframe
+        alpha = 0.05, # default 0.05
+        na.rm = TRUE, # remove missing data before running?
+        verbose = TRUE # print output to console?
+        )
+```
+
+Equal variance is satisfied for both continuous predictor variables.
+
+
+Now check normality. Is the distribution of residuals **normal**?
+
+use Shapiro-Wilk normality test:
+H0: data is NOT significantly different from normal distribution
+HA: data IS significantly different from normal distribution
+
+```{r}
+simple.eda(res_CEWL_mod13$e)
+shapiro.test(res_CEWL_mod13$e)
+```
+
+
+
+### Check LM Assumptions (CEWL Model 24)
+
+Linearity and Equal Variance
+
+Is the function **linear**? Is there **equal** variance of the residuals? The residuals should be homoskedactic relative to y_hat (or x). We don't care if there is a relationship between the residuals ~ dependent variable (actual y).
+
+Plotting residuals shows us whether the data meets linearity and equal variance assumptions:
+
+```{r}
+# calculate residuals
+qqnorm((CEWL_mod9_step24), ~resid(.))
+
+res_CEWL_mod9.24 <- all_data_long %>%
+  mutate(y_hat = case_when(region == "dewl" ~ 
+                              # cloacal temp effect
+                             (1.86217364*cloacal_temp_C +
+                                # mass by region interaction
+                                # baseline is dewlap
+                                1.19257122*mass_g -
+                                # no individual mass effect
+                                # wind
+                                1.80572499*Wind_mph_interpol +
+                                # humidity
+                                1.51162151*abs_humidity_g_m3_interpol +
+                                # humidity * temp interaction
+                                0.01589687*temp_C_interpol*abs_humidity_g_m3_interpol
+                                # intercept, baseline is dewlap
+                                - 45.57047471),
+                           region == "dors" ~ 
+                             # cloacal temp effect
+                             (1.86217364*cloacal_temp_C -
+                                # mass by region interaction
+                                1.02884615*mass_g + 
+                                # individual mass effect
+                                1.19257122*mass_g -
+                                # wind
+                                1.80572499*Wind_mph_interpol +
+                                # humidity
+                                1.51162151*abs_humidity_g_m3_interpol +
+                                # humidity * temp interaction
+                                0.01589687*temp_C_interpol*abs_humidity_g_m3_interpol
+                                # intercept
+                                - 45.57047471
+                                # intercept by region
+                                + 12.10482259
+                                ),
+                           region == "head" ~ 
+                             # cloacal temp effect
+                             (1.86217364*cloacal_temp_C -
+                                # mass by region interaction
+                                1.62053929*mass_g + 
+                                # individual mass effect
+                                1.19257122*mass_g -
+                                # wind
+                                1.80572499*Wind_mph_interpol +
+                                # humidity
+                                1.51162151*abs_humidity_g_m3_interpol +
+                                # humidity * temp interaction
+                                0.01589687*temp_C_interpol*abs_humidity_g_m3_interpol
+                                # intercept
+                                - 45.57047471
+                                # intercept by region
+                                + 24.50914963
+                                ),
+                           region == "mite" ~ 
+                             # cloacal temp effect
+                             (1.86217364*cloacal_temp_C +
+                                # mass by region interaction
+                                0.38728891*mass_g + 
+                                # individual mass effect
+                                1.19257122*mass_g -
+                                # wind
+                                1.80572499*Wind_mph_interpol +
+                                # humidity
+                                1.51162151*abs_humidity_g_m3_interpol +
+                                # humidity * temp interaction
+                                0.01589687*temp_C_interpol*abs_humidity_g_m3_interpol
+                                # intercept
+                                - 45.57047471
+                                # intercept by region
+                                + 2.29360864
+                                ),
+                           region == "vent" ~ 
+                             # cloacal temp effect
+                             (1.86217364*cloacal_temp_C +
+                                # mass by region interaction
+                                0.16222928*mass_g + 
+                                # individual mass effect
+                                1.19257122*mass_g -
+                                # wind
+                                1.80572499*Wind_mph_interpol +
+                                # humidity
+                                1.51162151*abs_humidity_g_m3_interpol +
+                                # humidity * temp interaction
+                                0.01589687*temp_C_interpol*abs_humidity_g_m3_interpol
+                                # intercept
+                                - 45.57047471
+                                # intercept by region
+                                + 8.92843246
+                                )),
+         e = TEWL_g_m2h - y_hat
+         )
+
+# plot
+ggplot(data = res_CEWL_mod9.24, aes(x = y_hat, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("predicted y (y-hat)") +
+  ylab("residuals (e)") +
+  ggtitle("Residuals Plot for CEWL Model 9.24") +
+  geom_hline(yintercept = 0)
+```
+
+That is a very obvious fan shape... 
+
+
+Brown-Forsythe test to statistically check equal variance:
+
+H0: normally distributed (non-sig test is GOOD)
+HA: NOT normally distributed (reject nul == assumption not satisfied)
+
+```{r}
+# need to create the right data & format first
+bf_data <- res_CEWL_mod9.24 %>%
+  dplyr::filter(complete.cases(cloacal_temp_C, 
+                               mass_g, 
+                               Wind_mph_interpol,
+                               abs_humidity_g_m3_interpol,
+                               temp_C_interpol,
+                               TEWL_g_m2h)) %>%
+  dplyr::mutate(middle_ct = median(cloacal_temp_C),
+                side_ct = as.factor(cloacal_temp_C > middle_ct),
+                
+                middle_mass = median(mass_g),
+                side_mass = as.factor(mass_g > middle_mass),
+                
+                middle_wind = median(Wind_mph_interpol),
+                side_wind = as.factor(Wind_mph_interpol > middle_wind),
+                
+                middle_hum = median(abs_humidity_g_m3_interpol),
+                side_hum = as.factor(abs_humidity_g_m3_interpol > middle_hum),
+                
+                middle_temp = median(temp_C_interpol),
+                side_temp = as.factor(temp_C_interpol > middle_temp))
+
+# now run test
+bf.test(formula = e ~ side_ct, # y~x
+        data = bf_data, # dataframe
+        alpha = 0.05, # default 0.05
+        na.rm = TRUE, # remove missing data before running?
+        verbose = TRUE # print output to console?
+        )
+bf.test(formula = e ~ side_mass, # y~x
+        data = bf_data, # dataframe
+        alpha = 0.05, # default 0.05
+        na.rm = TRUE, # remove missing data before running?
+        verbose = TRUE # print output to console?
+        )
+bf.test(formula = e ~ side_wind, # y~x
+        data = bf_data, # dataframe
+        alpha = 0.05, # default 0.05
+        na.rm = TRUE, # remove missing data before running?
+        verbose = TRUE # print output to console?
+        )
+bf.test(formula = e ~ side_hum, # y~x
+        data = bf_data, # dataframe
+        alpha = 0.05, # default 0.05
+        na.rm = TRUE, # remove missing data before running?
+        verbose = TRUE # print output to console?
+        )
+bf.test(formula = e ~ side_temp, # y~x
+        data = bf_data, # dataframe
+        alpha = 0.05, # default 0.05
+        na.rm = TRUE, # remove missing data before running?
+        verbose = TRUE # print output to console?
+        )
+```
+
+Equal variance is satisfied for all continuous variables.
+
+
+Now check normality. Is the distribution of residuals **normal**?
+
+use Shapiro-Wilk normality test:
+H0: data is NOT significantly different from normal distribution
+HA: data IS significantly different from normal distribution
+
+```{r}
+simple.eda(res_CEWL_mod9.24$e)
+shapiro.test(res_CEWL_mod9.24$e)
+```
+
+Residuals are not normal... 
+
+
+### Test Transformations 
+
+Do we need to transform the variables in the two best hydration models?
+
+CEWL Model 13:
+- response variable not normally distributed
+- both continuous predictor variables not normally distributed (skewed)
+- linearity probably violated
+- equal variance for both continuous predictor variables satisfied (Brown-Forsythe not significant)
+- normality not satisfied (residuals skewed right)
+
+CEWL Model 24:
+- response variable not normally distributed
+- all continuous predictor variables not normally distributed (skewed)
+- linearity probably violated
+- equal variance for all continuous predictor variables satisfied (Brown-Forsythe not significant)
+- normality not satisfied (residuals skewed right)
+
+Yes, I should try transforming the variables in each of these models.
+
+I'll check if simple transformations like log or sqrt affect normality of the variables.
+
+Add transformed values:
+
+```{r}
+CEWL_mod_dat_transf <- all_data_wide %>%
+  mutate(mass_sqrt = sqrt(mass_g),
+         mass_log = log(mass_g),
+         
+         cloacal_temp_sqrt = sqrt(cloacal_temp_C),
+         cloacal_temp_log = log(cloacal_temp_C),
+         
+         wind_sqrt = sqrt(Wind_mph_interpol),
+         wind_log = log(Wind_mph_interpol),
+         
+         abhum_sqrt = sqrt(abs_humidity_g_m3_interpol),
+         abhum_log = log(abs_humidity_g_m3_interpol),
+         
+         temp_sqrt = sqrt(temp_C_interpol),
+         temp_log = log(temp_C_interpol),
+         
+         dors_sqrt = sqrt(dorsum_TEWL_g_m2h),
+         dors_log = log(dorsum_TEWL_g_m2h),
+         
+         dewl_sqrt = sqrt(dewlap_TEWL_g_m2h),
+         dewl_log = log(dewlap_TEWL_g_m2h),
+         
+         head_sqrt = sqrt(head_TEWL_g_m2h),
+         head_log = log(head_TEWL_g_m2h),
+         
+         mite_sqrt = sqrt(mitepatch_TEWL_g_m2h),
+         mite_log = log(mitepatch_TEWL_g_m2h),
+         
+         vent_sqrt = sqrt(ventrum_TEWL_g_m2h),
+         vent_log = log(ventrum_TEWL_g_m2h)
+         )
+```
+
+Check whether that helped any of the independent variables:
+
+```{r}
+# sqrt(mass)
+CEWL_mod_dat_transf %>%
+  ggplot(., aes(x = mass_sqrt)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("sqrt(mass)") + 
+  ylab("Count")
+simple.eda(CEWL_mod_dat_transf$mass_sqrt)
+shapiro.test(CEWL_mod_dat_transf$mass_sqrt)
+
+# log(mass)
+CEWL_mod_dat_transf %>%
+  ggplot(., aes(x = mass_log)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("LOG(mass)") + 
+  ylab("Count")
+simple.eda(CEWL_mod_dat_transf$mass_log)
+shapiro.test(CEWL_mod_dat_transf$mass_log)
+
+# sqrt(cloacal temp)
+CEWL_mod_dat_transf %>%
+  ggplot(., aes(x = cloacal_temp_sqrt)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("sqrt(cloacal temperature)") + 
+  ylab("Count")
+simple.eda(CEWL_mod_dat_transf$cloacal_temp_sqrt)
+shapiro.test(CEWL_mod_dat_transf$cloacal_temp_sqrt)
+
+# log(cloacal temp)
+CEWL_mod_dat_transf %>%
+  ggplot(., aes(x = cloacal_temp_log)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("LOG(cloacal temperature)") + 
+  ylab("Count")
+simple.eda(CEWL_mod_dat_transf$cloacal_temp_log)
+shapiro.test(CEWL_mod_dat_transf$cloacal_temp_log)
+
+# sqrt(wind)
+CEWL_mod_dat_transf %>%
+  ggplot(., aes(x = wind_sqrt)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("sqrt(wind)") + 
+  ylab("Count")
+simple.eda(CEWL_mod_dat_transf$wind_sqrt)
+shapiro.test(CEWL_mod_dat_transf$wind_sqrt)
+
+# log(wind)
+CEWL_mod_dat_transf %>%
+  ggplot(., aes(x = wind_log)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("LOG(wind)") + 
+  ylab("Count")
+simple.eda(CEWL_mod_dat_transf$wind_log)
+shapiro.test(CEWL_mod_dat_transf$wind_log)
+
+# sqrt(humidity)
+CEWL_mod_dat_transf %>%
+  ggplot(., aes(x = abhum_sqrt)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("sqrt(absolute humidity at capture)") + 
+  ylab("Count")
+simple.eda(CEWL_mod_dat_transf$abhum_sqrt)
+shapiro.test(CEWL_mod_dat_transf$abhum_sqrt)
+
+# log(humidity)
+CEWL_mod_dat_transf %>%
+  ggplot(., aes(x = abhum_log)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("LOG(absolute humidity at capture)") + 
+  ylab("Count")
+simple.eda(CEWL_mod_dat_transf$abhum_log)
+shapiro.test(CEWL_mod_dat_transf$abhum_log)
+
+# sqrt(temperature)
+CEWL_mod_dat_transf %>%
+  ggplot(., aes(x = temp_sqrt)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("sqrt(temperature at capture)") + 
+  ylab("Count")
+simple.eda(CEWL_mod_dat_transf$temp_sqrt)
+shapiro.test(CEWL_mod_dat_transf$temp_sqrt)
+
+# log(temperature)
+CEWL_mod_dat_transf %>%
+  ggplot(., aes(x = temp_log)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("LOG(temperature at capture)") + 
+  ylab("Count")
+simple.eda(CEWL_mod_dat_transf$temp_log)
+shapiro.test(CEWL_mod_dat_transf$temp_log)
+```
+
+sqrt and log transformations did not improve any of them... 
+
+Now check dependent variables:
+
+```{r}
+CEWL_transf <- all_data_long %>%
+  mutate(TEWL_sqrt = sqrt(TEWL_g_m2h),
+         TEWL_log = log(TEWL_g_m2h))
+
+# sqrt(TEWL)
+CEWL_transf %>%
+  ggplot(., aes(x = TEWL_sqrt)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("sqrt(CEWL)") + 
+  ylab("Count") + 
+  facet_wrap(~region)
+
+# log(temperature)
+CEWL_transf %>%
+  ggplot(., aes(x = TEWL_log)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("LOG(CEWL)") + 
+  ylab("Count") + 
+  facet_wrap(~region)
+
+# stats for each region individually
+# dewlap - log makes a better improvement, but still not normal
+simple.eda(CEWL_mod_dat_transf$dewl_sqrt)
+shapiro.test(CEWL_mod_dat_transf$dewl_sqrt)
+simple.eda(CEWL_mod_dat_transf$dewl_log)
+shapiro.test(CEWL_mod_dat_transf$dewl_log)
+# dorsum - sqrt makes normal!, log still improves but not as much
+simple.eda(CEWL_mod_dat_transf$dors_sqrt)
+shapiro.test(CEWL_mod_dat_transf$dors_sqrt)
+simple.eda(CEWL_mod_dat_transf$dors_log)
+shapiro.test(CEWL_mod_dat_transf$dors_log)
+# head - log transformation makes it normal!
+simple.eda(CEWL_mod_dat_transf$head_sqrt)
+shapiro.test(CEWL_mod_dat_transf$head_sqrt)
+simple.eda(CEWL_mod_dat_transf$head_log)
+shapiro.test(CEWL_mod_dat_transf$head_log)
+# mitepatch - log transformation makes it *almost* normal!
+simple.eda(CEWL_mod_dat_transf$mite_sqrt)
+shapiro.test(CEWL_mod_dat_transf$mite_sqrt)
+simple.eda(CEWL_mod_dat_transf$mite_log)
+shapiro.test(CEWL_mod_dat_transf$mite_log)
+# ventrum - sqrt transformation is slightly better, neither make it normal
+simple.eda(CEWL_mod_dat_transf$vent_sqrt)
+shapiro.test(CEWL_mod_dat_transf$vent_sqrt)
+simple.eda(CEWL_mod_dat_transf$vent_log)
+shapiro.test(CEWL_mod_dat_transf$vent_log)
+```
+
+
+### Transform & Model
+
+I will log-transform CEWL and see whether it makes the models satisfy LMM assumptions better.
+
+Run CEWL model 13 with log-transformed CEWL:
+
+```{r}
+CEWL_mod9_step13_transf <- nlme::lme(data = CEWL_mod_dat,
+                         log(TEWL_g_m2h) ~ region*mass_g + 
+                           cloacal_temp_C - mass_g, 
+                          random = ~1|individual_ID) 
+summary(CEWL_mod9_step13_transf)
+```
+
+The AIC is an order of magnitude smaller than the pre-transformed model, which is promising.
+
+Run CEWL model 24 with log-transformed CEWL:
+
+```{r}
+CEWL_mod9_step24_transf <- nlme::lme(data = CEWL_mod_dat,
+                         log(TEWL_g_m2h) ~ region*mass_g + 
+                           cloacal_temp_C +
+                           Wind_mph_interpol +
+                           temp_C_interpol*abs_humidity_g_m3_interpol -
+                           temp_C_interpol, 
+                          random = ~1|individual_ID) 
+summary(CEWL_mod9_step24_transf)
+```
+
+This model also dropped AIC by a magnitude.
+
+
+### Re-Check Assumptions (13)
+
+Linearity and Equal Variance:
+
+```{r}
+# calculate residuals
+qqnorm((CEWL_mod9_step13_transf), ~resid(.))
+
+res_CEWL_mod13_transf <- all_data_long %>%
+  mutate(y_hat = case_when(region == "dewl" ~ (0.0863032*cloacal_temp_C + 0.0591557*mass_g + 0.2739968),
+                           region == "dors" ~ (0.0863032*cloacal_temp_C + 0.0161704*mass_g + 0.2739968 + 0.5626286),
+                           region == "head" ~ (0.0863032*cloacal_temp_C - 0.0070830*mass_g + 0.2739968 + 1.0298456),
+                           region == "mite" ~ (0.0863032*cloacal_temp_C + 0.0684369	*mass_g + 0.2739968 + 0.1248128),
+                           region == "vent" ~ (0.0863032*cloacal_temp_C + 0.0553029*mass_g + 0.2739968 + 0.4645734)),
+         e = log(TEWL_g_m2h) - y_hat
+         )
+
+# plot
+ggplot(data = res_CEWL_mod13_transf, aes(x = y_hat, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("predicted y (y-hat)") +
+  ylab("residuals (e)") +
+  ggtitle("CEWL Model 13 Residuals - log-transformed CEWL") +
+  geom_hline(yintercept = 0)
+```
+
+This looks SO much better, no more fan shape, the linearity assumption should be satisfied.
+
+Brown-Forsythe test to statistically check equal variance:
+
+```{r}
+# need to create the right data & format first
+bf_data <- res_CEWL_mod13_transf %>%
+  dplyr::filter(complete.cases(cloacal_temp_C, mass_g, TEWL_g_m2h)) %>%
+  dplyr::mutate(middle_ct = median(cloacal_temp_C),
+                side_ct = as.factor(cloacal_temp_C > middle_ct),
+                middle_mass = median(mass_g),
+                side_mass = as.factor(mass_g > middle_mass))
+
+# now run test
+bf.test(formula = e ~ side_ct, # y~x
+        data = bf_data, # dataframe
+        alpha = 0.05, # default 0.05
+        na.rm = TRUE, # remove missing data before running?
+        verbose = TRUE # print output to console?
+        )
+bf.test(formula = e ~ side_mass, # y~x
+        data = bf_data, # dataframe
+        alpha = 0.05, # default 0.05
+        na.rm = TRUE, # remove missing data before running?
+        verbose = TRUE # print output to console?
+        )
+```
+
+Equal variance is still satisfied for both continuous predictor variables.
+
+
+Now check normality:
+
+```{r}
+simple.eda(res_CEWL_mod13_transf$e)
+shapiro.test(res_CEWL_mod13_transf$e)
+```
+
+Normality still not satisfied.
+
+
+### Re-Check Assumptions (24)
+
+Linearity and Equal Variance:
+
+```{r}
+# calculate residuals
+qqnorm((CEWL_mod9_step24_transf), ~resid(.))
+
+res_CEWL_mod24_transf <- all_data_long %>%
+  mutate(y_hat = case_when(region == "dewl" ~ 
+                              # cloacal temp effect
+                             (0.0777459825*cloacal_temp_C +
+                                # mass by region interaction
+                                # baseline is dewlap
+                                0.0563025949*mass_g -
+                                # no individual mass effect
+                                # wind
+                                0.0350349879*Wind_mph_interpol +
+                                # humidity
+                                0.0890320865*abs_humidity_g_m3_interpol +
+                                # humidity * temp interaction
+                                0.0001017257*temp_C_interpol*abs_humidity_g_m3_interpol
+                                # intercept, baseline is dewlap
+                                -0.2749031883),
+                           region == "dors" ~ 
+                             # cloacal temp effect
+                             (0.0777459825*cloacal_temp_C -
+                                # mass by region interaction
+                                0.0430395327*mass_g + 
+                                # individual mass effect
+                                0.0563025949*mass_g -
+                                # wind
+                                0.0350349879*Wind_mph_interpol +
+                                # humidity
+                                0.0890320865*abs_humidity_g_m3_interpol +
+                                # humidity * temp interaction
+                                0.0001017257*temp_C_interpol*abs_humidity_g_m3_interpol
+                                # intercept
+                                -0.2749031883
+                                # intercept by region
+                                + 0.5631512148
+                                ),
+                           region == "head" ~ 
+                             # cloacal temp effect
+                             (0.0777459825*cloacal_temp_C -
+                                # mass by region interaction
+                                0.0663447385*mass_g + 
+                                # individual mass effect
+                                0.0563025949*mass_g -
+                                # wind
+                                0.0350349879*Wind_mph_interpol +
+                                # humidity
+                                0.0890320865*abs_humidity_g_m3_interpol +
+                                # humidity * temp interaction
+                                0.0001017257*temp_C_interpol*abs_humidity_g_m3_interpol
+                                # intercept
+                                -0.2749031883
+                                # intercept by region
+                                + 1.0311487525
+                                ),
+                           region == "mite" ~ 
+                             # cloacal temp effect
+                             (0.0777459825*cloacal_temp_C +
+                                # mass by region interaction
+                                0.0097068090*mass_g + 
+                                # individual mass effect
+                                0.0563025949*mass_g -
+                                # wind
+                                0.0350349879*Wind_mph_interpol +
+                                # humidity
+                                0.0890320865*abs_humidity_g_m3_interpol +
+                                # humidity * temp interaction
+                                0.0001017257*temp_C_interpol*abs_humidity_g_m3_interpol
+                                # intercept
+                                -0.2749031883
+                                # intercept by region
+                                + 0.1195215574
+                                ),
+                           region == "vent" ~ 
+                             # cloacal temp effect
+                             (0.0777459825*cloacal_temp_C -
+                                # mass by region interaction
+                                0.0041379689*mass_g + 
+                                # individual mass effect
+                                0.0563025949*mass_g -
+                                # wind
+                                0.0350349879*Wind_mph_interpol +
+                                # humidity
+                                0.0890320865*abs_humidity_g_m3_interpol +
+                                # humidity * temp interaction
+                                0.0001017257*temp_C_interpol*abs_humidity_g_m3_interpol
+                                # intercept
+                                -0.2749031883
+                                # intercept by region
+                                + 0.4678755668
+                                )),
+         e = log(TEWL_g_m2h) - y_hat
+         )
+
+# plot
+ggplot(data = res_CEWL_mod24_transf, aes(x = y_hat, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("predicted y (y-hat)") +
+  ylab("residuals (e)") +
+  ggtitle("CEWL Model 24 Residuals - log-transformed CEWL") +
+  geom_hline(yintercept = 0)
+```
+
+This looks SO much better, no more fan shape, the linearity assumption should be satisfied.
+
+Brown-Forsythe test to statistically check equal variance:
+
+```{r}
+# need to create the right data & format first
+bf_data <- res_CEWL_mod24_transf %>%
+  dplyr::filter(complete.cases(cloacal_temp_C, 
+                               mass_g, 
+                               Wind_mph_interpol,
+                               abs_humidity_g_m3_interpol,
+                               temp_C_interpol,
+                               TEWL_g_m2h)) %>%
+  dplyr::mutate(middle_ct = median(cloacal_temp_C),
+                side_ct = as.factor(cloacal_temp_C > middle_ct),
+                
+                middle_mass = median(mass_g),
+                side_mass = as.factor(mass_g > middle_mass),
+                
+                middle_wind = median(Wind_mph_interpol),
+                side_wind = as.factor(Wind_mph_interpol > middle_wind),
+                
+                middle_hum = median(abs_humidity_g_m3_interpol),
+                side_hum = as.factor(abs_humidity_g_m3_interpol > middle_hum),
+                
+                middle_temp = median(temp_C_interpol),
+                side_temp = as.factor(temp_C_interpol > middle_temp))
+
+# now run test
+bf.test(formula = e ~ side_ct, # y~x
+        data = bf_data, # dataframe
+        alpha = 0.05, # default 0.05
+        na.rm = TRUE, # remove missing data before running?
+        verbose = TRUE # print output to console?
+        )
+bf.test(formula = e ~ side_mass, # y~x
+        data = bf_data, # dataframe
+        alpha = 0.05, # default 0.05
+        na.rm = TRUE, # remove missing data before running?
+        verbose = TRUE # print output to console?
+        )
+bf.test(formula = e ~ side_wind, # y~x
+        data = bf_data, # dataframe
+        alpha = 0.05, # default 0.05
+        na.rm = TRUE, # remove missing data before running?
+        verbose = TRUE # print output to console?
+        )
+bf.test(formula = e ~ side_hum, # y~x
+        data = bf_data, # dataframe
+        alpha = 0.05, # default 0.05
+        na.rm = TRUE, # remove missing data before running?
+        verbose = TRUE # print output to console?
+        )
+bf.test(formula = e ~ side_temp, # y~x
+        data = bf_data, # dataframe
+        alpha = 0.05, # default 0.05
+        na.rm = TRUE, # remove missing data before running?
+        verbose = TRUE # print output to console?
+        )
+```
+
+Equal variance is still satisfied for all continuous predictor variables.
+
+
+Now check normality:
+
+```{r}
+simple.eda(res_CEWL_mod24_transf$e)
+shapiro.test(res_CEWL_mod24_transf$e)
+```
+
+Residuals normality still not satisfied. 
+
+
+### Conclusion
+
+Both CEWL models should use log-transformed CEWL because this greatly improves the models based on AIC and it allows the model to satisfy the linearity assumption of LMM. 
+
+```{r}
+# save transformed model 24 summary object
+CEWL_log_best_mod1 <- summary(CEWL_mod9_step24_transf)
+# extract stats table from summary object
+CEWL_log_best_mod1_vals <- data.frame(CEWL_log_best_mod1$tTable)
+# export 
+write.csv(CEWL_log_best_mod1_vals, "CEWL_log_mod1_vals.csv")
+
+# save transformed model 13 summary object
+CEWL_log_best_mod2 <- summary(CEWL_mod9_step13_transf)
+# extract stats table from summary object
+CEWL_log_best_mod2_vals <- data.frame(CEWL_log_best_mod2$tTable)
+# export 
+write.csv(CEWL_log_best_mod2_vals, "CEWL_log_mod2_vals.csv")
+```
 
 
 # to-do:
+
+- ask whether cloacal temperature should be a random effect =- 
+Cloacal temperature is better as a fixed effect in both cases. It's better to omit cloacal temperature than it is to change it to a random effect. 
+- *Unsure whether or not to add it...* The region*humidity interaction is significant, and with it, the model has a lower AIC, but it also makes the model much more complicated...
 
 look at how model stats are presented in tables and model it after that
 
