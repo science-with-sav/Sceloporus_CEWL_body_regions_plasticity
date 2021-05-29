@@ -3629,7 +3629,7 @@ write.csv(osml_best_mod2_vals, "osml_best_mod2_vals.csv")
 ```
 
 
-### Check LM Assumptions (Hydration Model 5)
+### Check LM Assumptions (Hydration Model 5 (Best #1))
 
 Linearity and Equal Variance
 
@@ -3647,6 +3647,7 @@ res_hydrat_mod5 <- all_data_wide %>%
          )
 
 # plot
+plot(hydrat_mod5)
 ggplot(data = res_hydrat_mod5, aes(x = y_hat, y = e)) +
   geom_point() + 
   theme_classic() + 
@@ -3656,7 +3657,93 @@ ggplot(data = res_hydrat_mod5, aes(x = y_hat, y = e)) +
   geom_hline(yintercept = 0)
 ```
 
-It doesn't look like there's a clear linearity violation because there isn't a shape/pattern to the residuals, however the groupings makes it look like error variance is not equal. 
+It doesn't look like there's a clear linearity violation because there isn't a shape/pattern to the residuals, there is a hint of unequal variance here. The rightmost grouping of residuals has a smaller range than the rest, but the problem is not that severe, so we'll let this go.
+
+In this case, temperature is the only predictor variable, so we don't need o plot its residual again. Instead, we'll plot the residuals against variables not included in the model to look for any explanatory trends that are missing.
+
+```{r}
+# abs hum - might be it
+ggplot(data = res_hydrat_mod5, aes(x = abs_humidity_g_m3_interpol, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("absolute humidity (missing x?)") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 5 Residuals") +
+  geom_hline(yintercept = 0)
+
+# date - clear trend
+ggplot(data = res_hydrat_mod5, aes(x = as.factor(date), y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("date (missing x?)") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 5 Residuals") +
+  geom_hline(yintercept = 0)
+
+# solar radiation - probably not it
+ggplot(data = res_hydrat_mod5, aes(x = Solar_rad_Wm2_interpol, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("solar radiation (missing x?)") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 5 Residuals") +
+  geom_hline(yintercept = 0)
+
+# rain or not - not a huge difference
+ggplot(data = res_hydrat_mod5, aes(x = as.factor(prior_rain_Y_N), y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("rain (missing x?)") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 5 Residuals") +
+  geom_hline(yintercept = 0)
+
+# hct - nope
+ggplot(data = res_hydrat_mod5, aes(x = hematocrit_percent, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("hematocrit (missing x?)") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 5 Residuals") +
+  geom_hline(yintercept = 0)
+
+# sex - nope
+ggplot(data = res_hydrat_mod5, aes(x = as.factor(sex_M_F), y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("sex (missing x?)") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 5 Residuals") +
+  geom_hline(yintercept = 0)
+
+# mass - definitely not
+ggplot(data = res_hydrat_mod5, aes(x = mass_g, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("mass (missing x?)") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 5 Residuals") +
+  geom_hline(yintercept = 0)
+
+# SVL - unequal variance but no clear trend
+ggplot(data = res_hydrat_mod5, aes(x = SVL_mm, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("SVL (missing x?)") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 5 Residuals") +
+  geom_hline(yintercept = 0)
+
+# individual ID - included as a random effect in the model 
+# but not used to calculate residuals
+ggplot(data = res_hydrat_mod5, aes(x = individual_ID, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("lizard ID") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 5 Residuals") +
+  geom_hline(yintercept = 0)
+```
 
 
 Brown-Forsythe test to statistically check equal variance:
@@ -3717,6 +3804,7 @@ res_hydrat_mod7.3 <- all_data_wide %>%
          )
 
 # plot
+plot(hydrat_mod7_step3)
 ggplot(data = res_hydrat_mod7.3, aes(x = y_hat, y = e)) +
   geom_point() + 
   theme_classic() + 
@@ -3727,6 +3815,121 @@ ggplot(data = res_hydrat_mod7.3, aes(x = y_hat, y = e)) +
 ```
 
 It doesn't look like there's a clear linearity violation, but there is a sort of negative trendline...
+
+Also plot the residuals ~ each predictor. In this case, region, cloacal temperature, and mass.
+
+```{r}
+# abs hum
+ggplot(data = res_hydrat_mod7.3, 
+       aes(x = abs_humidity_g_m3_interpol, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("absolute humidity (x)") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 7.3 Residuals") +
+  geom_hline(yintercept = 0)
+
+# temp
+ggplot(data = res_hydrat_mod7.3, 
+       aes(x = temp_C_interpol, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("temperature (x)") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 7.3 Residuals") +
+  geom_hline(yintercept = 0)
+
+# interaction?
+ggplot(data = res_hydrat_mod7.3, 
+       aes(x = temp_C_interpol*abs_humidity_g_m3_interpol, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("temperature*abs-humidity (x)") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 7.3 Residuals") +
+  geom_hline(yintercept = 0)
+```
+
+
+Finally, plot the residuals against variables not included in the model to look for any explanatory trends that are missing.
+
+```{r}
+# date - clear trend
+ggplot(data = res_hydrat_mod7.3, aes(x = as.factor(date), y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("date (missing x?)") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 7.3 Residuals") +
+  geom_hline(yintercept = 0)
+
+# solar radiation - probably not it
+ggplot(data = res_hydrat_mod7.3, aes(x = Solar_rad_Wm2_interpol, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("solar radiation (missing x?)") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 7.3 Residuals") +
+  geom_hline(yintercept = 0)
+
+# rain or not - probably not
+ggplot(data = res_hydrat_mod7.3, 
+       aes(x = as.factor(prior_rain_Y_N), y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("rain (missing x?)") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 7.3 Residuals") +
+  geom_hline(yintercept = 0)
+
+# hct - nope
+ggplot(data = res_hydrat_mod7.3, aes(x = hematocrit_percent, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("hematocrit (missing x?)") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 7.3 Residuals") +
+  geom_hline(yintercept = 0)
+
+# sex - nope
+ggplot(data = res_hydrat_mod7.3, aes(x = as.factor(sex_M_F), y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("sex (missing x?)") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 7.3 Residuals") +
+  geom_hline(yintercept = 0)
+
+# mass - definitely not
+ggplot(data = res_hydrat_mod7.3, aes(x = mass_g, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("mass (missing x?)") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 7.3 Residuals") +
+  geom_hline(yintercept = 0)
+
+# SVL - unequal variance but no clear trend
+ggplot(data = res_hydrat_mod7.3, aes(x = SVL_mm, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("SVL (missing x?)") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 7.3 Residuals") +
+  geom_hline(yintercept = 0)
+
+# individual ID
+# individual ID - included as a random effect in the model 
+# but not used to calculate residuals
+ggplot(data = res_hydrat_mod7.3, aes(x = individual_ID, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("lizard ID") +
+  ylab("residuals (e)") +
+  ggtitle("Hydration Model 7.3 Residuals") +
+  geom_hline(yintercept = 0)
+```
+
 
 Brown-Forsythe test to statistically check equal variance:
 
@@ -4958,6 +5161,7 @@ res_CEWL_mod13_transf <- all_data_long %>%
          )
 
 # plot
+plot(CEWL_mod9_step13_transf)
 ggplot(data = res_CEWL_mod13_transf, aes(x = y_hat, y = e)) +
   geom_point() + 
   theme_classic() + 
@@ -4968,6 +5172,45 @@ ggplot(data = res_CEWL_mod13_transf, aes(x = y_hat, y = e)) +
 ```
 
 This looks SO much better, no more fan shape, the linearity assumption should be satisfied.
+
+Also plot the residuals ~ each predictor. In this case, region, cloacal temperature, and mass.
+
+```{r}
+# region
+ggplot(data = res_CEWL_mod13_transf) + 
+  geom_boxplot(aes(x = region, 
+                   y = e, 
+                   color = region
+                   )) + 
+  theme_classic() + 
+  xlab("region") + 
+  ylab("residuals (e)") + 
+  theme(text = element_text(color = "black", family = "sans", size = 12),
+        axis.text = element_text(color = "black", family = "sans", size = 10),
+        legend.text.align = 0,
+        legend.position = "none"
+)
+
+# cloacal temp
+ggplot(data = res_CEWL_mod13_transf, aes(x = cloacal_temp_C, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("cloacal temperature (x)") +
+  ylab("residuals (e)") +
+  ggtitle("CEWL Model 13 Residuals - log-transformed CEWL") +
+  geom_hline(yintercept = 0)
+
+# mass
+ggplot(data = res_CEWL_mod13_transf, aes(x = mass_g, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("mass (x)") +
+  ylab("residuals (e)") +
+  ggtitle("CEWL Model 13 Residuals - log-transformed CEWL") +
+  geom_hline(yintercept = 0)
+```
+
+Residuals don't look too bad as far as patterning, but they are very unevenly distributed at the high cloacal temperatures, and irregularly distributed for mass generally.
 
 Brown-Forsythe test to statistically check equal variance:
 
@@ -5108,6 +5351,7 @@ res_CEWL_mod24_transf <- all_data_long %>%
          )
 
 # plot
+plot(CEWL_mod9_step24_transf)
 ggplot(data = res_CEWL_mod24_transf, aes(x = y_hat, y = e)) +
   geom_point() + 
   theme_classic() + 
@@ -5118,6 +5362,74 @@ ggplot(data = res_CEWL_mod24_transf, aes(x = y_hat, y = e)) +
 ```
 
 This looks SO much better, no more fan shape, the linearity assumption should be satisfied.
+
+Also plot the residuals ~ each predictor. In this case, region, cloacal temperature, mass, wind speed, absolute humidity, and temperature.
+
+```{r}
+# region
+ggplot(data = res_CEWL_mod24_transf) + 
+  geom_boxplot(aes(x = region, 
+                   y = e, 
+                   color = region
+                   )) + 
+  theme_classic() + 
+  xlab("region") + 
+  ylab("residuals (e)") + 
+  theme(text = element_text(color = "black", family = "sans", size = 12),
+        axis.text = element_text(color = "black", family = "sans", size = 10),
+        legend.text.align = 0,
+        legend.position = "none"
+)
+
+# cloacal temp
+ggplot(data = res_CEWL_mod24_transf, aes(x = cloacal_temp_C, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("cloacal temperature (x)") +
+  ylab("residuals (e)") +
+  ggtitle("CEWL Model 13 Residuals - log-transformed CEWL") +
+  geom_hline(yintercept = 0)
+
+# mass
+ggplot(data = res_CEWL_mod24_transf, aes(x = mass_g, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("mass (x)") +
+  ylab("residuals (e)") +
+  ggtitle("CEWL Model 13 Residuals - log-transformed CEWL") +
+  geom_hline(yintercept = 0)
+
+# wind speed
+ggplot(data = res_CEWL_mod24_transf, aes(x = Wind_mph_interpol, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("wind speed (x)") +
+  ylab("residuals (e)") +
+  ggtitle("CEWL Model 13 Residuals - log-transformed CEWL") +
+  geom_hline(yintercept = 0)
+
+# abs humidity
+ggplot(data = res_CEWL_mod24_transf, 
+       aes(x = abs_humidity_g_m3_interpol, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("absolute humidity (x)") +
+  ylab("residuals (e)") +
+  ggtitle("CEWL Model 13 Residuals - log-transformed CEWL") +
+  geom_hline(yintercept = 0)
+
+# temperature
+ggplot(data = res_CEWL_mod24_transf, aes(x = temp_C_interpol, y = e)) +
+  geom_point() + 
+  theme_classic() + 
+  xlab("temperature (x)") +
+  ylab("residuals (e)") +
+  ggtitle("CEWL Model 13 Residuals - log-transformed CEWL") +
+  geom_hline(yintercept = 0)
+```
+
+Same issue with cloacal temperature as the other model's assumptions, but otherwise the residuals look reasonable. 
+
 
 Brown-Forsythe test to statistically check equal variance:
 
