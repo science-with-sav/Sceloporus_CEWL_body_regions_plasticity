@@ -14,33 +14,42 @@ if (!require("UsingR")) install.packages("UsingR")
 library("UsingR")
 ```
 
-
+*make sure Tess went through and checked all the data*
 
 # Data
 
-### From Baseline
+### Treatment Groups
 
-```{r baseline data}
-capture_dat <- read.csv("./data/baseline_export.csv",
-                             na.strings=c("","NA") # fix empty cells
-                             ) %>%
-  dplyr::mutate(date = as.Date(date, format = "%m/%d/%y"),
-                collect_time = as.POSIXct(collect_time, format = "%H:%M"),
-                processing_time = as.POSIXct(processing_time, format = "%H:%M"),
-                sex_M_F = as.factor(sex_M_F),
-                gravid_Y_N = as.factor(gravid_Y_N),
-                blood_sample_eye = as.factor(blood_sample_eye),
-                hemolyzed. = as.factor(hemolyzed.),
-                individual_ID = as.character(individual_ID)
-                ) %>%
-  dplyr::filter(osmolality_mmol_kg <= 500) # remove one point I think inaccurate
-summary(morpho_blood_dat)
+variables:
+-
+-
+
+```{r}
+tmts <- read.csv("./data/exp_tmt_assignment.csv")
 ```
 
 
-### Experiment Checkup Data
+### Capture Data
 
-Load data first.
+```{r capture data}
+capture_hydration <- read.csv("./capture_hydration.csv",
+                             na.strings=c("","NA") # fix empty cells
+                             ) %>%
+  mutate(# correctly format date-only variable
+         date = as.Date(date, format = "%Y-%m-%d")
+         ) %>%
+  # select only relevant variables
+  dplyr::select(date, individual_ID, 
+                mass_g, hematocrit_percent, osmolality_mmol_kg
+                ) %>%
+  dplyr::filter(individual_ID %in% exp_dat$individual_ID) %>%
+  mutate(type = as.factor("capture"))
+summary(capture_hydration)
+```
+
+
+### Experiment Data
+
 **NOTE: this is not all the data**
 
 ```{r}
@@ -49,174 +58,33 @@ exp_dat <- read.csv("./data/experimental_data.csv",
                              ) %>%
                 # format date
   dplyr::mutate(date = as.Date(date, format = "%m/%d/%y"),
-                # format time
-                time = as.POSIXct(time, format = "%H:%M"),
-                # format which eye bled as factor
-                blood_sample_eye = as.factor(blood_sample_eye),
-                # format as factor
-                hemolyzed = as.factor(hemolyzed),
-                # format as factor
-                rehydration = as.factor(rehydration)
+                type = as.factor(type)
                 ) %>%
-  # deselect notes
-  dplyr::select(-notes,) %>%
-  # remove one point I think inaccurate
-  dplyr::filter(osmolality_mmol_kg <= 500) %>% 
-  # join with treatment assignment key
-  left_join(read.csv("./data/exp_tmt_assignment.csv",
-                             na.strings=c("","NA") # fix empty cells
-                             ), by = 'individual_ID') %>%
-  # filter for only successful experiments
-  dplyr::filter(conclusion == 'complete') %>%
-                # format trial number as a factor
-  dplyr::mutate(trial_number = as.factor(trial_number),
-                # format treatment humidity as a factor
-                humidity_tmt_percent = as.factor(humidity_tmt_percent)
-                ) %>%
-  #deselect treatment assingment notes
-  dplyr::select(-notes)
+  # select only variables to be analyzed
+  dplyr::select(date, individual_ID, mass_g, 
+                hematocrit_percent, osmolality_mmol_kg, type)
 summary(exp_dat)
 ```
 
-Create an experimental timeline within each trial. I'll summarize by trail, then use a capture date variable to compute the number of days lizards have been in the study. 
-
-I think I should load Herpetology CEWL and morpho_blood separately and join then to their respective dataframes bc I'm not interested in their interaction for this analysis, just how treatment affected those variables. 
-
-### Post-Experiment CEWL Data
-
-```{r CEWL data}
-# week 1
-CEWL_April_05 <- read.csv("./data/4-5-21-CEWL.csv",
-                          na.strings=c("","NA")) %>%
-  dplyr::mutate(week = "1") %>% # add weekend index for throughout season
-  # I have to do this for each one 
-  # so they all have the same number of columns for joining
-  dplyr::select(date = Date, 
-                Time, Status,
-                ID = Comments,
-                TEWL_g_m2h = TEWL..g..m2h.., # rename
-                CV = CV...., # rename
-                SSWL_g_m2 = SSWL..g..m2.., # rename
-                ambient_temp_C = AmbT..C., # rename
-                ambient_RH_percent = AmbRH...., # rename
-                week
-                )
-
-# week 2
-CEWL_April_19 <- read.csv("./data/4-19-21-CEWL.csv",
-                          na.strings=c("","NA")) %>%
-  dplyr::mutate(week = "2") %>% # add weekend index for throughout season
-  # I have to do this for each one 
-  # so they all have the same number of columns for joining
-  dplyr::select(date = Date, 
-                Time, Status,
-                ID = Comments,
-                TEWL_g_m2h = TEWL..g..m2h.., # rename
-                CV = CV...., # rename
-                SSWL_g_m2 = SSWL..g..m2.., # rename
-                ambient_temp_C = AmbT..C., # rename
-                ambient_RH_percent = AmbRH...., # rename
-                week
-                )
-
-# week 3
-CEWL_April_26 <- read.csv("./data/4-26-21-CEWL.csv",
-                          na.strings=c("","NA")) %>%
-  dplyr::mutate(week = "3") %>% # add weekend index for throughout season
-  # I have to do this for each one 
-  # so they all have the same number of columns for joining
-  dplyr::select(date = Date, 
-                Time, Status,
-                ID = Comments,
-                TEWL_g_m2h = TEWL..g..m2h.., # rename
-                CV = CV...., # rename
-                SSWL_g_m2 = SSWL..g..m2.., # rename
-                ambient_temp_C = AmbT..C., # rename
-                ambient_RH_percent = AmbRH...., # rename
-                week
-                )
-
-# merge all CEWL datafiles & reformat
-CEWL <- CEWL_April_05 %>%
-  # join
-  rbind(., CEWL_April_19, CEWL_April_26) %>%
-  # remove any unsuccessful measurements
-  dplyr::filter(Status == "Normal") %>%
-  # reformat data
-  dplyr::mutate(date_time = as.POSIXct(paste(date, Time), format = "%m/%d/%y %I:%M:%S %p"),
-                # date only
-                date = as.Date(date, format = "%m/%d/%y"),
-                # time with arbitrary date, need to figure out how to remove
-                Time = as.POSIXct(Time, format = "%I:%M:%S %p"),
-                # extract individual ID number
-                individual_ID = as.numeric(substring(ID, 1, 2)),
-                # extract body region for CEWL measurement
-                region = as.factor(substring(ID, 4, 7)),
-                week = as.factor(week),
-                individual_ID = as.character(individual_ID)
-                ) %>%
-  dplyr::select(-ID, -Status
-                ) %>%
-  dplyr::filter(complete.cases(.))
-summary(CEWL)
-unique(CEWL$region)
-```
-
-
-### Split CEWL Data
+### Join Dataframes
 
 ```{r}
-# select each CEWL region separately 
-CEWL_dorsum <- CEWL %>%
-  dplyr::filter(region == "dors") %>%
-  dplyr::select(date, individual_ID, 
-                dorsum_TEWL_g_m2h = TEWL_g_m2h)
-CEWL_ventrum <- CEWL %>%
-  dplyr::filter(region == "vent") %>%
-  dplyr::select(date, individual_ID, 
-                ventrum_TEWL_g_m2h = TEWL_g_m2h)
-CEWL_dewlap <- CEWL %>%
-  dplyr::filter(region == "dewl") %>%
-  dplyr::select(date, individual_ID, 
-                dewlap_TEWL_g_m2h = TEWL_g_m2h)
-CEWL_head <- CEWL %>%
-  dplyr::filter(region == "head") %>%
-  dplyr::select(date, individual_ID, 
-                head_TEWL_g_m2h = TEWL_g_m2h)
-CEWL_mitepatch <- CEWL %>%
-  dplyr::filter(region == "mite") %>%
-  dplyr::select(date, individual_ID, 
-                mitepatch_TEWL_g_m2h = TEWL_g_m2h)
-
-# also get average across body regions
-CEWL_avg <- CEWL %>%
+all_dat <- exp_dat %>%
+  rbind(capture_hydration) %>%
+  left_join(tmts, by = "individual_ID") %>%
+  dplyr::select(-notes) %>%
+  dplyr::filter(conclusion == "complete") %>%
   group_by(individual_ID) %>%
-  summarise(avg_CEWL = mean(TEWL_g_m2h)) %>%
-  dplyr::select(individual_ID, avg_CEWL)
+  mutate(capture_date = min(date),
+         day = as.numeric(date - capture_date),
+         humidity_tmt_percent = as.factor(humidity_tmt_percent)
+         )
+summary(all_dat)
+
+# check that capture dates are valid
+unique(all_dat$capture_date)
 ```
 
-
-### Rearrange and Join
-
-```{r join data}
-# join all CEWL regions to morpho and blood data
-data_full <- morpho_blood_dat %>%
-  left_join(CEWL_dorsum, by = c("date", "individual_ID")) %>%
-  left_join(CEWL_ventrum, by = c("date", "individual_ID")) %>%
-  left_join(CEWL_dewlap, by = c("date", "individual_ID")) %>%
-  left_join(CEWL_head, by = c("date", "individual_ID")) %>%
-  left_join(CEWL_mitepatch, by = c("date", "individual_ID")) %>%
-  left_join(CEWL_avg, by = "individual_ID")
-```
-
-
-### Join Differently 
-
-```{r}
-CEWL_plus <- CEWL %>%
-  left_join(morpho_blood_dat, by = c("date", "individual_ID")
-            )
-```
 
 
 
@@ -289,26 +157,27 @@ Visually, looks slightly skewed to the right, but statistically, the distributio
 ### Mass ~ Time
 
 ```{r}
-exp_dat %>% 
+all_dat %>% 
+  dplyr::filter(type != "rehab") %>%
   ggplot(data = .) + 
-  geom_point(aes(x = date,
+  geom_point(aes(x = day,
                  y = mass_g, 
                  color = as.factor(individual_ID)
                  ), 
              size = 1, 
              alpha = 0.6) +
-  stat_smooth(aes(x = date, 
+  stat_smooth(aes(x = day, 
                   y = mass_g, 
                   color = as.factor(individual_ID)
                   ), 
               formula = y ~ x, 
               method = "lm", 
-              color = "gray",
               se = F, 
               size = 1.6, 
               alpha = 1 ) + 
   theme_classic() + 
-  xlab("Date") + 
+  scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
+  xlab("Day") + 
   ylab("Mass (g)") + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
@@ -317,14 +186,181 @@ exp_dat %>%
                                  family = "sans", 
                                  size = 10),
         legend.text.align = 0,
+        legend.position = "none"
 )
 ```
 
+```{r}
+all_dat %>% 
+  dplyr::filter(type != "rehab") %>%
+  ggplot(data = .) + 
+  geom_point(aes(x = day,
+                 y = mass_g, 
+                 color = humidity_tmt_percent
+                 ), 
+             size = 1, 
+             alpha = 0.6) +
+  stat_smooth(aes(x = day, 
+                  y = mass_g, 
+                  color = humidity_tmt_percent
+                  ), 
+              formula = y ~ x, 
+              method = "lm", 
+              se = F, 
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
+  xlab("Day") + 
+  ylab("Mass (g)") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0
+)
+```
+
+
 ### Hct ~ Time
+
+```{r}
+all_dat %>% 
+  dplyr::filter(type != "rehab") %>%
+  ggplot(data = .) + 
+  geom_point(aes(x = day,
+                 y = hematocrit_percent, 
+                 color = as.factor(individual_ID)
+                 ), 
+             size = 1, 
+             alpha = 0.6) +
+  stat_smooth(aes(x = day, 
+                  y = hematocrit_percent, 
+                  color = as.factor(individual_ID)
+                  ), 
+              formula = y ~ x, 
+              method = "lm", 
+              se = F, 
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
+  xlab("Day") + 
+  ylab("Hematocrit (%)") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0,
+        legend.position = "none"
+)
+```
+
+```{r}
+all_dat %>% 
+  dplyr::filter(type != "rehab") %>%
+  ggplot(data = .) + 
+  geom_point(aes(x = day,
+                 y = hematocrit_percent, 
+                 color = humidity_tmt_percent
+                 ), 
+             size = 1, 
+             alpha = 0.6) +
+  stat_smooth(aes(x = day, 
+                  y = hematocrit_percent, 
+                  color = humidity_tmt_percent
+                  ), 
+              formula = y ~ x, 
+              method = "lm", 
+              se = F, 
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
+  xlab("Day") + 
+  ylab("Hematocrit (%)") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0
+)
+```
+
 
 ### Osml ~ Time
 
+```{r}
+all_dat %>% 
+  dplyr::filter(type != "rehab") %>%
+  ggplot(data = .) + 
+  geom_point(aes(x = day,
+                 y = osmolality_mmol_kg, 
+                 color = as.factor(individual_ID)
+                 ), 
+             size = 1, 
+             alpha = 0.6) +
+  stat_smooth(aes(x = day, 
+                  y = osmolality_mmol_kg, 
+                  color = as.factor(individual_ID)
+                  ), 
+              formula = y ~ x, 
+              method = "lm", 
+              se = F, 
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
+  xlab("Day") + 
+  ylab("Osmolality (mmol / kg)") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0,
+        legend.position = "none")
+```
 
+```{r}
+all_dat %>% 
+  dplyr::filter(type != "rehab") %>%
+  ggplot(data = .) + 
+  geom_point(aes(x = day,
+                 y = osmolality_mmol_kg, 
+                 color = humidity_tmt_percent
+                 ), 
+             size = 1, 
+             alpha = 0.6) +
+  stat_smooth(aes(x = day, 
+                  y = osmolality_mmol_kg, 
+                  color = humidity_tmt_percent
+                  ), 
+              formula = y ~ x, 
+              method = "lm", 
+              se = F, 
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
+  xlab("Date") + 
+  ylab("Osmolality (mmol / kg)") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0
+)
+```
 
 
 

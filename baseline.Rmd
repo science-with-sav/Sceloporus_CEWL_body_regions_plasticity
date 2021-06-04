@@ -330,6 +330,9 @@ morpho_blood_dat <- read.csv("./data/Herpetology_Data.csv", # filename
   # remove two columns not relevant for statistics
   dplyr::select(-sock_ID, -notes)
 summary(morpho_blood_dat)
+
+# export
+write.csv(morpho_blood_dat, "capture_hydration.csv")
 ```
 
 I want to test if any IDs are missing, and which ones if so.
@@ -755,6 +758,16 @@ osml_rain_wk <- cumul_water %>%
   left_join(mean_blood_dat, by = c("sample_date" = "date")) %>%
   # compute osml change between weeks
   mutate(osml_change = mean_osml - lag(mean_osml))
+```
+
+
+### Export Data
+
+I want to save the data as csvs for loading into other analyses.
+
+```{r}
+write.csv(all_data_long, "capture_data_long.csv")
+write.csv(all_data_wide, "capture_data_wide.csv")
 ```
 
 
