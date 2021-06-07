@@ -18,11 +18,17 @@ library("UsingR")
 
 # Data
 
+## Morphometrics & Hydration
+
 ### Treatment Groups
 
 variables:
--
--
+- individual lizard ID
+- temp_tmt_C = temperature treatment
+- humidity_tmt_percent = humidity treatment (high/low, not a %)
+- trial_number = which set of lizards that indidividual was from
+- conclusion = how that individual's experiment ended (died, canceled, or complete)
+
 
 ```{r}
 tmts <- read.csv("./data/exp_tmt_assignment.csv")
@@ -30,6 +36,14 @@ tmts <- read.csv("./data/exp_tmt_assignment.csv")
 
 
 ### Capture Data
+
+variables:
+- date = date of capture & baseline measurements
+- individual lizard ID
+- mass_g = mass in grams
+- hematocrit_percent = % of blood sample that's red blood cells
+- osmolality_mmol_kg = concentration of solutes in blood plasma
+- type = when the measurements were taken along the course of the experiment (all on capture day)
 
 ```{r capture data}
 capture_hydration <- read.csv("./capture_hydration.csv",
@@ -52,6 +66,14 @@ summary(capture_hydration)
 
 **NOTE: this is not all the data**
 
+variables:
+- date = date of capture & baseline measurements
+- individual lizard ID
+- mass_g = mass in grams
+- hematocrit_percent = % of blood sample that's red blood cells
+- osmolality_mmol_kg = concentration of solutes in blood plasma
+- type = when the measurements were taken along the course of the experiment (either during experimental treatment or after rehab)
+
 ```{r}
 exp_dat <- read.csv("./data/experimental_data.csv",
                              na.strings=c("","NA") # fix empty cells
@@ -68,6 +90,8 @@ summary(exp_dat)
 
 ### Join Dataframes
 
+Now, attach all the dataframes, only use observations from individuals who went through the entire experiment to completion, and add a "day" variable for what day of treatment each lizard/observation was on.
+
 ```{r}
 all_dat <- exp_dat %>%
   rbind(capture_hydration) %>%
@@ -83,6 +107,125 @@ summary(all_dat)
 
 # check that capture dates are valid
 unique(all_dat$capture_date)
+```
+
+## CEWL
+
+### Capture CEWL
+
+variables:
+- date = date of capture & baseline measurements
+- individual lizard ID
+- region = which body area the measurement was taken from
+- TEWL_g_m2h = evaporative water loss
+
+```{r}
+cap_CEWL <- read.csv("./capture_CEWL.csv") %>%
+  dplyr::select(date, individual_ID, region, TEWL_g_m2h) %>%
+  mutate(date = as.Date(date, format = "%Y-%m-%d"),
+         region = as.factor(region),
+         day = as.factor("before"), # might change... tbd
+         n_day = 0
+         ) %>%
+  dplyr::filter(individual_ID %in% all_dat$individual_ID)
+summary(cap_CEWL)
+```
+
+
+### Post-Experiment CEWL
+
+*In the future, I could automate this like I did for the HOBO data.*
+
+Load in each of the post-rehab datafiles:
+
+```{r}
+# trial 1
+CEWL_t1 <- read.csv("./data/post_exp_CEWL/4-28-21-CEWL.csv", # filename
+                          na.strings=c("","NA")) %>% # fix empty cells
+  # rename and select the pertinent variables/cols
+  # I have to do this for each one 
+  # so they all have the same number of columns for joining
+  dplyr::select(date = Date, 
+                Status,
+                ID = Comments,
+                TEWL_g_m2h = TEWL..g..m2h.. # rename
+                )
+
+# trial 2
+CEWL_t2 <- read.csv("./data/post_exp_CEWL/5-4-21-CEWL.csv",
+                          na.strings=c("","NA")) %>%
+  dplyr::select(date = Date, 
+                Status,
+                ID = Comments,
+                TEWL_g_m2h = TEWL..g..m2h..
+                )
+
+# trial 3
+CEWL_t3 <- read.csv("./data/post_exp_CEWL/5-11-21-CEWL.csv",
+                          na.strings=c("","NA")) %>%
+  dplyr::select(date = Date, 
+                Status,
+                ID = Comments,
+                TEWL_g_m2h = TEWL..g..m2h..
+                )
+
+# trial 4
+CEWL_t4 <- read.csv("./data/post_exp_CEWL/5-18-21-CEWL.csv",
+                          na.strings=c("","NA")) %>%
+  dplyr::select(date = Date, 
+                Status,
+                ID = Comments,
+                TEWL_g_m2h = TEWL..g..m2h..
+                )
+```
+
+
+### Join Dataframes 
+
+Merge all post-experiment CEWL, and add capture CEWL:
+
+```{r}
+# merge all CEWL datafiles & reformat
+CEWL <- CEWL_t1 %>% # trial 1
+  rbind(., CEWL_t2, # trial 2
+        CEWL_t3, # trial 3
+        CEWL_t4 # trial 4
+        ) %>%
+  # remove any unsuccessful measurements
+  dplyr::filter(Status == "Normal") %>%
+  # extract individual_ID and region separately from the "ID" variable
+  separate(ID, c("individual_ID", "region")) %>%
+  # reformat data
+  dplyr::mutate(# reformat date
+                date = as.Date(date, format = "%m/%d/%y"),
+                # format individual ID as a number
+                individual_ID = as.numeric(individual_ID),
+                # set body region as a factor variable after getting only the consistent characters due to typos
+                region = as.factor(substring(region, 1, 4)),
+                # add when measurement taken
+                day = as.factor("after"), # may rename...
+                n_day = 1
+                ) %>%
+  # remove cols not relevant to stats
+  dplyr::select(-Status) %>%
+  # remove any rows with missing values
+  dplyr::filter(complete.cases(.)) %>%
+  # add capture CEWL data
+  rbind(cap_CEWL) %>%
+  # add tmt assignments
+  left_join(tmts, by = "individual_ID") %>%
+  mutate(humidity_tmt_percent = as.factor(humidity_tmt_percent))
+summary(CEWL)
+```
+
+Before/after aren't even right now because not all the capture data was selected because not all individuals are listed in the tmts dataframe yet. *make sure to check this before final data is made* Before and after won't perfectly match up because sometimes the machine wouldn't work, but the number of measurements should be **almost** the same.
+
+
+## Export Data Frames for Power Analyses
+
+```{r}
+write.csv(all_dat, "exported_data/exp_effects_hydration.csv")
+write.csv(CEWL, "exported_data/exp_effects_CEWL.csv")
 ```
 
 
@@ -152,7 +295,6 @@ Visually, looks slightly skewed to the right, but statistically, the distributio
 
 
 # Basic Figures & SLR
-
 
 ### Mass ~ Time
 
@@ -363,6 +505,81 @@ all_dat %>%
 ```
 
 
+### CEWL ~ Before/After
+
+try a boxplot:
+
+```{r}
+CEWL %>% 
+  ggplot(data = .) + 
+  geom_boxplot(aes(x = day, 
+                   y = TEWL_g_m2h, 
+                   color = humidity_tmt_percent
+                   ), 
+               size = 1,
+               alpha = 1) + 
+  facet_wrap(~region) +
+  theme_classic() + 
+  xlab("") + 
+  ylab("CEWL (g / m^2h)") + 
+  #annotate("text", x = 1.5, y = 45, 
+   #        label = "paste(italic(p), \" = 0.0152\")", 
+    #       parse = TRUE,
+     #      size = 6) +
+  #ylim(10, 50) +
+  #scale_x_discrete(labels = c("F" = "Female",
+   #                           "M" = "Male")) +
+  scale_color_brewer(palette = "Set2") +
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 18),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 14),
+        legend.text.align = 0,
+        legend.position = "none"
+) -> CEWL_fig
+CEWL_fig
+
+# export figure
+#ggsave(filename = "hct_sex_fig.tiff",
+ #      plot = hct_sex_fig,
+  #     path = "./final_figures",
+   #    device = "tiff",
+    #   dpi = 1200,
+     #  width = 6, height = 4)
+
+```
+
+this is difficult to see changes, I think a line graph would be better...
+
+```{r}
+CEWL %>% 
+  ggplot(data = .) + 
+  geom_point(aes(x = n_day,
+                 y = TEWL_g_m2h, 
+                 color = humidity_tmt_percent
+                 ), 
+             size = 1, 
+             alpha = 0.6) +
+  geom_line(aes(x = n_day, 
+                  y = TEWL_g_m2h, 
+                  color = humidity_tmt_percent
+                  )) + 
+  theme_classic() + 
+  scale_x_continuous(breaks = c(0, 1),
+                     labels = c("0" = "before", "1" = "after")) +
+  xlab("") + 
+  ylab("TEWL (g / m2h)") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0
+)
+```
 
 
 

@@ -494,6 +494,14 @@ CEWL <- CEWL_April_05 %>% # week 1
 summary(CEWL)
 ```
 
+
+Write CEWL dataframe as a csv for use in other analyses:
+
+```{r}
+write.csv(CEWL, "capture_CEWL.csv")
+```
+
+
 Next, split CEWL data by region and compute the average among them.
 
 ```{r}
