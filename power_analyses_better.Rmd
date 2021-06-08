@@ -1,7 +1,7 @@
 ---
 title: "Power Analysis for Future Hydration Studies"
 author: "Savannah Weaver"
-date: "Spring Quarter 2021"
+date: "June 2021"
 output: pdf_document
 ---
 
@@ -14,6 +14,8 @@ if (!require("UsingR")) install.packages("UsingR")
 library("UsingR")
 if (!require("pwr")) install.packages("pwr")
 library("pwr")
+if (!require("nlme")) install.packages("nlme")
+library("nlme") # for LMMs
 ```
 
 
@@ -28,68 +30,117 @@ Factors to remember/include:
 
 
 
-# Data
+# Load Data
 
-### Load Experiment Checkup Data
-
-```{r exp data}
-exp_dat <- read.csv("./data/experimental_data.csv",
-                             na.strings=c("","NA") # fix empty cells
+```{r load data}
+CEWL <- read.csv("./exported_data/exp_effects_CEWL.csv",
+                             na.strings=c("","NA")
                              ) %>%
-  dplyr::mutate(date = as.Date(date, format = "%m/%d/%y"),
-                time = as.POSIXct(time, format = "%H:%M"),
-                blood_sample_eye = as.factor(blood_sample_eye),
-                hemolyzed = as.factor(hemolyzed),
-                rehydration = as.factor(rehydration),
-                #individual_ID = as.character(individual_ID)
+  dplyr::mutate(date = as.Date(date, format = "%Y-%m-%d"),
+                region = as.factor(region),
+                humidity_tmt_percent = as.factor(humidity_tmt_percent)
                 ) %>%
-  dplyr::select(-notes, -rehydration) %>%
-  dplyr::filter(osmolality_mmol_kg <= 500) # remove one point I think inaccurate
-summary(exp_dat)
+  dplyr::select(-notes, -X) %>%
+  dplyr::filter(complete.cases(.))
+summary(CEWL)
+hydration <- read.csv("./exported_data/exp_effects_hydration.csv",
+                             na.strings=c("","NA")
+                             ) %>%
+  dplyr::filter(type %in% c("exp", "capture")) %>%
+  dplyr::mutate(date = as.Date(date, format = "%Y-%m-%d"),
+                type = as.factor(type),
+                humidity_tmt_percent = as.factor(humidity_tmt_percent)
+                ) %>%
+  dplyr::select(-X) 
+summary(hydration)
 ```
 
 
-
-### Load Treatment Group Assignments
-
-```{r}
-tmt_groups <- read.csv("./data/exp_tmt_assignment.csv",
-                             na.strings=c("","NA") # fix empty cells
-                             ) %>%
-  dplyr::filter(temp_tmt_C == 25) %>%
-  dplyr::mutate(trial_number = as.factor(trial_number),
-                humidity_tmt_percent = as.factor(humidity_tmt_percent),
-                #individual_ID = as.character(individual_ID)
-                ) %>%
-  dplyr::select(-notes)
-summary(tmt_groups)
-```
 
 
 
 # Data Prep
 
+Since my first try of doing this experiment only had temperature 25C, I'm going to duplicate the data and remake it as 35C so I can build a model off of that.
+
+## Hydration
+
 ```{r}
-power_dat <- exp_dat %>%
-  group_by(individual_ID) %>%
-  dplyr::filter(date == max(date) & rehydration == "pre") %>%
-  left_join(tmt_groups, by = 'individual_ID') %>%
-  dplyr::filter(complete.cases(temp_tmt_C))
+# make fake
+fake_35C_hyd <- hydration %>%
+  mutate(temp_tmt_C = 35)
+
+# join
+fake_hydration_dat <- fake_35C_hyd %>%
+  rbind(hydration)
 ```
 
-Now I want to do a power analysis for finding differences in osmolarity and hematocrit in humid vs dry treatment, but the next study will have 4 groups instead of 2: humid/dry * hot/cool.
-
-I also want to know differences over time, but I'm having data wrangling troubles.
-
-
-# Basic Look at Differences
+## CEWL
 
 ```{r}
-differences <- power_dat %>%
-  group_by(humidity_tmt_percent) %>%
-  summarise(hct = mean(hematocrit_percent),
-            osmol = mean(osmolality_mmol_kg))
-differences
+# make fake
+fake_35C_CEWL <- CEWL %>%
+  mutate(temp_tmt_C = 35)
+
+# join
+fake_CEWL_dat <- fake_35C_CEWL %>%
+  rbind(CEWL)
+```
+
+
+
+# Create Models
+
+## Osmolality
+
+```{r}
+osmol_mod <- nlme::lme(data = fake_hydration_dat,
+                         osmolality_mmol_kg ~ 
+                         # idk how to code temp to prevent pseudoreplication
+                         temp_tmt_C * humidity_tmt_percent +
+                         day, 
+                       random = c(~1|trial_number, ~1|individual_ID))
+summary(osmol_mod)
+```
+
+
+## Hematocrit
+
+```{r}
+hct_mod <- nlme::lme(data = fake_hydration_dat,
+                         hematocrit_percent ~ 
+                         # idk how to code temp to prevent pseudoreplication
+                         temp_tmt_C * humidity_tmt_percent +
+                         day, 
+                       random = c(~1|trial_number, ~1|individual_ID))
+summary(hct_mod)
+```
+
+
+## Mass
+
+```{r}
+mass_mod <- nlme::lme(data = fake_hydration_dat,
+                         mass_g ~ 
+                         # idk how to code temp to prevent pseudoreplication
+                         temp_tmt_C * humidity_tmt_percent +
+                         day, 
+                       random = c(~1|trial_number, ~1|individual_ID))
+summary(mass_mod)
+```
+
+
+## CEWL
+
+```{r}
+CEWL_mod <- nlme::lme(data = fake_CEWL_dat,
+                         TEWL_g_m2h ~ 
+                         # idk how to code temp to prevent pseudoreplication
+                         temp_tmt_C * humidity_tmt_percent + region +
+                        # it won't add region for some reason... 
+                          day, 
+                       random = c(~1|trial_number, ~1|individual_ID))
+summary(osmol_mod)
 ```
 
 
@@ -117,7 +168,7 @@ pwr.anova.test(k = 4, # number of groups (M/F x control/hydration)
 
 
 
-
+Notes from JW chat:
 
 - run a model on the data I currently have is --> look at mean squared error then use that as my variability estimate
 - might have to ignore trial effect for now

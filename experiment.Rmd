@@ -56,7 +56,7 @@ capture_hydration <- read.csv("./capture_hydration.csv",
   dplyr::select(date, individual_ID, 
                 mass_g, hematocrit_percent, osmolality_mmol_kg
                 ) %>%
-  dplyr::filter(individual_ID %in% exp_dat$individual_ID) %>%
+  dplyr::filter(individual_ID %in% tmts$individual_ID) %>%
   mutate(type = as.factor("capture"))
 summary(capture_hydration)
 ```
