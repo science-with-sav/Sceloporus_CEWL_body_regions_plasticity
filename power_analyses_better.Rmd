@@ -13,7 +13,9 @@ library("tidyverse")
 if (!require("UsingR")) install.packages("UsingR")
 library("UsingR")
 if (!require("pwr")) install.packages("pwr")
-library("pwr")
+library("pwr") # basic power analysis
+if (!require("simr")) install.packages("simr")
+library("simr") # more complex power analysis
 if (!require("nlme")) install.packages("nlme")
 library("nlme") # for LMMs
 ```
@@ -101,6 +103,7 @@ osmol_mod <- nlme::lme(data = fake_hydration_dat,
                          day, 
                        random = c(~1|trial_number, ~1|individual_ID))
 summary(osmol_mod)
+osmol_mod_mse <- (mean(osmol_mod$residuals^2)) # 646.0459
 ```
 
 
@@ -114,10 +117,12 @@ hct_mod <- nlme::lme(data = fake_hydration_dat,
                          day, 
                        random = c(~1|trial_number, ~1|individual_ID))
 summary(hct_mod)
+hct_mod_mse <- (mean(hct_mod$residuals^2)) # 28.64746
 ```
 
 
 ## Mass
+### Should this be BCI??
 
 ```{r}
 mass_mod <- nlme::lme(data = fake_hydration_dat,
@@ -127,6 +132,7 @@ mass_mod <- nlme::lme(data = fake_hydration_dat,
                          day, 
                        random = c(~1|trial_number, ~1|individual_ID))
 summary(mass_mod)
+mass_mod_mse <- (mean(mass_mod$residuals^2)) # 2.126061
 ```
 
 
@@ -140,7 +146,8 @@ CEWL_mod <- nlme::lme(data = fake_CEWL_dat,
                         # it won't add region for some reason... 
                           day, 
                        random = c(~1|trial_number, ~1|individual_ID))
-summary(osmol_mod)
+summary(CEWL_mod)
+CEWL_mod_mse <- (mean(CEWL_mod$residuals^2)) # 207.7879
 ```
 
 
@@ -148,31 +155,14 @@ summary(osmol_mod)
 
 # Power Analyses
 
-This is just the code I plan to use, I am still confused on how to use it.
+Not working... 
 
 ```{r}
-# ANOVA with our current sample sizes
-pwr.anova.test(k = 4, # number of groups (M/F x control/hydration)
-               n = 8, # x individuals in each group 
-               f = 0.1, # want to be able to detect small effects 
-               sig.level = 0.05
-                 )
-# ANOVA to find out n per group
-pwr.anova.test(k = 4, # number of groups (M/F x control/hydration)
-               f = 0.1, # want to be able to detect small effects 
-               sig.level = 0.05, 
-               power = 0.9
-                 )
-# not complicated enough to use for more than a 1-way ANOVA
+powerSim(hct_mod)
 ```
 
 
 
-Notes from JW chat:
-
-- run a model on the data I currently have is --> look at mean squared error then use that as my variability estimate
-- might have to ignore trial effect for now
-- another package is cluster power... can email him packages if I'm interested in them
 
 
 
