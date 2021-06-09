@@ -365,6 +365,10 @@ all_dat %>%
 )
 ```
 
+Normalise as BCI. Look at change in body condition, rather than actual mass.
+
+I also need to upload HOBO data to get mean treatment conditions!!!
+
 
 ### Hct ~ Time
 
