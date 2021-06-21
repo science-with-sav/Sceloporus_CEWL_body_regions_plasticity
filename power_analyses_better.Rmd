@@ -86,7 +86,11 @@ fake_35C_CEWL <- CEWL %>%
 
 # join
 fake_CEWL_dat <- fake_35C_CEWL %>%
-  rbind(CEWL)
+  rbind(CEWL) %>%
+  # make indiv ID and trial num factors
+  mutate(individual_ID = as.factor(individual_ID),
+         trial_number = as.factor(trial_number))
+summary(fake_CEWL_dat)
 ```
 
 
@@ -139,13 +143,14 @@ mass_mod_mse <- (mean(mass_mod$residuals^2)) # 2.126061
 ## CEWL
 
 ```{r}
-CEWL_mod <- nlme::lme(data = fake_CEWL_dat,
+CEWL_mod <- lme4::lmer(data = fake_CEWL_dat,
                          TEWL_g_m2h ~ 
                          # idk how to code temp to prevent pseudoreplication
-                         temp_tmt_C * humidity_tmt_percent + region +
+                         # colon for interaction only
+                         humidity_tmt_percent*day + region +
                         # it won't add region for some reason... 
-                          day, 
-                       random = c(~1|trial_number, ~1|individual_ID))
+                        
+                       (1|trial_number/individual_ID)) # nest indiv within trial num
 summary(CEWL_mod)
 CEWL_mod_mse <- (mean(CEWL_mod$residuals^2)) # 207.7879
 ```
@@ -158,7 +163,9 @@ CEWL_mod_mse <- (mean(CEWL_mod$residuals^2)) # 207.7879
 Not working... 
 
 ```{r}
-powerSim(hct_mod)
+powerSim(CEWL_mod, fixed("humidity_tmt_percent:day", "lr"), nsim = 20)
+# pwr more interesting for nonsig model effects
+powerSim(CEWL_mod)
 ```
 
 

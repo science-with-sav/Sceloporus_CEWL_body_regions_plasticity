@@ -14,7 +14,6 @@ if (!require("UsingR")) install.packages("UsingR")
 library("UsingR")
 ```
 
-*make sure Tess went through and checked all the data*
 
 # Data
 
@@ -46,7 +45,7 @@ variables:
 - type = when the measurements were taken along the course of the experiment (all on capture day)
 
 ```{r capture data}
-capture_hydration <- read.csv("./capture_hydration.csv",
+capture_hydration <- read.csv("./exported_data/capture_hydration.csv",
                              na.strings=c("","NA") # fix empty cells
                              ) %>%
   mutate(# correctly format date-only variable
@@ -63,8 +62,6 @@ summary(capture_hydration)
 
 
 ### Experiment Data
-
-**NOTE: this is not all the data**
 
 variables:
 - date = date of capture & baseline measurements
@@ -84,25 +81,42 @@ exp_dat <- read.csv("./data/experimental_data.csv",
                 ) %>%
   # select only variables to be analyzed
   dplyr::select(date, individual_ID, mass_g, 
-                hematocrit_percent, osmolality_mmol_kg, type)
+                hematocrit_percent, type, 
+                osmolality_mmol_kg = osmolality_mmol_kg_replicate_mean)
 summary(exp_dat)
 ```
 
 ### Join Dataframes
 
-Now, attach all the dataframes, only use observations from individuals who went through the entire experiment to completion, and add a "day" variable for what day of treatment each lizard/observation was on.
+Now, attach all the dataframes, only use individuals whose treatment was completed, and add a "day" variable for what day of treatment each lizard/observation was on.
+
+I also calculate body condition index (BCI) using two different methods: log-residuals and scaled mass index.
 
 ```{r}
 all_dat <- exp_dat %>%
+  # join data
   rbind(capture_hydration) %>%
+  # add tmt group info
   left_join(tmts, by = "individual_ID") %>%
   dplyr::select(-notes) %>%
+  # only use completed experiment runs
   dplyr::filter(conclusion == "complete") %>%
   group_by(individual_ID) %>%
+  # reformat a lot of variables
   mutate(capture_date = min(date),
          day = as.numeric(date - capture_date),
-         humidity_tmt_percent = as.factor(humidity_tmt_percent)
+         humidity_tmt_percent = as.factor(humidity_tmt_percent),
+         individual_ID = as.factor(individual_ID),
+         temp_tmt_C = as.factor(temp_tmt_C),
+         trial_number = as.factor(trial_number),
+         conclusion = as.factor(conclusion),
+         
+  # calculate body condition index as log-residuals
+         BCI_log_res = 1,
+  # calculate body condition index as scaled mass index
+         BCI_scaled_mass = 2
          )
+
 summary(all_dat)
 
 # check that capture dates are valid
@@ -120,7 +134,7 @@ variables:
 - TEWL_g_m2h = evaporative water loss
 
 ```{r}
-cap_CEWL <- read.csv("./capture_CEWL.csv") %>%
+cap_CEWL <- read.csv("./exported_data/capture_CEWL.csv") %>%
   dplyr::select(date, individual_ID, region, TEWL_g_m2h) %>%
   mutate(date = as.Date(date, format = "%Y-%m-%d"),
          region = as.factor(region),
@@ -218,7 +232,7 @@ CEWL <- CEWL_t1 %>% # trial 1
 summary(CEWL)
 ```
 
-Before/after aren't even right now because not all the capture data was selected because not all individuals are listed in the tmts dataframe yet. *make sure to check this before final data is made* Before and after won't perfectly match up because sometimes the machine wouldn't work, but the number of measurements should be **almost** the same.
+Before/after aren't perfectly even because sometimes we were unable to get the AquaFlux to equilibrate and take a measurement post-experiment.
 
 
 ## Export Data Frames for Power Analyses
@@ -251,6 +265,21 @@ shapiro.test(exp_dat$mass_g)
 
 Mass distribution not normal, skewed to the left.
 
+
+### Body Condition Index
+
+```{r}
+exp_dat %>%
+  ggplot(., aes(x = mass_g)) +
+  geom_histogram(color = "black", fill="steelblue", bins=50) + 
+  theme_classic() +
+  xlab("Mass (g)") + 
+  ylab("Count")
+simple.eda(exp_dat$mass_g)
+shapiro.test(exp_dat$mass_g)
+```
+
+
 ### Hematocrit
 
 ```{r}
@@ -281,9 +310,6 @@ shapiro.test(exp_dat$osmolality_mmol_kg)
 ```
 
 Visually, looks slightly skewed to the right, but statistically, the distribution of osmolality is normal.
-
-
-
 
 
 
@@ -365,9 +391,13 @@ all_dat %>%
 )
 ```
 
-Normalise as BCI. Look at change in body condition, rather than actual mass.
+```{r}
+mass_mod <- nlme::lme(data = all_dat,
+               mass_g ~ day*humidity_tmt_percent,
+               random = ~1|individual_ID)
+summary(mass_mod)
+```
 
-I also need to upload HOBO data to get mean treatment conditions!!!
 
 
 ### Hct ~ Time
@@ -439,6 +469,17 @@ all_dat %>%
 )
 ```
 
+```{r}
+hct_mod <- all_dat %>%
+  dplyr::filter(complete.cases(hematocrit_percent)) %>%
+  nlme::lme(data = .,
+               hematocrit_percent ~ day + humidity_tmt_percent,
+               random = ~1|individual_ID)
+summary(hct_mod)
+```
+
+Treatment did NOT significantly affect hct, and both treatment groups lost approximately the same hct over time at the same rate.
+
 
 ### Osml ~ Time
 
@@ -507,6 +548,79 @@ all_dat %>%
         legend.text.align = 0
 )
 ```
+
+```{r}
+osml_mod <- all_dat %>%
+  dplyr::filter(complete.cases(osmolality_mmol_kg)) %>%
+  nlme::lme(data = .,
+               osmolality_mmol_kg ~ day*humidity_tmt_percent,
+               random = ~1|individual_ID)
+summary(osml_mod)
+```
+
+
+### Change in Osmolality
+
+```{r}
+osml_d0 <- all_dat %>%
+  dplyr::filter(day == 0) %>%
+  dplyr::select(individual_ID, osml_day0 = osmolality_mmol_kg, 
+                humidity_tmt_percent)
+osml_d8 <- all_dat %>%
+  dplyr::filter(day == 8) %>%
+  dplyr::select(individual_ID, osml_day8 = osmolality_mmol_kg, 
+                humidity_tmt_percent)
+
+osml_diffs <- osml_d0 %>%
+  left_join(osml_d8, by = c('individual_ID', 'humidity_tmt_percent'))
+```
+
+
+boxplot:
+
+```{r}
+osml_diffs %>% 
+  ggplot(data = .) + 
+  geom_boxplot(aes(x = day, 
+                   y = TEWL_g_m2h, 
+                   color = humidity_tmt_percent
+                   ), 
+               size = 1,
+               alpha = 1) + 
+  facet_wrap(~region) +
+  theme_classic() + 
+  xlab("") + 
+  ylab("CEWL (g / m^2h)") + 
+  #annotate("text", x = 1.5, y = 45, 
+   #        label = "paste(italic(p), \" = 0.0152\")", 
+    #       parse = TRUE,
+     #      size = 6) +
+  #ylim(10, 50) +
+  #scale_x_discrete(labels = c("F" = "Female",
+   #                           "M" = "Male")) +
+  scale_color_brewer(palette = "Set2") +
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 18),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 14),
+        legend.text.align = 0,
+        legend.position = "none"
+) #-> CEWL_fig
+#CEWL_fig
+
+# export figure
+#ggsave(filename = "hct_sex_fig.tiff",
+ #      plot = hct_sex_fig,
+  #     path = "./final_figures",
+   #    device = "tiff",
+    #   dpi = 1200,
+     #  width = 6, height = 4)
+
+```
+
+
 
 
 ### CEWL ~ Before/After
@@ -585,6 +699,14 @@ CEWL %>%
 )
 ```
 
+```{r}
+CEWL_mod <- all_dat %>%
+  dplyr::filter(complete.cases(hematocrit_percent)) %>%
+  nlme::lme(data = .,
+               hematocrit_percent ~ day + humidity_tmt_percent,
+               random = ~1|individual_ID)
+summary(CEWL_mod)
+```
 
 
 
