@@ -37,235 +37,6 @@ This data was collected April - May 2021 during a course-based undergraduate res
 In this document, we investigate differences in cutaneous evaporative water loss (CEWL) across body regions and dependent on environment, body size, health, and hydration. 
 
 
-# ggbiplot
-
-Code to prep for Principle Component Analyses Plots
-
-
-```{r}
-# 
-#  ggbiplot.r
-#  
-#  Copyright 2011 Vincent Q. Vu.
-# 
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#  
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#  
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-# 
-
-#' Biplot for Principal Components using ggplot2
-#'
-#' @param pcobj           an object returned by prcomp() or princomp()
-#' @param choices         which PCs to plot
-#' @param scale           covariance biplot (scale = 1), form biplot (scale = 0). When scale = 1, the inner product between the variables approximates the covariance and the distance between the points approximates the Mahalanobis distance.
-#' @param obs.scale       scale factor to apply to observations
-#' @param var.scale       scale factor to apply to variables
-#' @param pc.biplot       for compatibility with biplot.princomp()
-#' @param groups          optional factor variable indicating the groups that the observations belong to. If provided the points will be colored according to groups
-#' @param ellipse         draw a normal data ellipse for each group?
-#' @param ellipse.prob    size of the ellipse in Normal probability
-#' @param labels          optional vector of labels for the observations
-#' @param labels.size     size of the text used for the labels
-#' @param alpha           alpha transparency value for the points (0 = transparent, 1 = opaque)
-#' @param circle          draw a correlation circle? (only applies when prcomp was called with scale = TRUE and when var.scale = 1)
-#' @param var.axes        draw arrows for the variables?
-#' @param varname.size    size of the text for variable names
-#' @param varname.adjust  adjustment factor the placement of the variable names, >= 1 means farther from the arrow
-#' @param varname.abbrev  whether or not to abbreviate the variable names
-#'
-#' @return                a ggplot2 plot
-#' @export
-#' @examples
-#'   data(wine)
-#'   wine.pca <- prcomp(wine, scale. = TRUE)
-#'   print(ggbiplot(wine.pca, obs.scale = 1, var.scale = 1, groups = wine.class, ellipse = TRUE, circle = TRUE))
-#'
-ggbiplot <- function(pcobj, choices = 1:2, scale = 1, pc.biplot = TRUE, 
-                     obs.scale = 1 - scale, var.scale = scale, 
-                     groups = NULL, ellipse = FALSE, ellipse.prob = 0.68, 
-                     labels = NULL, labels.size = 3, alpha = 1, 
-                     var.axes = TRUE, 
-                     circle = FALSE, circle.prob = 0.69, 
-                     varname.size = 3, varname.adjust = 1.5, 
-                     varname.abbrev = FALSE, ...)
-{
-  library(ggplot2)
-  library(plyr)
-  library(scales)
-  library(grid)
-  
-  stopifnot(length(choices) == 2)
-  
-  # Recover the SVD
-  if(inherits(pcobj, 'prcomp')){
-    nobs.factor <- sqrt(nrow(pcobj$x) - 1)
-    d <- pcobj$sdev
-    u <- sweep(pcobj$x, 2, 1 / (d * nobs.factor), FUN = '*')
-    v <- pcobj$rotation
-  } else if(inherits(pcobj, 'princomp')) {
-    nobs.factor <- sqrt(pcobj$n.obs)
-    d <- pcobj$sdev
-    u <- sweep(pcobj$scores, 2, 1 / (d * nobs.factor), FUN = '*')
-    v <- pcobj$loadings
-  } else if(inherits(pcobj, 'PCA')) {
-    nobs.factor <- sqrt(nrow(pcobj$call$X))
-    d <- unlist(sqrt(pcobj$eig)[1])
-    u <- sweep(pcobj$ind$coord, 2, 1 / (d * nobs.factor), FUN = '*')
-    v <- sweep(pcobj$var$coord,2,sqrt(pcobj$eig[1:ncol(pcobj$var$coord),1]),FUN="/")
-  } else if(inherits(pcobj, "lda")) {
-    nobs.factor <- sqrt(pcobj$N)
-    d <- pcobj$svd
-    u <- predict(pcobj)$x/nobs.factor
-    v <- pcobj$scaling
-    d.total <- sum(d^2)
-  } else {
-    stop('Expected a object of class prcomp, princomp, PCA, or lda')
-  }
-  
-  # Scores
-  choices <- pmin(choices, ncol(u))
-  df.u <- as.data.frame(sweep(u[,choices], 2, d[choices]^obs.scale, FUN='*'))
-  
-  # Directions
-  v <- sweep(v, 2, d^var.scale, FUN='*')
-  df.v <- as.data.frame(v[, choices])
-  
-  names(df.u) <- c('xvar', 'yvar')
-  names(df.v) <- names(df.u)
-  
-  if(pc.biplot) {
-    df.u <- df.u * nobs.factor
-  }
-  
-  # Scale the radius of the correlation circle so that it corresponds to 
-  # a data ellipse for the standardized PC scores
-  r <- sqrt(qchisq(circle.prob, df = 2)) * prod(colMeans(df.u^2))^(1/4)
-  
-  # Scale directions
-  v.scale <- rowSums(v^2)
-  df.v <- r * df.v / sqrt(max(v.scale))
-  
-  # Change the labels for the axes
-  if(obs.scale == 0) {
-    u.axis.labs <- paste('standardized PC', choices, sep='')
-  } else {
-    u.axis.labs <- paste('PC', choices, sep='')
-  }
-  
-  # Append the proportion of explained variance to the axis labels
-  u.axis.labs <- paste(u.axis.labs, 
-                       sprintf('(%0.1f%% explained var.)', 
-                               100 * pcobj$sdev[choices]^2/sum(pcobj$sdev^2)))
-  
-  # Score Labels
-  if(!is.null(labels)) {
-    df.u$labels <- labels
-  }
-  
-  # Grouping variable
-  if(!is.null(groups)) {
-    df.u$groups <- groups
-  }
-  
-  # Variable Names
-  if(varname.abbrev) {
-    df.v$varname <- abbreviate(rownames(v))
-  } else {
-    df.v$varname <- rownames(v)
-  }
-  
-  # Variables for text label placement
-  df.v$angle <- with(df.v, (180/pi) * atan(yvar / xvar))
-  df.v$hjust = with(df.v, (1 - varname.adjust * sign(xvar)) / 2)
-  
-  # Base plot
-  g <- ggplot(data = df.u, aes(x = xvar, y = yvar)) + 
-    xlab(u.axis.labs[1]) + ylab(u.axis.labs[2]) + coord_equal()
-  
-  if(var.axes) {
-    # Draw circle
-    if(circle) 
-    {
-      theta <- c(seq(-pi, pi, length = 50), seq(pi, -pi, length = 50))
-      circle <- data.frame(xvar = r * cos(theta), yvar = r * sin(theta))
-      g <- g + geom_path(data = circle, color = muted('white'), 
-                         size = 1/2, alpha = 1/3)
-    }
-    
-    # Draw directions
-    g <- g +
-      geom_segment(data = df.v,
-                   aes(x = 0, y = 0, xend = xvar, yend = yvar),
-                   arrow = arrow(length = unit(1/2, 'picas')), 
-                   color = muted('red'))
-  }
-  
-  # Draw either labels or points
-  if(!is.null(df.u$labels)) {
-    if(!is.null(df.u$groups)) {
-      g <- g + geom_text(aes(label = labels, color = groups), 
-                         size = labels.size)
-    } else {
-      g <- g + geom_text(aes(label = labels), size = labels.size)      
-    }
-  } else {
-    if(!is.null(df.u$groups)) {
-      g <- g + geom_point(aes(color = groups), alpha = alpha)
-    } else {
-      g <- g + geom_point(alpha = alpha)      
-    }
-  }
-  
-  # Overlay a concentration ellipse if there are groups
-  if(!is.null(df.u$groups) && ellipse) {
-    theta <- c(seq(-pi, pi, length = 50), seq(pi, -pi, length = 50))
-    circle <- cbind(cos(theta), sin(theta))
-    
-    ell <- ddply(df.u, 'groups', function(x) {
-      if(nrow(x) <= 2) {
-        return(NULL)
-      }
-      sigma <- var(cbind(x$xvar, x$yvar))
-      mu <- c(mean(x$xvar), mean(x$yvar))
-      ed <- sqrt(qchisq(ellipse.prob, df = 2))
-      data.frame(sweep(circle %*% chol(sigma) * ed, 2, mu, FUN = '+'), 
-                 groups = x$groups[1])
-    })
-    names(ell)[1:2] <- c('xvar', 'yvar')
-    g <- g + geom_path(data = ell, aes(color = groups, group = groups))
-  }
-  
-  # Label the variable axes
-  if(var.axes) {
-    g <- g + 
-      geom_text(data = df.v, 
-                aes(label = varname, x = xvar, y = yvar, 
-                    angle = angle, hjust = hjust), 
-                color = 'darkred', size = varname.size)
-  }
-  # Change the name of the legend for groups
-  # if(!is.null(groups)) {
-  #   g <- g + scale_color_brewer(name = deparse(substitute(groups)), 
-  #                               palette = 'Dark2')
-  # }
-  
-  # TODO: Add a second set of axes
-  
-  return(g)
-}
-```
-
-
 # Data
 
 ### Morphometrics and Blood Data
@@ -328,7 +99,7 @@ morpho_blood_dat <- read.csv("./data/Herpetology_Data.csv", # filename
 summary(morpho_blood_dat)
 
 # export
-write.csv(morpho_blood_dat, "capture_hydration.csv")
+write.csv(morpho_blood_dat, "exported_data/capture_hydration.csv")
 ```
 
 I want to test if any IDs are missing, and which ones if so.
@@ -341,15 +112,6 @@ lost
 
 Individuals 23 and 56 actually both do not exist because those numbers were skipped when assigning IDs, so we have all the individuals measured in the dataframe.
 
-
-Finally, compute some mean values for each sampling day:
-
-```{r}
-mean_blood_dat <- morpho_blood_dat %>%
-  dplyr::filter(complete.cases(osmolality_mmol_kg)) %>%
-  group_by(date) %>%
-  summarise(mean_osml = mean(osmolality_mmol_kg))
-```
 
 
 
@@ -364,8 +126,6 @@ Variables in this dataframe are:
 - individual_ID for each lizard measured
 - region = where on the body CEWL was measured
 - TEWL_g_m2h = CEWL measurement value in grams/sq-meter/hour
-- CV = coefficient of variation of the measurements immediately before the final measurement
-- SSWL_g_m2 = ?
 - ambient_temp_C = temperature when and where measurement was taken
 - ambient_RH_percent = relative humidity when and where measurement was taken
 - abs_humidity = computed from RH using formula on this website: https://carnotcycle.wordpress.com/2012/08/04/how-to-convert-relative-humidity-to-absolute-humidity/
@@ -381,8 +141,6 @@ CEWL_April_05 <- read.csv("./data/capture_CEWL/4-5-21-CEWL.csv", # filename
                 Time, Status,
                 ID = Comments,
                 TEWL_g_m2h = TEWL..g..m2h.., # rename
-                CV = CV...., # rename
-                SSWL_g_m2 = SSWL..g..m2.., # rename
                 ambient_temp_C = AmbT..C., # rename
                 ambient_RH_percent = AmbRH....
                 )
@@ -394,8 +152,6 @@ CEWL_April_19 <- read.csv("./data/capture_CEWL/4-19-21-CEWL.csv",
                 Time, Status,
                 ID = Comments,
                 TEWL_g_m2h = TEWL..g..m2h.., # rename
-                CV = CV...., # rename
-                SSWL_g_m2 = SSWL..g..m2.., # rename
                 ambient_temp_C = AmbT..C., # rename
                 ambient_RH_percent = AmbRH....
                 )
@@ -407,8 +163,6 @@ CEWL_April_26 <- read.csv("./data/capture_CEWL/4-26-21-CEWL.csv",
                 Time, Status,
                 ID = Comments,
                 TEWL_g_m2h = TEWL..g..m2h.., # rename
-                CV = CV...., # rename
-                SSWL_g_m2 = SSWL..g..m2.., # rename
                 ambient_temp_C = AmbT..C., # rename
                 ambient_RH_percent = AmbRH....
                 )
@@ -420,8 +174,6 @@ CEWL_May_3 <- read.csv("./data/capture_CEWL/5-3-21-CEWL.csv",
                 Time, Status,
                 ID = Comments,
                 TEWL_g_m2h = TEWL..g..m2h.., # rename
-                CV = CV...., # rename
-                SSWL_g_m2 = SSWL..g..m2.., # rename
                 ambient_temp_C = AmbT..C., # rename
                 ambient_RH_percent = AmbRH....
                 )
@@ -433,8 +185,6 @@ CEWL_May_10 <- read.csv("./data/capture_CEWL/5-10-21-CEWL.csv",
                 Time, Status,
                 ID = Comments,
                 TEWL_g_m2h = TEWL..g..m2h.., # rename
-                CV = CV...., # rename
-                SSWL_g_m2 = SSWL..g..m2.., # rename
                 ambient_temp_C = AmbT..C., # rename
                 ambient_RH_percent = AmbRH....
                 )
@@ -446,8 +196,6 @@ CEWL_May_17 <- read.csv("./data/capture_CEWL/5-17-21-CEWL.csv",
                 Time, Status,
                 ID = Comments,
                 TEWL_g_m2h = TEWL..g..m2h.., # rename
-                CV = CV...., # rename
-                SSWL_g_m2 = SSWL..g..m2.., # rename
                 ambient_temp_C = AmbT..C., # rename
                 ambient_RH_percent = AmbRH....
                 )
@@ -494,7 +242,7 @@ summary(CEWL)
 Write CEWL dataframe as a csv for use in other analyses:
 
 ```{r}
-write.csv(CEWL, "capture_CEWL.csv")
+write.csv(CEWL, "exported_data/capture_CEWL.csv")
 ```
 
 
@@ -770,8 +518,8 @@ osml_rain_wk <- cumul_water %>%
 I want to save the data as csvs for loading into other analyses.
 
 ```{r}
-write.csv(all_data_long, "capture_data_long.csv")
-write.csv(all_data_wide, "capture_data_wide.csv")
+write.csv(all_data_long, "exported_data/capture_data_long.csv")
+write.csv(all_data_wide, "exported_data/capture_data_wide.csv")
 ```
 
 
@@ -782,8 +530,9 @@ write.csv(all_data_wide, "capture_data_wide.csv")
 ## Histograms & Q-Q Plots
 
 ### SVL
-skewed left
-- not normal
+
+not normally distributed, skewed left
+ 
 ```{r}
 all_data_wide %>%
   ggplot(., aes(x = SVL_mm)) +
@@ -796,9 +545,10 @@ simple.eda(all_data_wide$SVL_mm)
 shapiro.test(all_data_wide$SVL_mm)
 ```
 
-### mass
-slightly skewed left, but nearly a bell curve:
-- not normal
+### Mass
+
+slightly skewed left, but nearly a bell curve
+
 ```{r}
 all_data_wide %>%
   ggplot(., aes(x = mass_g)) +
@@ -811,9 +561,10 @@ simple.eda(all_data_wide$mass_g)
 shapiro.test(all_data_wide$mass_g)
 ```
 
-### hematocrit 
-looks pretty normally distributed around ~35%:
-- not normal
+### Hematocrit 
+
+looks pretty normally distributed around ~35%, but not statistically normal
+
 ```{r}
 all_data_wide %>%
   ggplot(., aes(x = hematocrit_percent)) +
@@ -826,9 +577,11 @@ simple.eda(all_data_wide$hematocrit_percent)
 shapiro.test(all_data_wide$hematocrit_percent)
 ```
 
-### osmolality 
-also pretty normally distributed around ~370:
-- normal: only variable to pass normality test (LOL)
+### Osmolality 
+
+pretty normally distributed around ~370:
+only variable to pass normality test (LOL)
+
 ```{r}
 all_data_wide %>%
   ggplot(., aes(x = osmolality_mmol_kg)) +
@@ -841,9 +594,10 @@ simple.eda(all_data_wide$osmolality_mmol_kg)
 shapiro.test(all_data_wide$osmolality_mmol_kg)
 ```
 
-### cloacal temperature 
-seems normally distributed:
-- not normal
+### Cloacal Temperature 
+
+seems normally distributed, but not normal
+
 ```{r}
 all_data_wide %>%
   ggplot(., aes(x = cloacal_temp_C)) +
@@ -859,7 +613,8 @@ shapiro.test(all_data_wide$cloacal_temp_C)
 
 
 
-### TEWL
+### CEWL
+
 ```{r}
 all_data_long %>%
   ggplot(., aes(x = TEWL_g_m2h)) +
@@ -881,9 +636,10 @@ leveneTest(TEWL_g_m2h ~ region, data=all_data_long)
 ```
 
 
-### dewlap CEWL 
-very skewed to the right:
-- not normal
+### Dewlap CEWL 
+
+very skewed to the right
+
 ```{r}
 all_data_wide %>%
   ggplot(., aes(x = dewlap_TEWL_g_m2h)) +
@@ -901,9 +657,10 @@ shapiro.test(log(all_data_wide$dewlap_TEWL_g_m2h))
 
 ```
 
-### dorsum CEWL 
-slightly skewed to the right:
-- not normal
+### Dorsum CEWL 
+
+slightly skewed to the right
+
 ```{r}
 all_data_wide %>%
   ggplot(., aes(x = dorsum_TEWL_g_m2h)) +
@@ -920,9 +677,10 @@ shapiro.test(log(all_data_wide$dorsum_TEWL_g_m2h))
 
 ```
 
-### head CEWL 
-very skewed to the right:
-- not normal
+### Head CEWL 
+
+very skewed to the right
+
 ```{r}
 all_data_wide %>%
   ggplot(., aes(x = head_TEWL_g_m2h)) +
@@ -939,9 +697,10 @@ shapiro.test(log(all_data_wide$head_TEWL_g_m2h))
 
 ```
 
-### mite patch CEWL 
-very skewed to the right:
-- not normal
+### Mite Patch CEWL 
+
+very skewed to the right
+
 ```{r}
 all_data_wide %>%
   ggplot(., aes(x = mitepatch_TEWL_g_m2h)) +
@@ -957,9 +716,10 @@ shapiro.test(all_data_wide$mitepatch_TEWL_g_m2h)
 shapiro.test(log(all_data_wide$mitepatch_TEWL_g_m2h))
 ```
 
-### ventrum CEWL 
-slightly skewed to the right, somewhat evenly distributed:
-- not normal
+### Ventrum CEWL 
+
+slightly skewed to the right, somewhat evenly distributed, but not statistically normal
+
 ```{r}
 all_data_wide %>%
   ggplot(., aes(x = ventrum_TEWL_g_m2h)) +
@@ -976,7 +736,9 @@ shapiro.test(log(all_data_wide$ventrum_TEWL_g_m2h))
 ```
 
 ### Temperature 
-- non normal
+
+not normal
+
 ```{r}
 all_data_wide %>%
   ggplot(., aes(x = temp_C_interpol)) +
@@ -990,11 +752,12 @@ shapiro.test(all_data_wide$temp_C_interpol)
 
 # log transform 
 shapiro.test(log(all_data_wide$temp_C_interpol))
-
 ```
 
 ### Humidity
-- non normal
+
+not normal
+
 ```{r}
 all_data_wide %>%
   ggplot(., aes(x = abs_humidity_g_m3_interpol)) +
@@ -1012,7 +775,9 @@ shapiro.test(log(all_data_wide$abs_humidity_g_m3_interpol))
 ```
 
 ### Wind
-- non normal
+
+not normal
+
 ```{r}
 all_data_wide %>%
   ggplot(., aes(x = Wind_mph_interpol)) +
@@ -1029,7 +794,9 @@ shapiro.test(log(all_data_wide$Wind_mph_interpol))
 ```
 
 ### Solar Radiation
-- non normal
+
+not normal
+
 ```{r}
 all_data_wide %>%
   ggplot(., aes(x = Solar_rad_Wm2_interpol)) +
@@ -1061,11 +828,13 @@ The following variables were each had non-normal distributions:
 - wind speed (multimodal)
 - solar radiation (multimodal)
 
-This will be important to keep in mind going forward. Once we have our model, we will need to vigorously check assumptions.
+This will be important to keep in mind going forward. Once we have our model, we will need to very very carefully check assumptions.
+
+
 
 ## Transformations
 
-I'm just going to start with simple log-transformations and hope that improves normality, then investigate potential other transformations if log-transforming does not work.
+Check whether simple log-transformations improve normality, then investigate potential other transformations if log-transforming does not work.
 
 ### SVL
 
@@ -1123,7 +892,7 @@ Try a transformation of SVL^6.7:
 # boxcox lambda = 6.7 transform
 SVL_transf3 <- morpho_blood_dat %>%
   dplyr::select(SVL_mm) %>%
-  mutate(SVL_transf = (SVL_mm)^)
+  mutate(SVL_transf = (SVL_mm)^6.7)
 
 # check normality again
 SVL_transf3 %>%
@@ -1195,12 +964,14 @@ shapiro.test(SVL_transf3$SVL_transf)
 ## What affects hydration & health?
 
 Potential relationships:
-- Hct ~ SVL, mass, sex, gravidity, eye, hemolyzed, week
-- Omol ~ SVL, mass, sex, gravidity, eye, hemolyzed, week
+- Hct or Osml ~ SVL, mass, sex, gravidity, eye, hemolyzed, week
 
 ### Hct ~ SVL
+
 - No sig relationship
+
 ```{r}
+# plot
 all_data_wide %>% 
   ggplot(data = .) + 
   geom_point(aes(x = SVL_mm,
@@ -1238,7 +1009,9 @@ summary(glm_hct_SVL)
 
 
 ### Osml ~ SVL
+
 - no sig relationship
+
 ```{r}
 all_data_wide %>% 
   ggplot(data = .) + 
@@ -1276,7 +1049,9 @@ summary(glm_osml_SVL)
 
 
 ### Hct ~ Mass
+
 - no sig relationship
+
 ```{r}
 all_data_wide %>% 
   ggplot(data = .) + 
@@ -1313,7 +1088,9 @@ summary(glm_hct_mass)
 ```
 
 ### Osml ~ Mass
+
 - no sig relationship
+
 ```{r}
 all_data_wide %>% 
   ggplot(data = .) + 
@@ -1350,7 +1127,9 @@ summary(glm_osml_mass)
 
 
 ### Hct ~ Sex
+
 - sig relationship, males have a higher hematocrit %
+
 ```{r}
 all_data_wide %>% 
   ggplot(data = .) + 
@@ -1403,7 +1182,9 @@ Hematocrit is significantly predicted by sex, but the interaction between sex an
 
 
 ### Osml ~ Sex
-- barely not significant (p=.0749), females have higher osmolarity
+
+females have higher osmolarity (nonsig)
+
 ```{r}
 all_data_wide %>% 
   ggplot(data = .) + 
@@ -1431,7 +1212,9 @@ summary(glm_osml_sex)
 ```
 
 ### Hct ~ Gravidity
+
 - no sig diff
+
 ```{r}
 all_data_wide %>% 
   dplyr::filter(sex_M_F == 'F') %>%
@@ -1460,7 +1243,9 @@ summary(glm_hct_gravid)
 ```
 
 ### Osml ~ Gravidity
-- barely not significant (p=.0756), gravid F have higher osmolarity
+
+gravid F have higher osmolarity (nonsig)
+
 ```{r}
 all_data_wide %>% 
   dplyr::filter(sex_M_F == 'F') %>%
@@ -1489,6 +1274,8 @@ summary(glm_osml_gravid)
 ```
 
 ### Hct ~ Sample Eye
+
+Actually, any blood samples not taken from the right eye ended up being excluded or didn't have hematocrit values, so we can't test this difference.
 
 ```{r}
 all_data_wide %>% 
@@ -1545,7 +1332,9 @@ summary(glm_osml_eye)
 ```
 
 ### Hct ~ Hemolyzed/Not
+
 - no sig diff
+
 ```{r}
 all_data_wide %>% 
   dplyr::filter(hemolyzed %in% c("Y", "N")) %>%
@@ -1607,7 +1396,9 @@ summary(glm_osml_hem)
 
 
 ### Hct ~ Week
+
 - no sig diff
+
 ```{r}
 all_data_wide %>% 
   ggplot(data = .) + 
@@ -1691,7 +1482,7 @@ summary(glm_osml_wk)
 
 There was a little rain on April 27.... could that be why there was a slight drop in osmolality?! Not sure if the May 3-> 10 drop was because of rain or fixing the osmometer, though... Need to look for better daily rainfall records, maybe look in relation to humidity?.
 
-Also try a pairwise ANOVA test:
+distinguish pairwise differences using an ANOVA:
 
 ```{r}
 osml_date_aov <- aov(osmolality_mmol_kg ~ as.factor(date), 
@@ -1700,9 +1491,10 @@ TukeyHSD(osml_date_aov)
 ```
 
 
-
 ### Humidity ~ Week
+
 - Significant difference in humidity by week
+
 ```{r}
 all_data_wide %>% 
   ggplot(data = .) + 
@@ -1784,7 +1576,9 @@ all_data_wide %>%
 
 
 ### Osml ~ R. Humidity
+
 - Sig difference, negative relationship. With every percent increase in relative humidity osmolarity drops 1.2.
+
 ```{r}
 all_data_wide %>% 
   ggplot(data = .) + 
@@ -1823,7 +1617,6 @@ That's a pretty good relationship...
 
 
 ### Osml ~ Abs. Humidity
-
 
 ```{r}
 all_data_wide %>% 
@@ -2044,8 +1837,6 @@ osml_rain_wk %>%
 
 ### Hct ~ Humidity
 
-- almost significant (p=0.0734)
-
 ```{r}
 all_data_wide %>% 
   ggplot(data = .) + 
@@ -2082,7 +1873,9 @@ summary(glm_hct_RH)
 
 
 ### Hct ~ Temperature
-- barely not signficant (0.062), as hematocrit increases ambient temp increases
+
+as hematocrit increases ambient temp increases (nonsig)
+
 ```{r}
 all_data_wide %>% 
   ggplot(data = .) + 
@@ -2118,7 +1911,9 @@ summary(glm_hct_temp)
 ```
 
 ### Osml ~ Temperature
+
 - very strong positive relationship
+
 ```{r}
 all_data_wide %>% 
   ggplot(data = .) + 
@@ -2173,7 +1968,9 @@ summary(glm_osml_temp)
 ```
 
 ### Hct ~ Individual
+
 - not sig
+
 ```{r}
 all_data_wide %>% 
   ggplot(data = .) + 
@@ -2210,7 +2007,9 @@ summary(glm_hct_ID)
 ```
 
 ### Osml ~ Individual
+
 - sig relationship...
+
 ```{r}
 all_data_wide %>% 
   ggplot(data = .) + 
@@ -2255,20 +2054,19 @@ Hydration seems to be affected by:
 - sex (NS)
 - gravid/not (NS)
 - sample eye (NS)
-- whether or not the sample was hemolyzed (NS)
+- whether or not the sample was hemolyzed (*)
 - week/date of sampling!! (***)
 - individual (*** but likely confounded with week/date...)
 - capture temp & RH (both ***)
 
-Health seems to be affected by:
+Hematocrit seems to be affected by:
 - mass (NS)
 - sex (*)
 - capture temp & RH (NS)
 
 
-Quick regression of individual_ID ~ date:
+Quick regression of individual_ID ~ date to check suspected multicollinearity:
 
-@Savannah: why have this, expect positive right?
 ```{r}
 glm_date_ID <- lm(individual_ID ~ date,
            data = all_data_wide)
@@ -2346,27 +2144,9 @@ stats:
 glm1 <- lm(TEWL_g_m2h ~ region, data = CEWL)
 summary(glm1)
 
-# base 
-plot(TEWL_g_m2h ~ region, data=CEWL, ylab="TEWL", xlab="region", pch=20, col="blue")
-abline(reg=glm1, col="orange")
-
-# ggplot
-ggplot(CEWL) + 
-  geom_point(aes(region, TEWL_g_m2h), alpha=0.25, color="blue") + 
-  geom_smooth(aes(region, TEWL_g_m2h, color="orange"), method="lm", se=T) + 
-  labs(x="region", y="TEWL_g_m2h", title="")
-
 visreg(glm1, overlay=T)
-# I really like this visualization style, but I think I'll try to do it in ggplot
-
-# Tukey
-anova1 <- aov(glm1)
-TukeyHSD(anova1)
-
-# Model assumptions
-plot(glm1, which = 3)
+# I really like this visualization style
 ```
-
 
 
 I think that the way the GLM tests differences is not preferable. It tests how different each category is from the one reference category, rather than testing differences of each region against each other region, in a pairwise test. So, I will try an ANOVA to see if I can get those pairwise statistics.
@@ -2379,7 +2159,7 @@ CEWL_region_aov <- aov(data = all_data_long,
 TukeyHSD(CEWL_region_aov)
 ```
 
-
+Okay, the GLM coefficients and ANOVA differences are the same, so either way should be fine, but helpful to have complete pairwise stats from ANOVA for marking the figure.
 
 
 
@@ -2418,12 +2198,10 @@ all_data_long %>%
 )
 
 # glm
-glm2 <- lm(TEWL_g_m2h ~ region*osmolality_mmol_kg,
+glm2 <- lm(TEWL_g_m2h ~ region + osmolality_mmol_kg,
            data = all_data_long)
 summary(glm2)
 
-# base 
-visreg(glm2, "osmolality_mmol_kg", by="region", overlay=T)
 
 # Facet ggplot
 ggplot(aes(osmolality_mmol_kg, TEWL_g_m2h), data = all_data_long) + 
@@ -2449,193 +2227,6 @@ ggplot(aes(osmolality_mmol_kg, TEWL_g_m2h), data = all_data_long) +
         legend.text.align = 0,
 )+
   facet_wrap(~ region) # create a facet for each body region
-```
-
-### Dorsum CEWL ~ Osmolality 
-- Not sig
-```{r}
-all_data_wide %>% 
-  ggplot(data = .) + 
-  geom_point(aes(x = osmolality_mmol_kg,
-                 y = dorsum_TEWL_g_m2h, 
-                 ), 
-             size = 1, 
-             alpha = 0.6) + 
-  stat_smooth(aes(x = osmolality_mmol_kg, 
-                  y = dorsum_TEWL_g_m2h, 
-                  ), 
-              formula = y ~ x, 
-              method = "lm", 
-              se = F, 
-              size = 1.6, 
-              alpha = 1, 
-              color = "lightblue4") + 
-  theme_classic() + 
-  xlab("Osmolality") + 
-  ylab("Dorsum CEWL") + 
-  theme(text = element_text(color = "black", 
-                            family = "sans", 
-                            size = 12),
-        axis.text = element_text(color = "black", 
-                                 family = "sans", 
-                                 size = 10),
-        legend.text.align = 0)
-
-# glm
-glm2_dorsum <- lm(dorsum_TEWL_g_m2h ~ osmolality_mmol_kg,
-           data = all_data_wide)
-summary(glm2_dorsum)
-```
-
-
-
-### Ventrum CEWL ~ Osmolality 
-- not sig barely (0.0536)
-```{r}
-all_data_wide %>% 
-  ggplot(data = .) + 
-  geom_point(aes(x = osmolality_mmol_kg,
-                 y = ventrum_TEWL_g_m2h, 
-                 ), 
-             size = 1, 
-             alpha = 0.6) + 
-  stat_smooth(aes(x = osmolality_mmol_kg, 
-                  y = ventrum_TEWL_g_m2h, 
-                  ), 
-              formula = y ~ x, 
-              method = "lm", 
-              se = F, 
-              size = 1.6, 
-              alpha = 1, 
-              color = "seashell4") + 
-  theme_classic() + 
-  xlab("Osmolality") + 
-  ylab("Ventrum CEWL") + 
-  theme(text = element_text(color = "black", 
-                            family = "sans", 
-                            size = 12),
-        axis.text = element_text(color = "black", 
-                                 family = "sans", 
-                                 size = 10),
-        legend.text.align = 0)
-
-# glm
-glm2_ventrum <- lm(ventrum_TEWL_g_m2h ~ osmolality_mmol_kg,
-           data = all_data_wide)
-summary(glm2_ventrum)
-```
-
-
-
-### Dewlap CEWL ~ Osmolality 
-- sig
-```{r}
-all_data_wide %>% 
-  ggplot(data = .) + 
-  geom_point(aes(x = osmolality_mmol_kg,
-                 y = dewlap_TEWL_g_m2h, 
-                 ), 
-             size = 1, 
-             alpha = 0.6) + 
-  stat_smooth(aes(x = osmolality_mmol_kg, 
-                  y = dewlap_TEWL_g_m2h, 
-                  ), 
-              formula = y ~ x, 
-              method = "lm", 
-              se = F, 
-              size = 1.6, 
-              alpha = 1, 
-              color = "palegreen4") + 
-  theme_classic() + 
-  xlab("Osmolality") + 
-  ylab("Dewlap CEWL") + 
-  theme(text = element_text(color = "black", 
-                            family = "sans", 
-                            size = 12),
-        axis.text = element_text(color = "black", 
-                                 family = "sans", 
-                                 size = 10),
-        legend.text.align = 0)
-
-# glm
-glm2_dewlap <- lm(dewlap_TEWL_g_m2h ~ osmolality_mmol_kg,
-           data = all_data_wide)
-summary(glm2_dewlap)
-```
-
-
-
-### Mite Patch CEWL ~ Osmolality 
-- not sig
-```{r}
-all_data_wide %>% 
-  ggplot(data = .) + 
-  geom_point(aes(x = osmolality_mmol_kg,
-                 y = mitepatch_TEWL_g_m2h, 
-                 ), 
-             size = 1, 
-             alpha = 0.6) + 
-  stat_smooth(aes(x = osmolality_mmol_kg, 
-                  y = mitepatch_TEWL_g_m2h, 
-                  ), 
-              formula = y ~ x, 
-              method = "lm", 
-              se = F, 
-              size = 1.6, 
-              alpha = 1, 
-              color = "lightpink3") + 
-  theme_classic() + 
-  xlab("Osmolality") + 
-  ylab("Mite Patch CEWL") + 
-  theme(text = element_text(color = "black", 
-                            family = "sans", 
-                            size = 12),
-        axis.text = element_text(color = "black", 
-                                 family = "sans", 
-                                 size = 10),
-        legend.text.align = 0)
-
-# glm
-glm2_mitepatch <- lm(mitepatch_TEWL_g_m2h ~ osmolality_mmol_kg,
-           data = all_data_wide)
-summary(glm2_mitepatch)
-```
-
-
-### Head CEWL ~ Osmolality 
-- not sig
-```{r}
-all_data_wide %>% 
-  ggplot(data = .) + 
-  geom_point(aes(x = osmolality_mmol_kg,
-                 y = head_TEWL_g_m2h, 
-                 ), 
-             size = 1, 
-             alpha = 0.6) + 
-  stat_smooth(aes(x = osmolality_mmol_kg, 
-                  y = head_TEWL_g_m2h, 
-                  ), 
-              formula = y ~ x, 
-              method = "lm", 
-              se = F, 
-              size = 1.6, 
-              alpha = 1, 
-              color = "plum4") + 
-  theme_classic() + 
-  xlab("Osmolality") + 
-  ylab("Head CEWL") + 
-  theme(text = element_text(color = "black", 
-                            family = "sans", 
-                            size = 12),
-        axis.text = element_text(color = "black", 
-                                 family = "sans", 
-                                 size = 10),
-        legend.text.align = 0)
-
-# glm
-glm2_head <- lm(head_TEWL_g_m2h ~ osmolality_mmol_kg,
-           data = all_data_wide)
-summary(glm2_head)
 ```
 
 
@@ -2675,32 +2266,9 @@ all_data_long %>%
 
 # glms
 # CEWL ~ region + hct
-glm3 <- lm(TEWL_g_m2h ~ region*hematocrit_percent,
+glm3 <- lm(TEWL_g_m2h ~ region + hematocrit_percent,
            data = all_data_long)
 summary(glm3)
-# dorsum CEWL ~ hct
-glm3_dorsum <- lm(dorsum_TEWL_g_m2h ~ hematocrit_percent,
-           data = all_data_wide)
-summary(glm3_dorsum)
-# ventrum CEWL ~ hct
-glm3_ventrum <- lm(ventrum_TEWL_g_m2h ~ hematocrit_percent,
-           data = all_data_wide)
-summary(glm3_ventrum)
-# dewlap CEWL ~ hct
-glm3_dewlap <- lm(dewlap_TEWL_g_m2h ~ hematocrit_percent,
-           data = all_data_wide)
-summary(glm3_dewlap)
-# head CEWL ~ hct
-glm3_head <- lm(head_TEWL_g_m2h ~ hematocrit_percent,
-           data = all_data_wide)
-summary(glm3_head)
-# mitepatch CEWL ~ hct
-glm3_mitepatch <- lm(mitepatch_TEWL_g_m2h ~ hematocrit_percent,
-           data = all_data_wide)
-summary(glm3_mitepatch)
-
-# base visualization
-visreg(glm3, "hematocrit_percent", by="region", overlay=T, band=F)
 ```
 
 
@@ -2766,32 +2334,9 @@ stats:
 ```{r}
 # glms
 # CEWL ~ region + ctemp
-glm4 <- lm(TEWL_g_m2h ~ region*cloacal_temp_C,
+glm4 <- lm(TEWL_g_m2h ~ region + cloacal_temp_C,
            data = all_data_long)
 summary(glm4)
-# dorsum CEWL ~ ctemp
-glm4_dorsum <- lm(dorsum_TEWL_g_m2h ~ cloacal_temp_C,
-           data = all_data_wide)
-summary(glm4_dorsum)
-# ventrum CEWL ~ ctemp
-glm4_ventrum <- lm(ventrum_TEWL_g_m2h ~ cloacal_temp_C,
-           data = all_data_wide)
-summary(glm4_ventrum)
-# dewlap CEWL ~ ctemp
-glm4_dewlap <- lm(dewlap_TEWL_g_m2h ~ cloacal_temp_C,
-           data = all_data_wide)
-summary(glm4_dewlap)
-# head CEWL ~ ctemp
-glm4_head <- lm(head_TEWL_g_m2h ~ cloacal_temp_C,
-           data = all_data_wide)
-summary(glm4_head)
-# mitepatch CEWL ~ ctemp
-glm4_mitepatch <- lm(mitepatch_TEWL_g_m2h ~ cloacal_temp_C,
-           data = all_data_wide)
-summary(glm4_mitepatch)
-
-# base visualization
-visreg(glm4, "cloacal_temp_C", by="region", overlay=T, band=F)
 ```
 
 
@@ -2832,34 +2377,14 @@ all_data_long %>%
 
 # glms
 # CEWL ~ region + capture temp
-glm7 <- lm(TEWL_g_m2h ~ region*temp_C_interpol,
+glm7 <- lm(TEWL_g_m2h ~ region + temp_C_interpol,
            data = all_data_long)
 summary(glm7)
-# dorsum CEWL ~ capture temp
-glm7_dorsum <- lm(dorsum_TEWL_g_m2h ~ temp_C_interpol,
-           data = all_data_wide)
-summary(glm7_dorsum)
-# ventrum CEWL ~ capture temp
-glm7_ventrum <- lm(ventrum_TEWL_g_m2h ~ temp_C_interpol,
-           data = all_data_wide)
-summary(glm7_ventrum)
-# dewlap CEWL ~ capture temp
-glm7_dewlap <- lm(dewlap_TEWL_g_m2h ~ temp_C_interpol,
-           data = all_data_wide)
-summary(glm7_dewlap)
-# head CEWL ~ capture temp
-glm7_head <- lm(head_TEWL_g_m2h ~ temp_C_interpol,
-           data = all_data_wide)
-summary(glm7_head)
-# mitepatch CEWL ~ capture temp
-glm7_mitepatch <- lm(mitepatch_TEWL_g_m2h ~ temp_C_interpol,
-           data = all_data_wide)
-summary(glm7_mitepatch)
 ```
 
 
 ### CEWL ~ Capture Humidity
-- sig
+
 ```{r}
 all_data_long %>% 
   ggplot(data = .) + 
@@ -2894,29 +2419,9 @@ all_data_long %>%
 
 # glms
 # CEWL ~ region + capture RH
-glm8 <- lm(TEWL_g_m2h ~ region*RH_percent_interpol,
+glm8 <- lm(TEWL_g_m2h ~ region + RH_percent_interpol,
            data = all_data_long)
 summary(glm8)
-# dorsum CEWL ~ capture RH
-glm8_dorsum <- lm(dorsum_TEWL_g_m2h ~ RH_percent_interpol,
-           data = all_data_wide)
-summary(glm8_dorsum)
-# ventrum CEWL ~ capture RH
-glm8_ventrum <- lm(ventrum_TEWL_g_m2h ~ RH_percent_interpol,
-           data = all_data_wide)
-summary(glm8_ventrum)
-# dewlap CEWL ~ capture RH
-glm8_dewlap <- lm(dewlap_TEWL_g_m2h ~ RH_percent_interpol,
-           data = all_data_wide)
-summary(glm8_dewlap)
-# head CEWL ~ capture RH
-glm8_head <- lm(head_TEWL_g_m2h ~ RH_percent_interpol,
-           data = all_data_wide)
-summary(glm8_head)
-# mitepatch CEWL ~ capture RH
-glm8_mitepatch <- lm(mitepatch_TEWL_g_m2h ~ RH_percent_interpol,
-           data = all_data_wide)
-summary(glm8_mitepatch)
 ```
 
 
@@ -3011,14 +2516,16 @@ all_data_long %>%
 
 # glm
 # CEWL ~ region + aquaflux measurement temp
-glm9 <- lm(TEWL_g_m2h ~ region*ambient_temp_C,
+glm9 <- lm(TEWL_g_m2h ~ region + ambient_temp_C,
            data = all_data_long)
 summary(glm9)
 ```
 
 
 ### CEWL ~ Measurement Humidity
-- Very interesting relationship! Mite patch CEWL decreases as ambient humidity increases, but every other location appears to increase.
+
+Very interesting relationship! Mite patch CEWL decreases as ambient humidity increases, but every other location appears to increase. In this case, an interaction term is warranted.
+
 ```{r}
 all_data_long %>% 
   ggplot(data = .) + 
@@ -3059,6 +2566,7 @@ summary(glm9)
 ```
 
 ### CEWL ~ Wind Speed
+
 ```{r}
 all_data_long %>% 
   ggplot(data = .) + 
@@ -3093,13 +2601,15 @@ all_data_long %>%
 
 # glm
 # CEWL ~ region + aquaflux measurement RH
-glm10 <- lm(TEWL_g_m2h ~ region*Wind_mph_interpol,
+glm10 <- lm(TEWL_g_m2h ~ region + Wind_mph_interpol,
            data = all_data_long)
 summary(glm10)
 ```
 
 ### CEWL ~ Solar Rad
+
 - Definitely could have an effect may be worth testing in the model
+
 ```{r}
 all_data_long %>% 
   ggplot(data = .) + 
@@ -3134,14 +2644,14 @@ all_data_long %>%
 
 # glm
 # CEWL ~ region + aquaflux measurement RH
-glm11 <- lm(TEWL_g_m2h ~ region*Solar_rad_Wm2_interpol,
+glm11 <- lm(TEWL_g_m2h ~ region + Solar_rad_Wm2_interpol,
            data = all_data_long)
 summary(glm11)
 ```
 
 
 ### CEWL ~ Individual
-- Same relationship with individual lizard...
+
 ```{r}
 all_data_long %>% 
   ggplot(data = .) + 
@@ -3179,12 +2689,9 @@ all_data_long %>%
 )
 
 # glm
-glm6 <- lm(TEWL_g_m2h ~ region*individual_ID,
+glm6 <- lm(TEWL_g_m2h ~ region + individual_ID,
            data = all_data_long)
 summary(glm6)
-
-# base visualization
-visreg(glm6, "individual_ID", by="region", overlay=T, band=F)
 ```
 
 ### CEWL ~ SVL
@@ -3222,13 +2729,15 @@ all_data_long %>%
 )
 
 # glm
-glm10 <- lm(TEWL_g_m2h ~ region*SVL_mm,
+glm10 <- lm(TEWL_g_m2h ~ region + SVL_mm,
            data = all_data_long)
 summary(glm10)
 ```
 
 ### CEWL ~ Mass
-- head significant, but sig interaction. Opposite trend from all other body parts.
+
+Head has an opposite trend from all the other body regions, so we need an interaction term.
+
 ```{r}
 all_data_long %>% 
   ggplot(data = .) + 
@@ -3290,7 +2799,7 @@ summary(glm11)
 ```
 
 ### CEWL ~ Sex
--  Head sig higher in males. Vent sig higher in females.
+
 ```{r}
 all_data_long %>% 
   ggplot(data = .) + 
@@ -3313,16 +2822,13 @@ all_data_long %>%
 )
 
 # glm
-glm5 <- lm(TEWL_g_m2h ~ sex_M_F + region*sex_M_F, 
+glm5 <- lm(TEWL_g_m2h ~ region + sex_M_F, 
            data = all_data_long)
 summary(glm5)
-
-# base visualization
-visreg(glm5, "sex_M_F", by="region", overlay=T, band=F)
 ```
 
 ### CEWL ~ Gravidity
-- Sig: Head higher in gravid females. Vent higher in nongravid females.
+
 ```{r}
 all_data_long %>% 
   dplyr::filter(sex_M_F == "F") %>%
@@ -3346,12 +2852,9 @@ all_data_long %>%
 )
 
 # glm
-glm5 <- lm(TEWL_g_m2h ~ gravid_Y_N + region*gravid_Y_N, 
+glm5 <- lm(TEWL_g_m2h ~ region + gravid_Y_N, 
            data = all_data_long)
 summary(glm5)
-
-# base visualization
-visreg(glm5, "gravid_Y_N", by="region", overlay=T, band=F)
 ```
 
 
@@ -3380,7 +2883,7 @@ CEWL %>%
 )
 
 # glm
-glm12 <- lm(TEWL_g_m2h ~ region*date,
+glm12 <- lm(TEWL_g_m2h ~ region + date,
            data = all_data_long)
 summary(glm12)
 ```
@@ -3429,55 +2932,20 @@ Holding time is still significant, even after regional differences are accounted
 
 ## Conclusion
 
-visually, CEWL seems to be affected by:
+CEWL is/is not affected by:
 - body region - significant!
-- osmolality (hydration) - only significant for dewlap
-- hematocrit (health) - not significant for any region
-- cloacal temperature at measurement!! - sig overall and for each region individually except mite patch
-- capture temp - sig overall and for ventrum, dewlap, and mitepatch regions individually
-- capture RH - sig overall and for dorsum, dewlap, and mitepatch regions individually (not head or ventrum)
-- measurement temperature - sig overall, didn't test individually
-- individual ID - significant
-- mass & SVL - both significant overall
-- week/date - significant
-- hold time - significant
-
-*not* affected by sex, gravidity, or measurement RH (not visually or statistically significant)
-
-
-
-
-
-# PCA
-
-```{r}
-
-## Subset location and explanatory data
-locations <- all_data_wide[, 19:23]
-explanatory <- all_data_wide[, c(4,5,10,11,15:18)]
-
-## Remove NA
-locations <- na.omit(locations)
-explanatory <- na.omit(explanatory)
-
-## Create PCAs
-#### CEWL all locations PCA
-data.pca <- prcomp(locations, center=T, scale. = T)
-summary(data.pca)
-
-#### CEWL avg PCA
-#data2.pca <- prcomp(explanatory, center=T, scale. = T)
-#summary(data2.pca)
-
-## Plots
-### CEWL all locations, gender groups
-ggbiplot(data.pca, labels=rownames(data.pca))
-
-### CEWL avg, gender groups
-#ggbiplot(data2.pca, labels=rownames(data.pca))
-
-```
-
+- osmolality (hydration) - not significant
+- hematocrit (health) - not significant 
+- cloacal temperature at measurement - sig!
+- capture temp - sig!
+- capture RH - sig! but we will use absolute humidity since it's decoupled from temperature
+- capture wind speed and solar radiation - sig!
+- measurement temperature and humidity - nonsig
+- individual ID - nonsig
+- mass & SVL - both sig!
+- sex & gravidity - nonsig
+- week/date - significant!
+- hold time - significant!
 
 
 # LMMs
