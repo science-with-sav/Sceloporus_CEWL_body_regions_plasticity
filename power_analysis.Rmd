@@ -1,0 +1,295 @@
+---
+title: "Power Analysis for Future Hydration Studies"
+author: "Savannah Weaver"
+date: "June 2021"
+output: pdf_document
+---
+
+# Packages
+
+```{r setup, include=FALSE}
+if (!require("tidyverse")) install.packages("tidyverse")
+library("tidyverse")
+if (!require("UsingR")) install.packages("UsingR")
+library("UsingR")
+if (!require("pwr")) install.packages("pwr")
+library("pwr") # basic power analysis
+if (!require("simr")) install.packages("simr")
+library("simr") # more complex power analysis
+if (!require("nlme")) install.packages("nlme")
+library("nlme") # for LMMs
+```
+
+
+# Goals
+
+Perform a power analysis on preliminary data to figure out how many lizards I would need to have in my study to find significant differences in hematocrit, osmolality, and evaporative water loss based on climate treatment, if those differences are there. 
+
+Factors to remember/include:
+- 2x2 factorial treatment groups
+- measurements over time (start, middle, end)
+- trial number and individual as random factors
+
+
+
+# Load Data
+
+```{r load data}
+# CEWL data
+CEWL <- read.csv("./exported_data/exp_effects_CEWL.csv",
+                             na.strings=c("","NA")
+                             ) %>%
+  dplyr::mutate(date = as.Date(date, format = "%Y-%m-%d"),
+                region = as.factor(region),
+                humidity_tmt_percent = as.factor(humidity_tmt_percent),
+                individual_ID = as.factor(individual_ID),
+                trial_number = as.factor(trial_number),
+                day = as.factor(day)
+                ) %>%
+  dplyr::select(-notes, -X) %>%
+  dplyr::filter(complete.cases(.))
+summary(CEWL)
+
+# hydration data
+hydration <- read.csv("./exported_data/exp_effects_hydration.csv",
+                             na.strings=c("","NA")
+                             ) %>%
+  dplyr::filter(type %in% c("exp", "capture")) %>%
+  dplyr::mutate(date = as.Date(date, format = "%Y-%m-%d"),
+                type = as.factor(type),
+                humidity_tmt_percent = as.factor(humidity_tmt_percent),
+                individual_ID = as.factor(individual_ID),
+                trial_number = as.factor(trial_number)
+                ) %>%
+  dplyr::select(-X) 
+summary(hydration)
+```
+
+
+
+
+
+# Data Prep
+
+Since my first try of doing this experiment only had temperature 25C, I'm going to duplicate the data and remake it as 35C so I can build a model off of that.
+
+## Hydration
+
+```{r}
+# make fake
+fake_35C_hyd <- hydration %>%
+  mutate(temp_tmt_C = 35)
+
+# join & format
+fake_hydration_dat <- fake_35C_hyd %>%
+  rbind(hydration) %>%
+  # make indiv ID and trial num factors
+  mutate(individual_ID = as.factor(individual_ID),
+         trial_number = as.factor(trial_number))
+
+# check
+summary(fake_hydration_dat)
+```
+
+## CEWL
+
+```{r}
+# make fake
+fake_35C_CEWL <- CEWL %>%
+  mutate(temp_tmt_C = 35)
+
+# join & format
+fake_CEWL_dat <- fake_35C_CEWL %>%
+  rbind(CEWL) %>%
+  # make indiv ID and trial num factors
+  mutate(individual_ID = as.factor(individual_ID),
+         trial_number = as.factor(trial_number))
+
+# check
+summary(fake_CEWL_dat)
+```
+
+
+## Effect Sizes
+
+Calculate the desired effect sizes for each variable as (mean treatment (humid) - mean control (dry)) / sd control. 
+
+```{r}
+effects <- hydration %>%
+  group_by(humidity_tmt_percent) %>%
+  summarise(mean_osml = mean(osmolality_mmol_kg, na.rm = TRUE),
+            sd_osml = sd(osmolality_mmol_kg, na.rm = TRUE),
+            mean_hct = mean(hematocrit_percent, na.rm = TRUE),
+            sd_hct = sd(hematocrit_percent, na.rm = TRUE),
+            mean_mass = mean(mass_g),
+            sd_mass = sd(mass_g)
+            )
+effects
+```
+
+
+# Create Models
+
+## Osmolality
+
+```{r}
+osmol_mod <- lme4::lmer(data = fake_hydration_dat,
+                         osmolality_mmol_kg ~ 
+                         temp_tmt_C*humidity_tmt_percent*day + 
+                          individual_ID +
+                          (1|trial_number/individual_ID))
+                    # random effect of individual nested within trial number
+summary(osmol_mod)
+
+# also compute without fake temperature effects
+osmol_mod2 <- lme4::lmer(data = hydration,
+                         osmolality_mmol_kg ~ 
+                         humidity_tmt_percent*day + 
+                          (1|trial_number/individual_ID))
+summary(osmol_mod2)
+```
+
+
+## Hematocrit
+
+```{r}
+hct_mod <- lme4::lmer(data = fake_hydration_dat,
+                         hematocrit_percent ~ 
+                         temp_tmt_C * humidity_tmt_percent * day + 
+                         (1|trial_number/individual_ID))
+                    # random effect of individual nested within trial number
+summary(hct_mod)
+```
+
+
+## Mass
+### Should this be BCI??
+
+```{r}
+mass_mod <- lme4::lmer(data = fake_hydration_dat,
+                         mass_g ~ 
+                         temp_tmt_C * humidity_tmt_percent * day + 
+                         (1|trial_number/individual_ID))
+                    # random effect of individual nested within trial number
+summary(mass_mod)
+```
+
+
+## CEWL
+
+```{r}
+CEWL_mod <- lme4::lmer(data = fake_CEWL_dat,
+                         TEWL_g_m2h ~ 
+                         # use a colon for interaction effect only
+                         temp_tmt_C*humidity_tmt_percent*day + region +
+                         (1|trial_number/individual_ID))
+                    # random effect of individual nested within trial number
+summary(CEWL_mod)
+```
+
+
+
+
+# Power Analyses
+
+Now that I have models for everything, I'll go through and test the power of each predictor variable (including interactions) to guess-timate whether my current sample size could be effective in distinguishing the same differences in future, slightly different studies. 
+
+## Osmolality
+
+First, see what the power was for the preliminary trials we did.
+
+Now, compute the effect of increased sample sizes within treatment groups for each trial. This addresses how much power we can get if we increase the sample size within trials and treatment groups, and do the same number of treatment groups and trials as the data used to compute the power.
+
+```{r}
+osml_mod_ext <- extend(osmol_mod,
+                       within = "temp_tmt_C + humidity_tmt_percent +
+                       trial_number", 
+                       n = 10)
+```
+
+Next, run powerSim to determine the power for the various sample sizes.
+
+```{r}
+# designate effect size desired to detect
+fixef(osml_mod_ext) <- 1/26 # just estimating rn.... so small... 
+# run simulation
+osml_sim <- powerSim(osml_mod_ext, 
+                     nsim = 50,
+                     test = fixed('humidity_tmt_percent', 'lr')
+                     )
+```
+
+Finally, plot to see how sample size affects power:
+
+```{r}
+plot(osml_sim)
+```
+
+
+
+I think what I actually want to use is powerCurve
+
+```{r}
+#powerCurve(fit = osmol_mod, 
+ #          test = fixed("humidity_tmt_percent","lr"),
+  #         along = 'individual_ID')
+```
+
+
+```{r}
+test <- powerSim(osmol_mod, fixed("temp_tmt_C","lr"), nsim = 50) # 0-7
+plot(test)
+powerSim(osmol_mod, fixed("humidity_tmt_percent","lr"), nsim = 50) # 2-19
+powerSim(osmol_mod, fixed("day","lr"), nsim = 50) # 0-10
+powerSim(osmol_mod, fixed("temp_tmt_C:humidity_tmt_percent","lr"), nsim = 50) # 0-14
+powerSim(osmol_mod, fixed("temp_tmt_C:day","lr"), nsim = 50) # 0-7
+powerSim(osmol_mod, fixed("humidity_tmt_percent:day","lr"), nsim = 50) #2-20
+powerSim(osmol_mod, fixed("temp_tmt_C:humidity_tmt_percent:day","lr"), nsim = 50) #1-16
+```
+
+If we use the model without the fake temperature effects:
+
+```{r}
+powerSim(osmol_mod2, fixed("humidity_tmt_percent","lr"), nsim = 50) # 8-31
+powerSim(osmol_mod2, fixed("day","lr"), nsim = 50) # 0-7
+powerSim(osmol_mod2, fixed("humidity_tmt_percent:day","lr"), nsim = 50) # 21-49
+```
+
+
+## Hematocrit
+
+## Mass
+
+## BCI
+
+## CEWL
+
+```{r}
+powerSim(CEWL_mod, fixed("humidity_tmt_percent:day", "lr"), nsim = 20)
+# pwr more interesting for nonsig model effects
+powerSim(CEWL_mod)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

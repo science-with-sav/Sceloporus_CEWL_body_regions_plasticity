@@ -30,7 +30,8 @@ variables:
 
 
 ```{r}
-tmts <- read.csv("./data/exp_tmt_assignment.csv")
+tmts <- read.csv("./data/exp_tmt_assignment.csv") %>%
+  mutate(individual_ID = as.factor(individual_ID))
 ```
 
 
@@ -136,7 +137,8 @@ variables:
 ```{r}
 cap_CEWL <- read.csv("./exported_data/capture_CEWL.csv") %>%
   dplyr::select(date, individual_ID, region, TEWL_g_m2h) %>%
-  mutate(date = as.Date(date, format = "%Y-%m-%d"),
+  mutate(individual_ID = as.factor(individual_ID),
+         date = as.Date(date, format = "%Y-%m-%d"),
          region = as.factor(region),
          day = as.factor("before"), # might change... tbd
          n_day = 0
@@ -212,8 +214,8 @@ CEWL <- CEWL_t1 %>% # trial 1
   # reformat data
   dplyr::mutate(# reformat date
                 date = as.Date(date, format = "%m/%d/%y"),
-                # format individual ID as a number
-                individual_ID = as.numeric(individual_ID),
+                # format individual ID as a factor
+                individual_ID = as.factor(individual_ID),
                 # set body region as a factor variable after getting only the consistent characters due to typos
                 region = as.factor(substring(region, 1, 4)),
                 # add when measurement taken
@@ -502,6 +504,7 @@ all_dat %>%
               se = F, 
               size = 1.6, 
               alpha = 1 ) + 
+  facet_wrap(~humidity_tmt_percent) +
   theme_classic() + 
   scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
   xlab("Day") + 
@@ -515,6 +518,42 @@ all_dat %>%
         legend.text.align = 0,
         legend.position = "none")
 ```
+
+```{r}
+all_dat %>% 
+  dplyr::filter(type != "rehab") %>%
+  ggplot(data = .) + 
+  geom_point(aes(x = day,
+                 y = osmolality_mmol_kg, 
+                 color = as.factor(humidity_tmt_percent)
+                 ), 
+             size = 1, 
+             alpha = 0.6) +
+  stat_smooth(aes(x = day, 
+                  y = osmolality_mmol_kg, 
+                  color = as.factor(humidity_tmt_percent)
+                  ), 
+              formula = y ~ x, 
+              method = "lm", 
+              se = F, 
+              size = 1.6, 
+              alpha = 1 ) + 
+  facet_wrap(~humidity_tmt_percent) +
+  theme_classic() + 
+  scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
+  xlab("Day") + 
+  ylab("Osmolality (mmol / kg)") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0,
+        legend.position = "none")
+```
+
+I think this is the line if all the points were aggregated... how do I get the mean line?? i.e. I want the mean slope to make a line.
 
 ```{r}
 all_dat %>% 
@@ -549,6 +588,9 @@ all_dat %>%
 )
 ```
 
+I don't think this graph is necessarily informative... 
+
+
 ```{r}
 osml_mod <- all_dat %>%
   dplyr::filter(complete.cases(osmolality_mmol_kg)) %>%
@@ -564,15 +606,16 @@ summary(osml_mod)
 ```{r}
 osml_d0 <- all_dat %>%
   dplyr::filter(day == 0) %>%
-  dplyr::select(individual_ID, osml_day0 = osmolality_mmol_kg, 
+  dplyr::select(individual_ID, osml0 = osmolality_mmol_kg, 
                 humidity_tmt_percent)
 osml_d8 <- all_dat %>%
-  dplyr::filter(day == 8) %>%
-  dplyr::select(individual_ID, osml_day8 = osmolality_mmol_kg, 
+  dplyr::filter(day %in% c(8,9)) %>%
+  dplyr::select(individual_ID, osml89 = osmolality_mmol_kg, 
                 humidity_tmt_percent)
 
 osml_diffs <- osml_d0 %>%
-  left_join(osml_d8, by = c('individual_ID', 'humidity_tmt_percent'))
+  left_join(osml_d8) %>%
+  mutate(osml_change = osml89 - osml0)
 ```
 
 
@@ -581,16 +624,16 @@ boxplot:
 ```{r}
 osml_diffs %>% 
   ggplot(data = .) + 
-  geom_boxplot(aes(x = day, 
-                   y = TEWL_g_m2h, 
-                   color = humidity_tmt_percent
+  geom_boxplot(aes(x = humidity_tmt_percent, 
+                   y = osml_change, 
+                   group = humidity_tmt_percent
                    ), 
                size = 1,
                alpha = 1) + 
-  facet_wrap(~region) +
+  #facet_wrap(~humidity_tmt_percent) +
   theme_classic() + 
   xlab("") + 
-  ylab("CEWL (g / m^2h)") + 
+  ylab("Osmolality Change (mmol / kg)") + 
   #annotate("text", x = 1.5, y = 45, 
    #        label = "paste(italic(p), \" = 0.0152\")", 
     #       parse = TRUE,
@@ -620,7 +663,14 @@ osml_diffs %>%
 
 ```
 
+model to test statistical significance of difference:
 
+```{r}
+osml_diff_mod <- lm(data = osml_diffs,
+                    osml_change ~ humidity_tmt_percent)
+summary(osml_diff_mod)
+```
+Not different between the two treatment groups, and neither significantly different from zero.
 
 
 ### CEWL ~ Before/After
@@ -630,9 +680,9 @@ try a boxplot:
 ```{r}
 CEWL %>% 
   ggplot(data = .) + 
-  geom_boxplot(aes(x = day, 
+  geom_boxplot(aes(x = humidity_tmt_percent, 
                    y = TEWL_g_m2h, 
-                   color = humidity_tmt_percent
+                   color = day
                    ), 
                size = 1,
                alpha = 1) + 
@@ -655,7 +705,7 @@ CEWL %>%
                                  family = "sans", 
                                  size = 14),
         legend.text.align = 0,
-        legend.position = "none"
+        legend.position = "bottom"
 ) -> CEWL_fig
 CEWL_fig
 
@@ -685,6 +735,7 @@ CEWL %>%
                   color = humidity_tmt_percent
                   )) + 
   theme_classic() + 
+  facet_wrap(~region) +
   scale_x_continuous(breaks = c(0, 1),
                      labels = c("0" = "before", "1" = "after")) +
   xlab("") + 
@@ -698,6 +749,7 @@ CEWL %>%
         legend.text.align = 0
 )
 ```
+I think this graph is awesome, but we lose the individual variation...
 
 ```{r}
 CEWL_mod <- all_dat %>%
@@ -709,10 +761,69 @@ summary(CEWL_mod)
 ```
 
 
+### Change in CEWL
 
-# Export to Use for Power Analyses for Next Iteration of the Experiment
+```{r}
+CEWL_before <- CEWL %>%
+  dplyr::filter(day == "before") %>%
+  dplyr::select(CEWL_before = TEWL_g_m2h,
+                humidity_tmt_percent, trial_number,
+                individual_ID, region)
+CEWL_after <- CEWL %>%
+  dplyr::filter(day == "after") %>%
+  dplyr::select(CEWL_after = TEWL_g_m2h,
+                humidity_tmt_percent, trial_number,
+                individual_ID, region)
+
+CEWL_diffs <- CEWL_before %>%
+  left_join(CEWL_after, by = c('individual_ID', 'region',
+                'humidity_tmt_percent', 'trial_number')) %>%
+  mutate(CEWL_diff = CEWL_after - CEWL_before)
+```
 
 
+plot:
+
+```{r}
+CEWL_diffs %>% 
+  ggplot(data = .) + 
+  geom_boxplot(aes(x = humidity_tmt_percent, 
+                   y = CEWL_diff, 
+                   group = humidity_tmt_percent
+                   ), 
+               size = 1,
+               alpha = 1) + 
+  #facet_wrap(~humidity_tmt_percent) +
+  theme_classic() + 
+  xlab("") + 
+  ylab("CEWL Change ()") + 
+  #annotate("text", x = 1.5, y = 45, 
+   #        label = "paste(italic(p), \" = 0.0152\")", 
+    #       parse = TRUE,
+     #      size = 6) +
+  #ylim(10, 50) +
+  #scale_x_discrete(labels = c("F" = "Female",
+   #                           "M" = "Male")) +
+  scale_color_brewer(palette = "Set2") +
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 18),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 14),
+        legend.text.align = 0,
+        legend.position = "none"
+)
+```
+
+
+model:
+
+```{r}
+CEW_diffs_mod <- lm(data = CEWL_diffs,
+                    CEWL_diff ~ humidity_tmt_percent)
+summary(CEW_diffs_mod)
+```
 
 
 
