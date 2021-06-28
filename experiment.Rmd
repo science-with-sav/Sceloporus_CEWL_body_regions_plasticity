@@ -68,6 +68,18 @@ summary(capture_hydration)
 ```
 
 
+extract SVL data separately from capture data:
+
+```{r SVL}
+SVL <- read.csv("./exported_data/capture_hydration.csv",
+                             na.strings=c("","NA") # fix empty cells
+                             ) %>%
+  dplyr::select(individual_ID, SVL_mm) %>%
+  dplyr::filter(individual_ID %in% tmts$individual_ID)
+summary(SVL)
+```
+
+
 ### Experiment Data
 
 variables:
@@ -106,6 +118,9 @@ all_dat <- exp_dat %>%
   # add tmt group info
   left_join(tmts, by = "individual_ID") %>%
   dplyr::select(-notes) %>%
+  # add SVL value for each obs of each indiv.
+  # for computing BCI and scaled mass indices
+  left_join(SVL, by = "individual_ID") %>%
   # only use completed experiment runs
   dplyr::filter(conclusion == "complete") %>%
   group_by(individual_ID) %>%
@@ -129,6 +144,69 @@ summary(all_dat)
 # check that capture dates are valid
 unique(all_dat$capture_date)
 ```
+
+
+## Compute Scaled Mass Index
+
+As described by Peig, J., & Green, A. J. (2009). New perspectives for estimating body condition from mass/length data: The scaled mass index as an alternative method. Oikos, 118(12), 1883–1891. https://doi.org/10.1111/j.1600-0706.2009.17643.x
+
+### Step 1: mass ~ SVL
+
+plot:
+
+```{r}
+all_dat %>% 
+  ggplot(data = .) + 
+  geom_point(aes(x = SVL_mm,
+                 y = mass_g, 
+                 ), 
+             size = 1, 
+             alpha = 0.6) + 
+  stat_smooth(aes(x = SVL_mm, 
+                  y = mass_g, 
+                  ), 
+              formula = y ~ x, 
+              method = "lm", 
+              color = "gray",
+              se = F, 
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  xlab("SVL") + 
+  ylab("Mass") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0
+)
+```
+
+create a simple linear regression 
+
+```{r}
+mass_SVL_SLR <- lm(data = all_dat, mass_g ~ SVL_mm)
+summary(mass_SVL_SLR)
+```
+
+look for outliers 
+
+```{r}
+mass_SVL_SLR_residuals <- all_dat %>%
+  mutate(try = 1)
+
+test <- data.frame(residuals(mass_SVL_SLR))
+summary(mass_SVL_SLR_residuals)
+```
+
+
+I think we should exclude the points at SVL=63
+
+
+## Compute Body Condition Index
+
 
 ## CEWL
 
