@@ -1,8 +1,10 @@
 ---
-title: "BIO 324, Herpetology CURE"
+title: "Experimental Data Analysis"
 author: "Savannah Weaver"
-date: "Spring Quarter 2021"
-output: pdf_document
+date: "June 2021"
+output: 
+  github_document:
+    toc: TRUE
 ---
 
 # Packages
@@ -12,6 +14,12 @@ if (!require("tidyverse")) install.packages("tidyverse")
 library("tidyverse")
 if (!require("UsingR")) install.packages("UsingR")
 library("UsingR")
+if (!require("PerformanceAnalytics")) install.packages("PerformanceAnalytics") 
+library("PerformanceAnalytics") # pretty multicollinearity plots
+if (!require("MASS")) install.packages("MASS")
+library("MASS") # model selection & box-cox
+if (!require("lme4")) install.packages("lme4")
+library("lme4") # for LMMs
 ```
 
 
@@ -24,14 +32,12 @@ library("UsingR")
 variables:
 - individual lizard ID
 - temp_tmt_C = temperature treatment
-- humidity_tmt_percent = humidity treatment (high/low, not a %)
-- trial_number = which set of lizards that indidividual was from
+- humidity_tmt_percent = humidity treatment (high/low, not actually %)
+- trial_number = which set of lizards that individual was from
 - conclusion = how that individual's experiment ended (died, canceled, or complete)
 
-
 ```{r}
-tmts <- read.csv("./data/exp_tmt_assignment.csv") %>%
-  mutate(individual_ID = as.factor(individual_ID))
+tmts <- read.csv("./data/exp_tmt_assignment.csv")
 ```
 
 
