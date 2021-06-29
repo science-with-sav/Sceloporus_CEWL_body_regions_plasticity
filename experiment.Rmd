@@ -131,12 +131,7 @@ all_dat <- exp_dat %>%
          individual_ID = as.factor(individual_ID),
          temp_tmt_C = as.factor(temp_tmt_C),
          trial_number = as.factor(trial_number),
-         conclusion = as.factor(conclusion),
-         
-  # calculate body condition index as log-residuals
-         BCI_log_res = 1,
-  # calculate body condition index as scaled mass index
-         BCI_scaled_mass = 2
+         conclusion = as.factor(conclusion)
          )
 
 summary(all_dat)
@@ -148,7 +143,9 @@ unique(all_dat$capture_date)
 
 ## Compute Scaled Mass Index
 
-As described by Peig, J., & Green, A. J. (2009). New perspectives for estimating body condition from mass/length data: The scaled mass index as an alternative method. Oikos, 118(12), 1883–1891. https://doi.org/10.1111/j.1600-0706.2009.17643.x
+This is also known as the body condition index, or log-log residuals.
+
+I calculate as described by: Peig, J., & Green, A. J. (2009). New perspectives for estimating body condition from mass/length data: The scaled mass index as an alternative method. Oikos, 118(12), 1883–1891. https://doi.org/10.1111/j.1600-0706.2009.17643.x
 
 ### Step 1: mass ~ SVL
 
@@ -191,21 +188,137 @@ mass_SVL_SLR <- lm(data = all_dat, mass_g ~ SVL_mm)
 summary(mass_SVL_SLR)
 ```
 
-look for outliers 
+look for outliers by calculating residuals
 
 ```{r}
 mass_SVL_SLR_residuals <- all_dat %>%
-  mutate(try = 1)
+  # not working with function, so just compute by hand... 
+  mutate(y_hat = 0.36921*SVL_mm - 13.59918,
+         e = y_hat - mass_g) %>%
+  dplyr::filter(abs(e) < 2.2)
+```
 
-test <- data.frame(residuals(mass_SVL_SLR))
-summary(mass_SVL_SLR_residuals)
+plot residuals
+
+```{r}
+ggplot(data = mass_SVL_SLR_residuals, 
+       aes(x = e)) +
+  geom_histogram() + 
+  theme_classic() + 
+  xlab("residuals (e)")
+ggplot(data = mass_SVL_SLR_residuals, 
+       aes(x = e)) +
+  geom_boxplot() + 
+  theme_classic() + 
+  xlab("residuals (e)")
+```
+
+From the histogram, it looks like there are some points > ~2.2 that are outside the main bell curve, so go back and try deleting those points. This definitely made it look better. 
+
+However, the boxplot version had no extra dots, suggesting none of the omitted points were actually outliers, so don't omit data for next steps. 
+
+
+ 
+### Step 2: make log-log relationship
+
+plot
+
+```{r}
+all_dat %>% 
+  ggplot(data = .) + 
+  geom_point(aes(x = log(SVL_mm),
+                 y = log(mass_g), 
+                 ), 
+             size = 1, 
+             alpha = 0.6) + 
+  stat_smooth(aes(x = log(SVL_mm), 
+                  y = log(mass_g), 
+                  ), 
+              formula = y ~ x, 
+              method = "lm", 
+              color = "gray",
+              se = F, 
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  xlab("log-SVL") + 
+  ylab("log-Mass") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0
+)
+```
+
+SLR
+
+```{r}
+log_mass_SVL_SLR <- lm(data = all_dat, 
+                       log(mass_g) ~ log(SVL_mm))
+summary(log_mass_SVL_SLR)
+```
+
+compute standardized major axis using this regression equation:
+
+```{r}
+r <- sqrt(0.5312) # Pearson's correlection coefficient (sqrt of R-squared)
+b_OLS <- 2.4275 # regression slope
+b_SMA <- b_OLS/r
+```
+
+also get a value for L0:
+
+```{r}
+L0 <- mean(all_dat$SVL_mm)
 ```
 
 
-I think we should exclude the points at SVL=63
+### Step 3: calculate scaled mass index
+
+```{r}
+scaled_mass_index <- all_dat %>%
+  mutate(SMI = mass_g * ((L0/SVL_mm) ^ b_SMA))
+```
 
 
-## Compute Body Condition Index
+### Check
+
+Look at the difference between regular mass and SMI:
+
+```{r}
+scaled_mass_index %>% 
+  ggplot(data = .) + 
+  geom_point(aes(x = mass_g,
+                 y = SMI, 
+                 ), 
+             size = 1, 
+             alpha = 0.6) + 
+  stat_smooth(aes(x = mass_g, 
+                  y = SMI, 
+                  ), 
+              formula = y ~ x, 
+              method = "lm", 
+              color = "gray",
+              se = F, 
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  xlab("Mass") + 
+  ylab("SMI") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0
+)
+```
+
+
 
 
 ## CEWL
@@ -221,7 +334,7 @@ variables:
 ```{r}
 cap_CEWL <- read.csv("./exported_data/capture_CEWL.csv") %>%
   dplyr::select(date, individual_ID, region, TEWL_g_m2h) %>%
-  mutate(individual_ID = as.factor(individual_ID),
+  mutate(#individual_ID = as.factor(individual_ID), # do later
          date = as.Date(date, format = "%Y-%m-%d"),
          region = as.factor(region),
          day = as.factor("before"), # might change... tbd
@@ -299,7 +412,7 @@ CEWL <- CEWL_t1 %>% # trial 1
   dplyr::mutate(# reformat date
                 date = as.Date(date, format = "%m/%d/%y"),
                 # format individual ID as a factor
-                individual_ID = as.factor(individual_ID),
+                individual_ID = as.integer(individual_ID),
                 # set body region as a factor variable after getting only the consistent characters due to typos
                 region = as.factor(substring(region, 1, 4)),
                 # add when measurement taken
@@ -314,7 +427,9 @@ CEWL <- CEWL_t1 %>% # trial 1
   rbind(cap_CEWL) %>%
   # add tmt assignments
   left_join(tmts, by = "individual_ID") %>%
-  mutate(humidity_tmt_percent = as.factor(humidity_tmt_percent))
+  mutate(humidity_tmt_percent = as.factor(humidity_tmt_percent),
+         individual_ID = as.factor(individual_ID)
+         )
 summary(CEWL)
 ```
 
@@ -478,10 +593,59 @@ all_dat %>%
 ```
 
 ```{r}
-mass_mod <- nlme::lme(data = all_dat,
-               mass_g ~ day*humidity_tmt_percent,
-               random = ~1|individual_ID)
+mass_mod <- lme4::lmer(data = all_dat,
+               mass_g ~ day*humidity_tmt_percent +
+               (1|trial_number/individual_ID))
 summary(mass_mod)
+```
+
+
+
+### SMI ~ Time
+
+```{r}
+scaled_mass_index %>% 
+  dplyr::filter(type != "rehab") %>%
+  ggplot(data = .) + 
+  geom_point(aes(x = day,
+                 y = SMI, 
+                 color = humidity_tmt_percent
+                 ), 
+             size = 1, 
+             alpha = 0.6) +
+  stat_smooth(aes(x = day, 
+                  y = SMI, 
+                  color = humidity_tmt_percent
+                  ), 
+              formula = y ~ x, 
+              method = "lm", 
+              se = F, 
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
+  xlab("Day") + 
+  ylab("Scaled Mass Index (g?)") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0
+)
+```
+
+*Q*: is there a way to get each individual as a line, but to color lines based on treatment, rather than individual ID?
+
+model:
+
+```{r}
+SMI_mod <- lme4::lmer(data = scaled_mass_index,
+               SMI ~ day*humidity_tmt_percent +
+               (1|trial_number/individual_ID))
+summary(SMI_mod)
+drop1(SMI_mod)
 ```
 
 
@@ -558,13 +722,14 @@ all_dat %>%
 ```{r}
 hct_mod <- all_dat %>%
   dplyr::filter(complete.cases(hematocrit_percent)) %>%
-  nlme::lme(data = .,
-               hematocrit_percent ~ day + humidity_tmt_percent,
-               random = ~1|individual_ID)
+  lme4::lmer(data = .,
+               hematocrit_percent ~ day + humidity_tmt_percent +
+               (1|trial_number/individual_ID))
 summary(hct_mod)
+drop1(hct_mod)
 ```
 
-Treatment did NOT significantly affect hct, and both treatment groups lost approximately the same hct over time at the same rate.
+The model AIC is slightly better without the interaction effect, so I removed that. The effect of humidity could ALSO be dropped, so humidity treatment was not an important factor affecting hematocrit, but how many days lizards were in treatment was. Both treatment groups lost hematocrit at approximately the same rate. 
 
 
 ### Osml ~ Time
@@ -637,7 +802,7 @@ all_dat %>%
         legend.position = "none")
 ```
 
-I think this is the line if all the points were aggregated... how do I get the mean line?? i.e. I want the mean slope to make a line.
+*Q*: I think this is the line if all the points were aggregated... how do I get the mean line?? i.e. I want the mean slope to make a line.
 
 ```{r}
 all_dat %>% 
@@ -678,11 +843,14 @@ I don't think this graph is necessarily informative...
 ```{r}
 osml_mod <- all_dat %>%
   dplyr::filter(complete.cases(osmolality_mmol_kg)) %>%
-  nlme::lme(data = .,
-               osmolality_mmol_kg ~ day*humidity_tmt_percent,
-               random = ~1|individual_ID)
+  lme4::lmer(data = .,
+               osmolality_mmol_kg ~ day * humidity_tmt_percent +
+               (1|trial_number/individual_ID))
 summary(osml_mod)
+drop1(osml_mod)
 ```
+
+The model seems good as-is. 
 
 
 ### Change in Osmolality
@@ -836,13 +1004,49 @@ CEWL %>%
 I think this graph is awesome, but we lose the individual variation...
 
 ```{r}
-CEWL_mod <- all_dat %>%
-  dplyr::filter(complete.cases(hematocrit_percent)) %>%
-  nlme::lme(data = .,
-               hematocrit_percent ~ day + humidity_tmt_percent,
-               random = ~1|individual_ID)
-summary(CEWL_mod)
+CEWL %>% 
+  ggplot(data = .) + 
+  geom_point(aes(x = n_day,
+                 y = TEWL_g_m2h, 
+                 color = individual_ID
+                 ), 
+             size = 1, 
+             alpha = 0.6) +
+  geom_line(aes(x = n_day, 
+                  y = TEWL_g_m2h, 
+                  color = individual_ID
+                  )) + 
+  theme_classic() + 
+  facet_wrap(~region) +
+  scale_x_continuous(breaks = c(0, 1),
+                     labels = c("0" = "before", "1" = "after")) +
+  xlab("") + 
+  ylab("TEWL (g / m2h)") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0,
+        legend.position = "none" # too many thngs in it
+)
 ```
+
+Okay, now is ther any way to color by treatment?!
+
+
+```{r}
+CEWL_mod <- CEWL %>%
+  dplyr::filter(complete.cases(CEWL)) %>%
+  lme4::lmer(data = .,
+               TEWL_g_m2h ~ day * humidity_tmt_percent + region +
+               (1|trial_number/individual_ID))
+summary(CEWL_mod)
+drop1(CEWL_mod)
+```
+
+The model is best with all the parameters currently included. 
 
 
 ### Change in CEWL
@@ -873,14 +1077,16 @@ CEWL_diffs %>%
   ggplot(data = .) + 
   geom_boxplot(aes(x = humidity_tmt_percent, 
                    y = CEWL_diff, 
-                   group = humidity_tmt_percent
+                   group = humidity_tmt_percent,
+                   color = humidity_tmt_percent
                    ), 
                size = 1,
                alpha = 1) + 
   #facet_wrap(~humidity_tmt_percent) +
   theme_classic() + 
+  geom_hline(yintercept = 0) +
   xlab("") + 
-  ylab("CEWL Change ()") + 
+  ylab("CEWL Change (g/m2h)") + 
   #annotate("text", x = 1.5, y = 45, 
    #        label = "paste(italic(p), \" = 0.0152\")", 
     #       parse = TRUE,
@@ -912,7 +1118,7 @@ summary(CEW_diffs_mod)
 
 
 
-
+# Rehydration... still need to do!
 
 
 

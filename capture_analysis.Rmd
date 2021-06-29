@@ -99,6 +99,7 @@ morpho_blood_dat <- read.csv("./data/Herpetology_Data.csv", # filename
   # remove two columns not relevant for statistics
   dplyr::select(-sock_ID, -notes)
 summary(morpho_blood_dat)
+unique(morpho_blood_dat$date)
 
 # export
 write.csv(morpho_blood_dat, "exported_data/capture_hydration.csv")
