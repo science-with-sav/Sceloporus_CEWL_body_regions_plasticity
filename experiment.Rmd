@@ -130,7 +130,8 @@ all_dat <- exp_dat %>%
          individual_ID = as.factor(individual_ID),
          temp_tmt_C = as.factor(temp_tmt_C),
          trial_number = as.factor(trial_number),
-         conclusion = as.factor(conclusion)
+         conclusion = as.factor(conclusion),
+         SMI = mass_g * ((65.02158/SVL_mm) ^ (3.09059/sqrt(0.8944)))
          )
 
 summary(all_dat)
