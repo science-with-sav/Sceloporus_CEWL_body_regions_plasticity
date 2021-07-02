@@ -32,9 +32,9 @@ library("onewaytests") # for Brown-Forsythe test
 
 # Background and Goals
 
-This data was collected April - May 2021 during a course-based undergraduate research experience (CURE) in Herpetology, taught by Emily Taylor at Cal Poly, San Luis Obispo. This part of the study was conducted to describe the variation in hydrophysiology in *Sceloporus occidentalis* and to investigate that drives that variation. Please refer to **doi:** for full details.
+This data was collected April - May 2021 during a course-based undergraduate research experience (CURE) in Herpetology, taught by Emily Taylor at Cal Poly, San Luis Obispo. This part of the study was conducted to describe the variation in hydrophysiology in *Sceloporus occidentalis* and to investigate what drives that variation. Please refer to **doi:** for full details.
 
-In this document, we investigate differences in cutaneous evaporative water loss (CEWL) across body regions and dependent on environment, body size, health, and hydration. 
+In this document, we investigate differences in cutaneous evaporative water loss (CEWL) across body regions and dependent on environment, body size, condition, and hydration. 
 
 
 # Data
@@ -234,7 +234,7 @@ CEWL <- CEWL_April_05 %>% # week 1
                 # convert RH to absolute humidity
                 abs_humidity_g_m3 = ((6.112 * exp((17.67*ambient_temp_C)/(ambient_temp_C + 243.5)) * ambient_RH_percent * 2.1674) / (273.15 + ambient_temp_C))
                 ) %>%
-  # remove cols not relecant to stats
+  # remove cols not relevant to stats
   dplyr::select(-Status) %>%
   # remove any rows with missing values
   dplyr::filter(complete.cases(.))
@@ -249,51 +249,6 @@ write.csv(CEWL, "exported_data/capture_CEWL.csv")
 ```
 
 
-Next, split CEWL data by region and compute the average among them.
-
-```{r}
-# select each CEWL region separately 
-CEWL_dorsum <- CEWL %>%
-  dplyr::filter(region == "dors") %>%
-  dplyr::select(date, individual_ID, 
-                dorsum_TEWL_g_m2h = TEWL_g_m2h)
-CEWL_ventrum <- CEWL %>%
-  dplyr::filter(region == "vent") %>%
-  dplyr::select(date, individual_ID, 
-                ventrum_TEWL_g_m2h = TEWL_g_m2h)
-CEWL_dewlap <- CEWL %>%
-  dplyr::filter(region == "dewl") %>%
-  dplyr::select(date, individual_ID, 
-                dewlap_TEWL_g_m2h = TEWL_g_m2h)
-CEWL_head <- CEWL %>%
-  dplyr::filter(region == "head") %>%
-  dplyr::select(date, individual_ID, 
-                head_TEWL_g_m2h = TEWL_g_m2h)
-CEWL_mitepatch <- CEWL %>%
-  dplyr::filter(region == "mite") %>%
-  dplyr::select(date, individual_ID, 
-                mitepatch_TEWL_g_m2h = TEWL_g_m2h)
-
-# also get average across body regions
-CEWL_avg <- CEWL %>%
-  group_by(individual_ID) %>%
-  summarise(avg_CEWL = mean(TEWL_g_m2h)) %>%
-  dplyr::select(individual_ID, avg_CEWL)
-```
-
-
-Finally, rearrange and re-join CEWL data.
-
-```{r join data}
-# join all CEWL regions to morpho and blood data
-data_full <- morpho_blood_dat %>%
-  left_join(CEWL_dorsum, by = c("date", "individual_ID")) %>%
-  left_join(CEWL_ventrum, by = c("date", "individual_ID")) %>%
-  left_join(CEWL_dewlap, by = c("date", "individual_ID")) %>%
-  left_join(CEWL_head, by = c("date", "individual_ID")) %>%
-  left_join(CEWL_mitepatch, by = c("date", "individual_ID")) %>%
-  left_join(CEWL_avg, by = "individual_ID")
-```
 
 
 ### Weather Data
@@ -380,85 +335,202 @@ summary(all_times_weather)
 
 
 
-### Rain & Humidity
+## Compute Scaled Mass Index
 
-Load data:
+This is also known as the body condition index, or log-log residuals.
 
-```{r}
-rain_humd <- read.csv("./data/weather/rain_humidity.csv", sep = ';') %>%
-  # add a variable for combined date-time
-  mutate(date_time = as.POSIXct(paste(Date, Time),
-                                format = "%m/%d/%y %I:%M:%S %p"),
-         # fix date only variable format
-         Date = as.POSIXct(Date, format = "%m/%d/%y"),
-         # convert temperature units, thanks America
-         temp_C = fahrenheit.to.celsius(Temp_F, round = 2),
-         # compute absolute humidity
-         abs_humidity_g_m3 = ((6.112 * exp((17.67*temp_C)/(temp_C + 243.5)) * RH_percent * 2.1674) / (273.15 + temp_C))
-         )
-summary(rain_humd)
-```
+I calculate as described by: Peig, J., & Green, A. J. (2009). New perspectives for estimating body condition from mass/length data: The scaled mass index as an alternative method. Oikos, 118(12), 1883–1891. https://doi.org/10.1111/j.1600-0706.2009.17643.x
 
-Compute cumulative values in the days leading up to lizard capture days:
+### Step 1: mass ~ SVL
+
+plot:
 
 ```{r}
-# for April 5
-cumul_water_4_05 <- rain_humd %>%
-  dplyr::filter(Date < '2021-04-05' & Date > '2021-03-28') %>%
-  summarise(total_precip = sum(Precip_inches),
-            avg_abs_humd = mean(abs_humidity_g_m3)
-            ) %>%
-  mutate(sample_date = as.Date("2021-04-05", format = "%Y-%m-%d"))
-
-# for April 19
-cumul_water_4_19 <- rain_humd %>%
-  dplyr::filter(Date < '2021-04-19' & Date > '2021-04-11') %>%
-  summarise(total_precip = sum(Precip_inches),
-            avg_abs_humd = mean(abs_humidity_g_m3)
-            ) %>%
-  mutate(sample_date = as.Date("2021-04-19", format = "%Y-%m-%d"))
-
-# for April 26
-cumul_water_4_26 <- rain_humd %>%
-  dplyr::filter(Date < '2021-04-26' & Date > '2021-03-18') %>%
-  summarise(total_precip = sum(Precip_inches),
-            avg_abs_humd = mean(abs_humidity_g_m3)
-            ) %>%
-  mutate(sample_date = as.Date("2021-04-26", format = "%Y-%m-%d"))
-
-# for May 3
-cumul_water_5_03 <- rain_humd %>%
-  dplyr::filter(Date < '2021-05-03' & Date > '2021-04-25') %>%
-  summarise(total_precip = sum(Precip_inches),
-            avg_abs_humd = mean(abs_humidity_g_m3)
-            ) %>%
-  mutate(sample_date = as.Date("2021-05-03", format = "%Y-%m-%d"))
-
-# for May 10
-cumul_water_5_10 <- rain_humd %>%
-  dplyr::filter(Date < '2021-05-10' & Date > '2021-05-02') %>%
-  summarise(total_precip = sum(Precip_inches),
-            avg_abs_humd = mean(abs_humidity_g_m3)
-            ) %>%
-  mutate(sample_date = as.Date("2021-05-10", format = "%Y-%m-%d"))
-
-# for May 17
-cumul_water_5_17 <- rain_humd %>%
-  dplyr::filter(Date < '2021-05-17' & Date > '2021-05-09') %>%
-  summarise(total_precip = sum(Precip_inches),
-            avg_abs_humd = mean(abs_humidity_g_m3)
-            ) %>%
-  mutate(sample_date = as.Date("2021-05-17", format = "%Y-%m-%d"))
-
-# join them
-cumul_water <- cumul_water_4_05 %>%
-  rbind(cumul_water_4_19) %>%
-  rbind(cumul_water_4_26) %>%
-  rbind(cumul_water_5_03) %>%
-  rbind(cumul_water_5_10) %>%
-  rbind(cumul_water_5_17) %>%
-  mutate(prior_rain_Y_N = c("N", "N", "N", "Y", "N", "Y"))
+morpho_blood_dat %>% 
+  ggplot(data = .) + 
+  geom_point(aes(x = SVL_mm,
+                 y = mass_g, 
+                 ), 
+             size = 1, 
+             alpha = 0.6) + 
+  stat_smooth(aes(x = SVL_mm, 
+                  y = mass_g, 
+                  ), 
+              formula = y ~ x, 
+              method = "lm", 
+              color = "gray",
+              se = F, 
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  xlab("SVL") + 
+  ylab("Mass") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0
+)
 ```
+
+create a simple linear regression 
+
+```{r}
+mass_SVL_SLR <- lm(data = all_dat, mass_g ~ SVL_mm)
+summary(mass_SVL_SLR)
+```
+
+look for outliers by calculating residuals
+
+```{r}
+mass_SVL_SLR_residuals <- morpho_blood_dat %>%
+  # not working with function, so just compute by hand... 
+  mutate(#y_hat = predict(mass_SVL_SLR),
+         #e = residuals(mass_SVL_SLR),
+         y_hat = 0.36921*SVL_mm - 13.59918,
+         e = y_hat - mass_g
+         ) %>%
+  dplyr::filter(e < 2.8 & e > -3.5)
+```
+
+plot residuals
+
+```{r}
+ggplot(data = mass_SVL_SLR_residuals, 
+       aes(x = e)) +
+  geom_histogram() + 
+  theme_classic() + 
+  xlab("residuals (e)")
+ggplot(data = mass_SVL_SLR_residuals, 
+       aes(x = e)) +
+  geom_boxplot() + 
+  theme_classic() + 
+  scale_x_continuous(breaks = c(seq(-5, 5, 1))) +
+  xlab("residuals (e)") +
+  geom_vline(xintercept = -3.5, lty = 1) +
+  geom_vline(xintercept = 3, lty = 1) +
+  geom_vline(xintercept = 2.8, lty = 1)
+```
+
+From the histogram, there are clearly points disconnected from the main curve. In the boxplot, we can distinguish that those outlying points have residuals <-3.5 and >3, so I'll go back and filter those out in the code chunk before making the distribution plots. Then, a new outlier came up around 2.9, so go back and filter that out. Finally, the boxplot has no dots outside the main distribution.
+
+And, check mean residual value:
+
+```{r}
+mass_SVL_SLR_residuals %>%
+  summarise(mean_res = mean(e),
+            med = median(e))
+```
+
+Not zero, which is not ideal. Next, check for influential points.
+
+
+
+ 
+### Step 2: make log-log relationship
+
+plot and calculate SLR for filtered data
+
+```{r}
+mass_SVL_SLR_residuals %>% 
+  ggplot(data = .) + 
+  geom_point(aes(x = log(SVL_mm),
+                 y = log(mass_g), 
+                 ), 
+             size = 1, 
+             alpha = 0.6) + 
+  stat_smooth(aes(x = log(SVL_mm), 
+                  y = log(mass_g), 
+                  ), 
+              formula = y ~ x, 
+              method = "lm", 
+              color = "gray",
+              se = F, 
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  xlab("log-SVL") + 
+  ylab("log-Mass") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0
+)
+```
+
+SLR
+
+```{r}
+log_mass_SVL_SLR <- lm(data = all_dat, 
+                       log(mass_g) ~ log(SVL_mm))
+summary(log_mass_SVL_SLR)
+```
+
+compute standardized major axis using this regression equation:
+
+```{r}
+r <- sqrt(0.5312) # Pearson's correlection coefficient (sqrt of R-squared)
+b_OLS <- 2.4275 # regression slope
+b_SMA <- b_OLS/r
+```
+
+also get a value for L0:
+
+```{r}
+L0 <- mean(all_dat$SVL_mm)
+```
+
+
+### Step 3: calculate scaled mass index
+
+```{r}
+scaled_mass_index <- all_dat %>%
+  mutate(SMI = mass_g * ((L0/SVL_mm) ^ b_SMA))
+```
+
+
+### Check
+
+Look at the difference between regular mass and SMI:
+
+```{r}
+scaled_mass_index %>% 
+  ggplot(data = .) + 
+  geom_point(aes(x = mass_g,
+                 y = SMI, 
+                 ), 
+             size = 1, 
+             alpha = 0.6) + 
+  stat_smooth(aes(x = mass_g, 
+                  y = SMI, 
+                  ), 
+              formula = y ~ x, 
+              method = "lm", 
+              color = "gray",
+              se = F, 
+              size = 1.6, 
+              alpha = 1 ) + 
+  theme_classic() + 
+  xlab("Mass") + 
+  ylab("SMI") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0
+)
+```
+
+
+
+
 
 
 
@@ -824,7 +896,7 @@ This will be important to keep in mind going forward. Once we have our model, we
 
 
 
-# Basic Figs & GLMs
+# Basic Figs & LMs
 
 ## What affects hydration & health?
 
@@ -865,8 +937,8 @@ all_data_wide %>%
         legend.text.align = 0,
 )
 
-# glm
-glm_hct_SVL <- lm(hematocrit_percent ~ SVL_mm,
+# lm
+lm_hct_SVL <- lm(hematocrit_percent ~ SVL_mm,
            data = all_data_wide)
 summary(glm_hct_SVL)
 ```
@@ -2781,6 +2853,12 @@ hydrat_mod_dat <- all_data_wide %>%
                 hemolyzed
                 ) %>%
   dplyr::filter(complete.cases(.))
+summary(hydrat_mod_dat)
+summary(CEWL)
+
+hydrat_mod_dat %>%
+  group_by(blood_sample_eye) %>%
+  dplyr::summarize(mean(osmolality_mmol_kg), max(osmolality_mmol_kg), min(osmolality_mmol_kg))
 ```
 
 
@@ -2814,9 +2892,9 @@ Start with all the variables that were significant individually in SLRs.
 hydrat_mod1 <- lme4::lmer(data = hydrat_mod_dat,
                           osmolality_mmol_kg ~ 
                            abs_humidity_g_m3_interpol*temp_C_interpol +
-                            date + blood_sample_eye + hemolyzed +
-                            (1|individual_ID)) 
+                            (1|date) + (1|hemolyzed)) 
 summary(hydrat_mod1)
+drop1(hydrat_mod1)
 ```
 
 I think I should probably skip blood_sample_eye and hemolyzed in the model. I can note they were significant in the paper as SLRs, but I think they might be one of the problems throwing warnings in the model. 
@@ -3029,7 +3107,7 @@ Start with SVL and hold time:
 # model 2
 CEWL_mod2 <- lme4::lmer(data = CEWL_mod_dat,
                        TEWL_g_m2h ~  
-                       region * mass_g +
+                       region:mass_g + mass_g + region +
                        cloacal_temp_C +
                        temp_C_interpol +
                        abs_humidity_g_m3_interpol +
@@ -3068,22 +3146,26 @@ anova(CEWL_mod3, CEWL_mod1)
 anova(CEWL_mod3, CEWL_mod2)
 ```
 
-Once again, the AIC is slightly lower, but the model is not significantly better when compared to version 1 or 2. 
+Once again, the AIC is slightly lower, and our model fit is not significantly worse by going to model 3.
 
-Technically, cloacal temperature should be a random effect. We can also check whether temp and humidity would be important as an interaction.
+check whether temp and humidity would be important as an interaction.
 
 ```{r}
 # model 4
 CEWL_mod4 <- lme4::lmer(data = CEWL_mod_dat,
                        TEWL_g_m2h ~
                        region * mass_g +
+                         cloacal_temp_C +
                        temp_C_interpol:abs_humidity_g_m3_interpol +
                        Solar_rad_Wm2_interpol + 
-                       (1|individual_ID) + (1|cloacal_temp_C)) 
+                       (1|individual_ID)) 
 summary(CEWL_mod4)
+drop1(CEWL_mod4)
 
 # compare
+# p-values no t meaningufl
 anova(CEWL_mod3, CEWL_mod4)
+anova(CEWL_mod4, CEWL_mod1)
 ```
 
 Model 4 is significantly better than model 3. But, which change was more important? Check if we kept cloacal temperature as a fixed effect and added the temp:humidity interaction effect:

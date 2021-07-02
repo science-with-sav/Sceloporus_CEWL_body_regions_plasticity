@@ -83,7 +83,7 @@ summary(SVL)
 ### Experiment Data
 
 variables:
-- date = date of capture & baseline measurements
+- date = date of measurements
 - individual lizard ID
 - mass_g = mass in grams
 - hematocrit_percent = % of blood sample that's red blood cells
@@ -107,9 +107,8 @@ summary(exp_dat)
 
 ### Join Dataframes
 
-Now, attach all the dataframes, only use individuals whose treatment was completed, and add a "day" variable for what day of treatment each lizard/observation was on.
+Now, attach all the dataframes, only use individuals whose treatment was completed, and add a "day" variable for what day of treatment each lizard/observation was on. I also calculate SMI using the equation created in capture_analysis.
 
-I also calculate body condition index (BCI) using two different methods: log-residuals and scaled mass index.
 
 ```{r}
 all_dat <- exp_dat %>%
@@ -140,186 +139,17 @@ summary(all_dat)
 unique(all_dat$capture_date)
 ```
 
-
-## Compute Scaled Mass Index
-
-This is also known as the body condition index, or log-log residuals.
-
-I calculate as described by: Peig, J., & Green, A. J. (2009). New perspectives for estimating body condition from mass/length data: The scaled mass index as an alternative method. Oikos, 118(12), 1883–1891. https://doi.org/10.1111/j.1600-0706.2009.17643.x
-
-### Step 1: mass ~ SVL
-
-plot:
+Check that each lizard only has one measurement for each day of measurements.
 
 ```{r}
-all_dat %>% 
-  ggplot(data = .) + 
-  geom_point(aes(x = SVL_mm,
-                 y = mass_g, 
-                 ), 
-             size = 1, 
-             alpha = 0.6) + 
-  stat_smooth(aes(x = SVL_mm, 
-                  y = mass_g, 
-                  ), 
-              formula = y ~ x, 
-              method = "lm", 
-              color = "gray",
-              se = F, 
-              size = 1.6, 
-              alpha = 1 ) + 
-  theme_classic() + 
-  xlab("SVL") + 
-  ylab("Mass") + 
-  theme(text = element_text(color = "black", 
-                            family = "sans", 
-                            size = 12),
-        axis.text = element_text(color = "black", 
-                                 family = "sans", 
-                                 size = 10),
-        legend.text.align = 0
-)
-```
-
-create a simple linear regression 
-
-```{r}
-mass_SVL_SLR <- lm(data = all_dat, mass_g ~ SVL_mm)
-summary(mass_SVL_SLR)
-```
-
-look for outliers by calculating residuals
-
-```{r}
-mass_SVL_SLR_residuals <- all_dat %>%
-  # not working with function, so just compute by hand... 
-  mutate(y_hat = 0.36921*SVL_mm - 13.59918,
-         e = y_hat - mass_g) %>%
-  dplyr::filter(abs(e) < 2.2)
-```
-
-plot residuals
-
-```{r}
-ggplot(data = mass_SVL_SLR_residuals, 
-       aes(x = e)) +
-  geom_histogram() + 
-  theme_classic() + 
-  xlab("residuals (e)")
-ggplot(data = mass_SVL_SLR_residuals, 
-       aes(x = e)) +
-  geom_boxplot() + 
-  theme_classic() + 
-  xlab("residuals (e)")
-```
-
-From the histogram, it looks like there are some points > ~2.2 that are outside the main bell curve, so go back and try deleting those points. This definitely made it look better. 
-
-However, the boxplot version had no extra dots, suggesting none of the omitted points were actually outliers, so don't omit data for next steps. 
-
-
- 
-### Step 2: make log-log relationship
-
-plot
-
-```{r}
-all_dat %>% 
-  ggplot(data = .) + 
-  geom_point(aes(x = log(SVL_mm),
-                 y = log(mass_g), 
-                 ), 
-             size = 1, 
-             alpha = 0.6) + 
-  stat_smooth(aes(x = log(SVL_mm), 
-                  y = log(mass_g), 
-                  ), 
-              formula = y ~ x, 
-              method = "lm", 
-              color = "gray",
-              se = F, 
-              size = 1.6, 
-              alpha = 1 ) + 
-  theme_classic() + 
-  xlab("log-SVL") + 
-  ylab("log-Mass") + 
-  theme(text = element_text(color = "black", 
-                            family = "sans", 
-                            size = 12),
-        axis.text = element_text(color = "black", 
-                                 family = "sans", 
-                                 size = 10),
-        legend.text.align = 0
-)
-```
-
-SLR
-
-```{r}
-log_mass_SVL_SLR <- lm(data = all_dat, 
-                       log(mass_g) ~ log(SVL_mm))
-summary(log_mass_SVL_SLR)
-```
-
-compute standardized major axis using this regression equation:
-
-```{r}
-r <- sqrt(0.5312) # Pearson's correlection coefficient (sqrt of R-squared)
-b_OLS <- 2.4275 # regression slope
-b_SMA <- b_OLS/r
-```
-
-also get a value for L0:
-
-```{r}
-L0 <- mean(all_dat$SVL_mm)
+all_dat %>%
+  group_by(individual_ID, type) %>%
+  summarise(n = n()) %>%
+  arrange(type)
 ```
 
 
-### Step 3: calculate scaled mass index
-
-```{r}
-scaled_mass_index <- all_dat %>%
-  mutate(SMI = mass_g * ((L0/SVL_mm) ^ b_SMA))
-```
-
-
-### Check
-
-Look at the difference between regular mass and SMI:
-
-```{r}
-scaled_mass_index %>% 
-  ggplot(data = .) + 
-  geom_point(aes(x = mass_g,
-                 y = SMI, 
-                 ), 
-             size = 1, 
-             alpha = 0.6) + 
-  stat_smooth(aes(x = mass_g, 
-                  y = SMI, 
-                  ), 
-              formula = y ~ x, 
-              method = "lm", 
-              color = "gray",
-              se = F, 
-              size = 1.6, 
-              alpha = 1 ) + 
-  theme_classic() + 
-  xlab("Mass") + 
-  ylab("SMI") + 
-  theme(text = element_text(color = "black", 
-                            family = "sans", 
-                            size = 12),
-        axis.text = element_text(color = "black", 
-                                 family = "sans", 
-                                 size = 10),
-        legend.text.align = 0
-)
-```
-
-
-
+That all looks good, experimental measurements are either 4 (first trial) or 2 (other trials). *although I'm not sure why lizards 101-122 only have one experimental measurement... * 
 
 ## CEWL
 
@@ -429,7 +259,8 @@ CEWL <- CEWL_t1 %>% # trial 1
   left_join(tmts, by = "individual_ID") %>%
   mutate(humidity_tmt_percent = as.factor(humidity_tmt_percent),
          individual_ID = as.factor(individual_ID)
-         )
+         ) 
+# every lizard should have 10 measurements
 summary(CEWL)
 ```
 
@@ -447,7 +278,7 @@ write.csv(CEWL, "exported_data/exp_effects_CEWL.csv")
 
 
 
-# Data Cleaning
+# Data Distributions
 
 ## Histograms
 
@@ -525,39 +356,7 @@ Visually, looks slightly skewed to the right, but statistically, the distributio
 
 ### Mass ~ Time
 
-```{r}
-all_dat %>% 
-  dplyr::filter(type != "rehab") %>%
-  ggplot(data = .) + 
-  geom_point(aes(x = day,
-                 y = mass_g, 
-                 color = as.factor(individual_ID)
-                 ), 
-             size = 1, 
-             alpha = 0.6) +
-  stat_smooth(aes(x = day, 
-                  y = mass_g, 
-                  color = as.factor(individual_ID)
-                  ), 
-              formula = y ~ x, 
-              method = "lm", 
-              se = F, 
-              size = 1.6, 
-              alpha = 1 ) + 
-  theme_classic() + 
-  scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
-  xlab("Day") + 
-  ylab("Mass (g)") + 
-  theme(text = element_text(color = "black", 
-                            family = "sans", 
-                            size = 12),
-        axis.text = element_text(color = "black", 
-                                 family = "sans", 
-                                 size = 10),
-        legend.text.align = 0,
-        legend.position = "none"
-)
-```
+I won't be using this, SMI is more applicable.
 
 ```{r}
 all_dat %>% 
@@ -622,6 +421,11 @@ scaled_mass_index %>%
               se = F, 
               size = 1.6, 
               alpha = 1 ) + 
+  geom_line(aes(x = day,
+                y = SMI,
+                group = individual_ID,
+                color = humidity_tmt_percent),
+            alpha = 0.2) +
   theme_classic() + 
   scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
   xlab("Day") + 
@@ -1084,7 +888,7 @@ CEWL_diffs %>%
                alpha = 1) + 
   #facet_wrap(~humidity_tmt_percent) +
   theme_classic() + 
-  geom_hline(yintercept = 0) +
+  geom_hline(yintercept = 0, lty = 2) +
   xlab("") + 
   ylab("CEWL Change (g/m2h)") + 
   #annotate("text", x = 1.5, y = 45, 
