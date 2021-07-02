@@ -2785,14 +2785,13 @@ This is the full model with every potential variable and interaction baed on fig
 ```{r}
 # model 1
 CEWL_mod1 <- lme4::lmer(data = CEWL_mod_dat,
-                        TEWL_g_m2h ~ region + 
-                         region * mass_g +
-                         region * ambient_temp_C +
-                         region * temp_C_interpol +
-                         region * abs_humidity_g_m3_interpol +
+                        TEWL_g_m2h ~
+                         region * (mass_g + ambient_temp_C +
+                                     temp_C_interpol +
+                                     abs_humidity_g_m3_interpol) +
                          hold_time + SVL_mm +
                          cloacal_temp_C +
-                         temp_C_interpol*abs_humidity_g_m3_interpol +
+                         temp_C_interpol:abs_humidity_g_m3_interpol +
                          Wind_mph_interpol +
                          Solar_rad_Wm2_interpol + 
                          (1|individual_ID)) 
@@ -2813,14 +2812,12 @@ Start with region:ambient_temp_C and temp_C_interpol:abs_humidity_g_m3_interpol 
 ```{r}
 # model 2
 CEWL_mod2 <- lme4::lmer(data = CEWL_mod_dat,
-                        TEWL_g_m2h ~ region + 
-                         region * mass_g +
-                         region * temp_C_interpol +
-                         region * abs_humidity_g_m3_interpol +
+                        TEWL_g_m2h ~
+                         region * (mass_g +
+                                     temp_C_interpol +
+                                     abs_humidity_g_m3_interpol) +
                          hold_time + SVL_mm +
                          cloacal_temp_C +
-                         ambient_temp_C +
-                         temp_C_interpol + abs_humidity_g_m3_interpol +
                          Wind_mph_interpol +
                          Solar_rad_Wm2_interpol + 
                          (1|individual_ID)) 
@@ -2843,13 +2840,11 @@ Hold time, SVL, and wind should still be deleted.
 ```{r}
 # model 3
 CEWL_mod3 <- lme4::lmer(data = CEWL_mod_dat,
-                        TEWL_g_m2h ~ region + 
-                         region * mass_g +
-                         region * temp_C_interpol +
-                         region * abs_humidity_g_m3_interpol +
+                        TEWL_g_m2h ~
+                         region * (mass_g +
+                                     temp_C_interpol +
+                                     abs_humidity_g_m3_interpol) +
                          cloacal_temp_C +
-                         ambient_temp_C +
-                         temp_C_interpol + abs_humidity_g_m3_interpol +
                          Solar_rad_Wm2_interpol + 
                          (1|individual_ID)) 
 summary(CEWL_mod3)
@@ -2867,20 +2862,16 @@ Check drop terms again to make sure nothing else could potentially be removed:
 drop1(CEWL_mod3)
 ```
 
-ambient_temp_C, Solar_rad_Wm2_interpol, and region:mass_g could potentially be dropped without worsening the model.
-
-Start with ambient_temp_C since there is another temperature variable included:
+Check whether removing Solar_rad_Wm2_interpol is okay:
 
 ```{r}
 # model 4
 CEWL_mod4 <- lme4::lmer(data = CEWL_mod_dat,
-                        TEWL_g_m2h ~ region + 
-                         region * mass_g +
-                         region * temp_C_interpol +
-                         region * abs_humidity_g_m3_interpol +
+                        TEWL_g_m2h ~
+                         region * (mass_g +
+                                     temp_C_interpol +
+                                     abs_humidity_g_m3_interpol) +
                          cloacal_temp_C +
-                         temp_C_interpol + abs_humidity_g_m3_interpol +
-                         Solar_rad_Wm2_interpol + 
                          (1|individual_ID)) 
 summary(CEWL_mod4)
 
@@ -2888,39 +2879,17 @@ summary(CEWL_mod4)
 anova(CEWL_mod4, CEWL_mod1)
 anova(CEWL_mod4, CEWL_mod3)
 ```
-We do lose significant predictive power when we go from model 3 to 4... 
 
-
-```{r}
-# model 5
-CEWL_mod5 <- lme4::lmer() 
-summary(CEWL_mod5)
-
-# compare
-anova(CEWL_mod5, CEWL_mod4)
-anova(CEWL_mod5, CEWL_mod1)
-```
-
-
-```{r}
-# model 6
-CEWL_mod6 <- lme4::lmer() 
-summary(CEWL_mod6)
-
-# compare
-anova(CEWL_mod6, CEWL_mod5)
-anova(CEWL_mod6, CEWL_mod1)
-```
-
+We do lose significant predictive power when we go from model 3 to 4... So model 3 is the best model to predict CEWL.
 
 
 ### Best Model
 
-The best model is CEWL predicted by:
+The best model is CEWL predicted by: body region and its interaction with mass and capture temp and humidity, cloacal temperature, solar radiation at capture time, and individual ID as a random effect.
 
 ```{r}
 # save best model summary object
-CEWL_best_mod <- summary()
+CEWL_best_mod <- summary(CEWL_mod3)
 # extract stats table from summary object
 CEWL_best_mod_vals <- data.frame(CEWL_best_mod$coefficients)
 # export 
@@ -2935,8 +2904,8 @@ First, get residuals:
 
 ```{r}
 CEWL_mod_res <- CEWL_mod_dat %>%
-  mutate(y_hat = predict(CEWL_mod4),
-         e = residuals(CEWL_mod4))
+  mutate(y_hat = predict(CEWL_mod3),
+         e = residuals(CEWL_mod3))
 ```
 
 
@@ -2952,20 +2921,21 @@ ggplot(data = CEWL_mod_res, aes(x = y_hat, y = e)) +
   theme_classic() + 
   xlab("predicted y (y-hat)") +
   ylab("residuals (e)") +
-  ggtitle("CEWL Model 13 Residuals") +
+  ggtitle("CEWL Model Residuals") +
   geom_hline(yintercept = 0)
 ```
 
 It's definitely making a fan shape. :(
 
-Brown-Forsythe test to statistically check equal variance:
+Brown-Forsythe test to statistically check equal variance, for each continuous predictor variable:
 
 H0: normally distributed (non-sig test is GOOD)
 HA: NOT normally distributed (reject nul == assumption not satisfied)
 
+
 ```{r}
 # need to create the right data & format first
-bf_data <- CEWL_mod_res %>%
+bf_data_CEWL <- CEWL_mod_res %>%
   dplyr::mutate(middle_mass = median(mass_g), # mass
                 side_mass = as.factor(mass_g > middle_mass),
                 # solar radiation
@@ -2975,38 +2945,47 @@ bf_data <- CEWL_mod_res %>%
                 middle_temp = median(temp_C_interpol),
                 side_temp = as.factor(temp_C_interpol > middle_temp),
                 # absolute humidity
-                middle_absh = median(Solar_rad_Wm2_interpol),
-                side_absh = as.factor(Solar_rad_Wm2_interpol > middle_absh)
+                middle_absh = median(abs_humidity_g_m3_interpol),
+                side_absh = as.factor(abs_humidity_g_m3_interpol > middle_absh),
+                middle_ct = median(cloacal_temp_C),
+                side_ct = as.factor(cloacal_temp_C > middle_ct)
                 )
+
 
 # now run test
 bf.test(formula = e ~ side_absh, # y~x
-        data = bf_data, # dataframe
+        data = bf_data_CEWL, # dataframe
         alpha = 0.05, # default 0.05
         na.rm = TRUE, # remove missing data before running?
         verbose = TRUE # print output to console?
         )
 bf.test(formula = e ~ side_temp, # y~x
-        data = bf_data, # dataframe
+        data = bf_data_CEWL, # dataframe
         alpha = 0.05, # default 0.05
         na.rm = TRUE, # remove missing data before running?
         verbose = TRUE # print output to console?
         )
 bf.test(formula = e ~ side_sorad, # y~x
-        data = bf_data, # dataframe
+        data = bf_data_CEWL, # dataframe
+        alpha = 0.05, # default 0.05
+        na.rm = TRUE, # remove missing data before running?
+        verbose = TRUE # print output to console?
+        )
+bf.test(formula = e ~ side_ct, # y~x
+        data = bf_data_CEWL, # dataframe
         alpha = 0.05, # default 0.05
         na.rm = TRUE, # remove missing data before running?
         verbose = TRUE # print output to console?
         )
 bf.test(formula = e ~ side_mass, # y~x
-        data = bf_data, # dataframe
+        data = bf_data_CEWL, # dataframe
         alpha = 0.05, # default 0.05
         na.rm = TRUE, # remove missing data before running?
         verbose = TRUE # print output to console?
         )
 ```
 
-Equal variance is satisfied for all 4 continuous predictor variables.
+Equal variance is satisfied for all 5 continuous predictor variables.
 
 
 Now check normality. Is the distribution of residuals **normal**?
@@ -3028,13 +3007,9 @@ not normal!
 Can I improve satisfaction of LM assumptions by transforming the dependent variable?
 
 ```{r}
-CEWL_transf <- all_data_long %>%
-  mutate(TEWL_sqrt = sqrt(TEWL_g_m2h),
-         TEWL_log = log(TEWL_g_m2h))
-
 # sqrt(TEWL)
-CEWL_transf %>%
-  ggplot(., aes(x = TEWL_sqrt)) +
+CEWL_data_full %>%
+  ggplot(., aes(x = sqrt(TEWL_g_m2h))) +
   geom_histogram(color = "black", fill="steelblue", bins=50) + 
   theme_classic() +
   xlab("sqrt(CEWL)") + 
@@ -3042,8 +3017,8 @@ CEWL_transf %>%
   facet_wrap(~region)
 
 # log(temperature)
-CEWL_transf %>%
-  ggplot(., aes(x = TEWL_log)) +
+CEWL_data_full %>%
+  ggplot(., aes(x = log(TEWL_g_m2h))) +
   geom_histogram(color = "black", fill="steelblue", bins=50) + 
   theme_classic() +
   xlab("LOG(CEWL)") + 
@@ -3063,30 +3038,30 @@ I will log-transform CEWL and see whether it makes the models satisfy LMM assump
 Run CEWL model 4 with log-transformed CEWL:
 
 ```{r}
-# log-transformed model 4
-CEWL_mod4_t <- lme4::lmer(data = CEWL_mod_dat,
-                       log(TEWL_g_m2h) ~
-                       region * mass_g +
-                       temp_C_interpol:abs_humidity_g_m3_interpol +
-                       Solar_rad_Wm2_interpol + 
-                       (1|individual_ID) + (1|cloacal_temp_C)) 
-summary(CEWL_mod4_t)
+# log-transformed model 3
+CEWL_mod3_t <- lme4::lmer(data = CEWL_mod_dat,
+                          log(TEWL_g_m2h) ~
+                            region * (mass_g +
+                                     temp_C_interpol +
+                                     abs_humidity_g_m3_interpol) +
+                            cloacal_temp_C + Solar_rad_Wm2_interpol +
+                            (1|individual_ID)) 
+summary(CEWL_mod3_t)
 
 # compare
-anova(CEWL_mod4_t, CEWL_mod4)
+anova(CEWL_mod3_t, CEWL_mod3)
 ```
 
-The transformed model is WAYYYY better! :D
 
 
-### Re-Check Assumptions (transformed model 4)
+### Re-Check Assumptions (transformed model 3)
 
 First, get residuals:
 
 ```{r}
 CEWL_t_mod_res <- CEWL_mod_dat %>%
-  mutate(y_hat = predict(CEWL_mod4_t),
-         e = residuals(CEWL_mod4_t))
+  mutate(y_hat = predict(CEWL_mod3_t),
+         e = residuals(CEWL_mod3_t))
 ```
 
 
@@ -3106,7 +3081,7 @@ ggplot(data = CEWL_t_mod_res, aes(x = y_hat, y = e)) +
   geom_hline(yintercept = 0)
 ```
 
-It looks much much better. :)
+It looks much much better. :) Equal error variance doesn't look perfect, but there's no more fan shape.
 
 Brown-Forsythe test to statistically check equal variance:
 
@@ -3115,7 +3090,7 @@ HA: NOT normally distributed (reject nul == assumption not satisfied)
 
 ```{r}
 # need to create the right data & format first
-bf_data_t <- CEWL_t_mod_res %>%
+bf_data_CEWL_t <- CEWL_t_mod_res %>%
   dplyr::mutate(middle_mass = median(mass_g), # mass
                 side_mass = as.factor(mass_g > middle_mass),
                 # solar radiation
@@ -3125,38 +3100,47 @@ bf_data_t <- CEWL_t_mod_res %>%
                 middle_temp = median(temp_C_interpol),
                 side_temp = as.factor(temp_C_interpol > middle_temp),
                 # absolute humidity
-                middle_absh = median(Solar_rad_Wm2_interpol),
-                side_absh = as.factor(Solar_rad_Wm2_interpol > middle_absh)
+                middle_absh = median(abs_humidity_g_m3_interpol),
+                side_absh = as.factor(abs_humidity_g_m3_interpol > middle_absh),
+                middle_ct = median(cloacal_temp_C),
+                side_ct = as.factor(cloacal_temp_C > middle_ct)
                 )
+
 
 # now run test
 bf.test(formula = e ~ side_absh, # y~x
-        data = bf_data_t, # dataframe
+        data = bf_data_CEWL_t, # dataframe
         alpha = 0.05, # default 0.05
         na.rm = TRUE, # remove missing data before running?
         verbose = TRUE # print output to console?
         )
 bf.test(formula = e ~ side_temp, # y~x
-        data = bf_data_t, # dataframe
+        data = bf_data_CEWL_t, # dataframe
         alpha = 0.05, # default 0.05
         na.rm = TRUE, # remove missing data before running?
         verbose = TRUE # print output to console?
         )
 bf.test(formula = e ~ side_sorad, # y~x
-        data = bf_data_t, # dataframe
+        data = bf_data_CEWL_t, # dataframe
+        alpha = 0.05, # default 0.05
+        na.rm = TRUE, # remove missing data before running?
+        verbose = TRUE # print output to console?
+        )
+bf.test(formula = e ~ side_ct, # y~x
+        data = bf_data_CEWL_t, # dataframe
         alpha = 0.05, # default 0.05
         na.rm = TRUE, # remove missing data before running?
         verbose = TRUE # print output to console?
         )
 bf.test(formula = e ~ side_mass, # y~x
-        data = bf_data_t, # dataframe
+        data = bf_data_CEWL_t, # dataframe
         alpha = 0.05, # default 0.05
         na.rm = TRUE, # remove missing data before running?
         verbose = TRUE # print output to console?
         )
 ```
 
-Equal variance is still satisfied for all 4 continuous predictor variables.
+Equal variance is still satisfied for all continuous predictor variables.
 
 
 Now check normality. Is the distribution of residuals **normal**?
@@ -3178,8 +3162,8 @@ Still not statistically normal... but the distribution looks a lot better.
 The best CEWL model should use log-transformed CEWL because this greatly improves the model based on AIC and it allows the model to satisfy the linearity assumption of LMM. 
 
 ```{r}
-# save model 4 summary object
-CEWL_best_t_mod <- summary(CEWL_mod4_t)
+# save log model 3 summary object
+CEWL_best_t_mod <- summary(CEWL_mod3_t)
 # extract stats table from summary object
 CEWL_best_t_mod_vals <- data.frame(CEWL_best_t_mod$coefficients)
 # export 

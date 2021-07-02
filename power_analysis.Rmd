@@ -46,7 +46,7 @@ CEWL <- read.csv("./exported_data/exp_effects_CEWL.csv",
                 trial_number = as.factor(trial_number),
                 day = as.factor(day)
                 ) %>%
-  dplyr::select(-notes, -X) %>%
+  dplyr::select(-X) %>%
   dplyr::filter(complete.cases(.))
 summary(CEWL)
 
@@ -72,6 +72,8 @@ summary(hydration)
 # Data Prep
 
 Since my first try of doing this experiment only had temperature 25C, I'm going to duplicate the data and remake it as 35C so I can build a model off of that.
+
+*Does this even make sense?*
 
 ## Hydration
 
@@ -136,7 +138,6 @@ effects
 osmol_mod <- lme4::lmer(data = fake_hydration_dat,
                          osmolality_mmol_kg ~ 
                          temp_tmt_C*humidity_tmt_percent*day + 
-                          individual_ID +
                           (1|trial_number/individual_ID))
                     # random effect of individual nested within trial number
 summary(osmol_mod)
@@ -145,8 +146,12 @@ summary(osmol_mod)
 osmol_mod2 <- lme4::lmer(data = hydration,
                          osmolality_mmol_kg ~ 
                          humidity_tmt_percent*day + 
-                          (1|trial_number/individual_ID))
-summary(osmol_mod2)
+                          (1|trial_number))
+
+summary(osmol_mod2) #don't use indiv ID as random effect
+summary(CEWL) # include indiv ID
+
+count(hydration, individual_ID, trial_number)
 ```
 
 
@@ -162,8 +167,7 @@ summary(hct_mod)
 ```
 
 
-## Mass
-### Should this be BCI??
+## SMI (Mass)
 
 ```{r}
 mass_mod <- lme4::lmer(data = fake_hydration_dat,
@@ -180,7 +184,6 @@ summary(mass_mod)
 ```{r}
 CEWL_mod <- lme4::lmer(data = fake_CEWL_dat,
                          TEWL_g_m2h ~ 
-                         # use a colon for interaction effect only
                          temp_tmt_C*humidity_tmt_percent*day + region +
                          (1|trial_number/individual_ID))
                     # random effect of individual nested within trial number
@@ -198,11 +201,18 @@ Now that I have models for everything, I'll go through and test the power of eac
 
 First, see what the power was for the preliminary trials we did.
 
+```{r}
+powerSim(osmol_mod2, fixed("humidity_tmt_percent","lr"), nsim = 50) # 8-31
+powerSim(osmol_mod2, fixed("day","lr"), nsim = 50) # 0-7
+powerSim(osmol_mod2, fixed("humidity_tmt_percent:day","lr"), nsim = 50) # 21-49
+```
+
+
 Now, compute the effect of increased sample sizes within treatment groups for each trial. This addresses how much power we can get if we increase the sample size within trials and treatment groups, and do the same number of treatment groups and trials as the data used to compute the power.
 
 ```{r}
-osml_mod_ext <- extend(osmol_mod,
-                       within = "temp_tmt_C + humidity_tmt_percent +
+osml_mod_ext <- extend(osmol_mod2,
+                       within = "humidity_tmt_percent +
                        trial_number", 
                        n = 10)
 ```
@@ -213,9 +223,9 @@ Next, run powerSim to determine the power for the various sample sizes.
 # designate effect size desired to detect
 fixef(osml_mod_ext) <- 1/26 # just estimating rn.... so small... 
 # run simulation
-osml_sim <- powerSim(osml_mod_ext, 
-                     nsim = 50,
-                     test = fixed('humidity_tmt_percent', 'lr')
+osml_sim <- powerCurve(osml_mod_ext, 
+                     test = fixed('humidity_tmt_percent', 'lr'),
+                     within = "humidity_tmt_percent"
                      )
 ```
 
@@ -227,33 +237,6 @@ plot(osml_sim)
 
 
 
-I think what I actually want to use is powerCurve
-
-```{r}
-#powerCurve(fit = osmol_mod, 
- #          test = fixed("humidity_tmt_percent","lr"),
-  #         along = 'individual_ID')
-```
-
-
-```{r}
-test <- powerSim(osmol_mod, fixed("temp_tmt_C","lr"), nsim = 50) # 0-7
-plot(test)
-powerSim(osmol_mod, fixed("humidity_tmt_percent","lr"), nsim = 50) # 2-19
-powerSim(osmol_mod, fixed("day","lr"), nsim = 50) # 0-10
-powerSim(osmol_mod, fixed("temp_tmt_C:humidity_tmt_percent","lr"), nsim = 50) # 0-14
-powerSim(osmol_mod, fixed("temp_tmt_C:day","lr"), nsim = 50) # 0-7
-powerSim(osmol_mod, fixed("humidity_tmt_percent:day","lr"), nsim = 50) #2-20
-powerSim(osmol_mod, fixed("temp_tmt_C:humidity_tmt_percent:day","lr"), nsim = 50) #1-16
-```
-
-If we use the model without the fake temperature effects:
-
-```{r}
-powerSim(osmol_mod2, fixed("humidity_tmt_percent","lr"), nsim = 50) # 8-31
-powerSim(osmol_mod2, fixed("day","lr"), nsim = 50) # 0-7
-powerSim(osmol_mod2, fixed("humidity_tmt_percent:day","lr"), nsim = 50) # 21-49
-```
 
 
 ## Hematocrit
@@ -266,11 +249,34 @@ powerSim(osmol_mod2, fixed("humidity_tmt_percent:day","lr"), nsim = 50) # 21-49
 
 ```{r}
 powerSim(CEWL_mod, fixed("humidity_tmt_percent:day", "lr"), nsim = 20)
-# pwr more interesting for nonsig model effects
-powerSim(CEWL_mod)
 ```
 
 
+```{r}
+CEWL_mod_ext <- extend(CEWL_mod,
+                       within = "humidity_tmt_percent +
+                       trial_number", 
+                       n = 10)
+```
+
+Next, run powerSim to determine the power for the various sample sizes.
+
+```{r}
+# designate effect size desired to detect
+fixef(CEWL_mod_ext) <- 1/26 # just estimating rn.... so small... 
+# run simulation
+CEWL_sim <- powerCurve(CEWL_mod_ext, 
+                     test = fixed('humidity_tmt_percent:day', 'lr'),
+                     within = "humidity_tmt_percent+
+                       trial_number"
+                     )
+```
+
+Finally, plot to see how sample size affects power:
+
+```{r}
+plot(CEWL_sim)
+```
 
 
 
