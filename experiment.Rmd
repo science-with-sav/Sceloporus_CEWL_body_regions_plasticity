@@ -80,6 +80,19 @@ summary(SVL)
 ```
 
 
+extract capture CEWL cloacal temperature separately:
+
+```{r cap CT}
+cap_CT <- read.csv("./exported_data/capture_hydration.csv",
+                             na.strings=c("","NA") # fix empty cells
+                             ) %>%
+  dplyr::select(individual_ID, cloacal_temp_C) %>%
+  dplyr::filter(individual_ID %in% tmts$individual_ID)
+summary(cap_CT)
+```
+
+
+
 ### Experiment Data
 
 variables:
@@ -135,7 +148,21 @@ all_dat <- exp_dat %>%
          )
 
 summary(all_dat)
+```
 
+make a sub-dataframe without rehab data to prevent any mix-ups:
+
+```{r}
+all_dat_no_rehab <- all_dat %>%
+  dplyr::filter(type != "rehab")
+```
+
+
+### Checks
+
+Dates:
+
+```{r}
 # check that capture dates are valid
 unique(all_dat$capture_date)
 ```
@@ -150,7 +177,8 @@ all_dat %>%
 ```
 
 
-That all looks good, experimental measurements are either 4 (first trial) or 2 (other trials). *although I'm not sure why lizards 101-122 only have one experimental measurement... * 
+That all looks good, experimental measurements are either 4 (first trial) or 2 (other trials). I am excluding lizards that died in treatment from the analysis.
+
 
 ## CEWL
 
@@ -161,6 +189,7 @@ variables:
 - individual lizard ID
 - region = which body area the measurement was taken from
 - TEWL_g_m2h = evaporative water loss
+- cloacal_temp_C = taken at measurement; influences CEWL
 
 ```{r}
 cap_CEWL <- read.csv("./exported_data/capture_CEWL.csv") %>%
@@ -171,7 +200,8 @@ cap_CEWL <- read.csv("./exported_data/capture_CEWL.csv") %>%
          day = as.factor("before"), # might change... tbd
          n_day = 0
          ) %>%
-  dplyr::filter(individual_ID %in% all_dat$individual_ID)
+  dplyr::filter(individual_ID %in% all_dat$individual_ID) %>%
+  left_join(cap_CT, by = 'individual_ID')
 summary(cap_CEWL)
 ```
 
@@ -224,9 +254,19 @@ CEWL_t4 <- read.csv("./data/post_exp_CEWL/5-18-21-CEWL.csv",
 ```
 
 
+Load in cloacal temperatures:
+
+```{r}
+exp_CT <- read.csv("./data/post_exp_CEWL_cloacal_temps.csv") %>%
+  mutate(date = as.Date(date, format = "%Y/%m/%d")) %>%
+  dplyr::select(-time)
+summary(exp_CT)
+```
+
+
 ### Join Dataframes 
 
-Merge all post-experiment CEWL, and add capture CEWL:
+Merge all post-experiment CEWL, add cloacal temperature, add capture CEWL:
 
 ```{r}
 # merge all CEWL datafiles & reformat
@@ -254,12 +294,16 @@ CEWL <- CEWL_t1 %>% # trial 1
   dplyr::select(-Status) %>%
   # remove any rows with missing values
   dplyr::filter(complete.cases(.)) %>%
-  # add capture CEWL data
+  # add cloacal temperatures
+  left_join(exp_CT, by = c("date", "individual_ID")) %>%
+  # now matching dataframes, add capture CEWL data
   rbind(cap_CEWL) %>%
   # add tmt assignments
   left_join(tmts, by = "individual_ID") %>%
   mutate(humidity_tmt_percent = as.factor(humidity_tmt_percent),
-         individual_ID = as.factor(individual_ID)
+         individual_ID = as.factor(individual_ID),
+         conclusion = as.factor(conclusion),
+         trial_number = as.factor(trial_number)
          ) 
 # every lizard should have 10 measurements
 summary(CEWL)
@@ -359,9 +403,10 @@ Visually, looks slightly skewed to the right, but statistically, the distributio
 
 I won't be using this, SMI is more applicable.
 
+Just look at plot:
+
 ```{r}
-all_dat %>% 
-  dplyr::filter(type != "rehab") %>%
+all_dat_no_rehab %>% 
   ggplot(data = .) + 
   geom_point(aes(x = day,
                  y = mass_g, 
@@ -392,20 +437,14 @@ all_dat %>%
 )
 ```
 
-```{r}
-mass_mod <- lme4::lmer(data = all_dat,
-               mass_g ~ day*humidity_tmt_percent +
-               (1|trial_number/individual_ID))
-summary(mass_mod)
-```
-
 
 
 ### SMI ~ Time
 
+plot over course of experiment:
+
 ```{r}
-scaled_mass_index %>% 
-  dplyr::filter(type != "rehab") %>%
+all_dat_no_rehab %>% 
   ggplot(data = .) + 
   geom_point(aes(x = day,
                  y = SMI, 
@@ -430,7 +469,7 @@ scaled_mass_index %>%
   theme_classic() + 
   scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
   xlab("Day") + 
-  ylab("Scaled Mass Index (g?)") + 
+  ylab("Scaled Mass Index (g)") + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
                             size = 12),
@@ -441,16 +480,36 @@ scaled_mass_index %>%
 )
 ```
 
-*Q*: is there a way to get each individual as a line, but to color lines based on treatment, rather than individual ID?
+Check whether means started out different:
+
+```{r}
+t.test()
+```
+
 
 model:
 
 ```{r}
-SMI_mod <- lme4::lmer(data = scaled_mass_index,
+SMI_mod <- lme4::lmer(data = all_dat_no_rehab,
                SMI ~ day*humidity_tmt_percent +
-               (1|trial_number/individual_ID))
+               (1|trial_number))
 summary(SMI_mod)
 drop1(SMI_mod)
+
+# drop interaction term
+SMI_mod2 <- lme4::lmer(data = all_dat_no_rehab,
+               SMI ~ day + humidity_tmt_percent +
+               (1|trial_number))
+summary(SMI_mod2)
+drop1(SMI_mod2)
+```
+
+SMI is best predicted by day and treatment, but not including their interaction.
+
+boxplot comparing before exp, after exp, and after rehab:
+
+```{r}
+
 ```
 
 
@@ -458,42 +517,7 @@ drop1(SMI_mod)
 ### Hct ~ Time
 
 ```{r}
-all_dat %>% 
-  dplyr::filter(type != "rehab") %>%
-  ggplot(data = .) + 
-  geom_point(aes(x = day,
-                 y = hematocrit_percent, 
-                 color = as.factor(individual_ID)
-                 ), 
-             size = 1, 
-             alpha = 0.6) +
-  stat_smooth(aes(x = day, 
-                  y = hematocrit_percent, 
-                  color = as.factor(individual_ID)
-                  ), 
-              formula = y ~ x, 
-              method = "lm", 
-              se = F, 
-              size = 1.6, 
-              alpha = 1 ) + 
-  theme_classic() + 
-  scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
-  xlab("Day") + 
-  ylab("Hematocrit (%)") + 
-  theme(text = element_text(color = "black", 
-                            family = "sans", 
-                            size = 12),
-        axis.text = element_text(color = "black", 
-                                 family = "sans", 
-                                 size = 10),
-        legend.text.align = 0,
-        legend.position = "none"
-)
-```
-
-```{r}
-all_dat %>% 
-  dplyr::filter(type != "rehab") %>%
+all_dat_no_rehab %>% 
   ggplot(data = .) + 
   geom_point(aes(x = day,
                  y = hematocrit_percent, 
@@ -510,6 +534,11 @@ all_dat %>%
               se = F, 
               size = 1.6, 
               alpha = 1 ) + 
+  geom_line(aes(x = day,
+                y = hematocrit_percent,
+                group = individual_ID,
+                color = humidity_tmt_percent),
+            alpha = 0.2) +
   theme_classic() + 
   scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
   xlab("Day") + 
@@ -524,94 +553,41 @@ all_dat %>%
 )
 ```
 
+this model seemed to work well with indiv as a random factor, but still excluded because it's probably unnecessary
+
 ```{r}
-hct_mod <- all_dat %>%
+hct_mod <- all_dat_no_rehab %>%
   dplyr::filter(complete.cases(hematocrit_percent)) %>%
   lme4::lmer(data = .,
                hematocrit_percent ~ day + humidity_tmt_percent +
-               (1|trial_number/individual_ID))
+               (1|trial_number))
 summary(hct_mod)
 drop1(hct_mod)
+
+# drop humidity
+hct_mod2 <- all_dat_no_rehab %>%
+  dplyr::filter(complete.cases(hematocrit_percent)) %>%
+  lme4::lmer(data = .,
+               hematocrit_percent ~ day +
+               (1|trial_number))
+summary(hct_mod2)
+drop1(hct_mod2)
 ```
 
 The model AIC is slightly better without the interaction effect, so I removed that. The effect of humidity could ALSO be dropped, so humidity treatment was not an important factor affecting hematocrit, but how many days lizards were in treatment was. Both treatment groups lost hematocrit at approximately the same rate. 
+
+boxplot comparing before exp, after exp, and after rehab:
+
+```{r}
+
+```
+
 
 
 ### Osml ~ Time
 
 ```{r}
-all_dat %>% 
-  dplyr::filter(type != "rehab") %>%
-  ggplot(data = .) + 
-  geom_point(aes(x = day,
-                 y = osmolality_mmol_kg, 
-                 color = as.factor(individual_ID)
-                 ), 
-             size = 1, 
-             alpha = 0.6) +
-  stat_smooth(aes(x = day, 
-                  y = osmolality_mmol_kg, 
-                  color = as.factor(individual_ID)
-                  ), 
-              formula = y ~ x, 
-              method = "lm", 
-              se = F, 
-              size = 1.6, 
-              alpha = 1 ) + 
-  facet_wrap(~humidity_tmt_percent) +
-  theme_classic() + 
-  scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
-  xlab("Day") + 
-  ylab("Osmolality (mmol / kg)") + 
-  theme(text = element_text(color = "black", 
-                            family = "sans", 
-                            size = 12),
-        axis.text = element_text(color = "black", 
-                                 family = "sans", 
-                                 size = 10),
-        legend.text.align = 0,
-        legend.position = "none")
-```
-
-```{r}
-all_dat %>% 
-  dplyr::filter(type != "rehab") %>%
-  ggplot(data = .) + 
-  geom_point(aes(x = day,
-                 y = osmolality_mmol_kg, 
-                 color = as.factor(humidity_tmt_percent)
-                 ), 
-             size = 1, 
-             alpha = 0.6) +
-  stat_smooth(aes(x = day, 
-                  y = osmolality_mmol_kg, 
-                  color = as.factor(humidity_tmt_percent)
-                  ), 
-              formula = y ~ x, 
-              method = "lm", 
-              se = F, 
-              size = 1.6, 
-              alpha = 1 ) + 
-  facet_wrap(~humidity_tmt_percent) +
-  theme_classic() + 
-  scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
-  xlab("Day") + 
-  ylab("Osmolality (mmol / kg)") + 
-  theme(text = element_text(color = "black", 
-                            family = "sans", 
-                            size = 12),
-        axis.text = element_text(color = "black", 
-                                 family = "sans", 
-                                 size = 10),
-        legend.text.align = 0,
-        legend.position = "none")
-```
-
-*Q*: I think this is the line if all the points were aggregated... how do I get the mean line?? i.e. I want the mean slope to make a line.
-
-```{r}
-all_dat %>% 
-  dplyr::filter(type != "rehab") %>%
+all_dat_no_rehab %>% 
   ggplot(data = .) + 
   geom_point(aes(x = day,
                  y = osmolality_mmol_kg, 
@@ -628,6 +604,11 @@ all_dat %>%
               se = F, 
               size = 1.6, 
               alpha = 1 ) + 
+  geom_line(aes(x = day,
+                y = osmolality_mmol_kg,
+                group = individual_ID,
+                color = humidity_tmt_percent),
+            alpha = 0.2) +
   theme_classic() + 
   scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
   xlab("Date") + 
@@ -642,15 +623,14 @@ all_dat %>%
 )
 ```
 
-I don't think this graph is necessarily informative... 
-
+singular warning - do NOT include individual ID as a random effect
 
 ```{r}
-osml_mod <- all_dat %>%
+osml_mod <- all_dat_no_rehab %>%
   dplyr::filter(complete.cases(osmolality_mmol_kg)) %>%
   lme4::lmer(data = .,
                osmolality_mmol_kg ~ day * humidity_tmt_percent +
-               (1|trial_number/individual_ID))
+               (1|trial_number))
 summary(osml_mod)
 drop1(osml_mod)
 ```
@@ -658,14 +638,22 @@ drop1(osml_mod)
 The model seems good as-is. 
 
 
+boxplot comparing before exp, after exp, and after rehab:
+
+```{r}
+
+```
+
+
+
 ### Change in Osmolality
 
 ```{r}
-osml_d0 <- all_dat %>%
+osml_d0 <- all_dat_no_rehab %>%
   dplyr::filter(day == 0) %>%
   dplyr::select(individual_ID, osml0 = osmolality_mmol_kg, 
                 humidity_tmt_percent)
-osml_d8 <- all_dat %>%
+osml_d8 <- all_dat_no_rehab %>%
   dplyr::filter(day %in% c(8,9)) %>%
   dplyr::select(individual_ID, osml89 = osmolality_mmol_kg, 
                 humidity_tmt_percent)
@@ -687,17 +675,9 @@ osml_diffs %>%
                    ), 
                size = 1,
                alpha = 1) + 
-  #facet_wrap(~humidity_tmt_percent) +
   theme_classic() + 
   xlab("") + 
   ylab("Osmolality Change (mmol / kg)") + 
-  #annotate("text", x = 1.5, y = 45, 
-   #        label = "paste(italic(p), \" = 0.0152\")", 
-    #       parse = TRUE,
-     #      size = 6) +
-  #ylim(10, 50) +
-  #scale_x_discrete(labels = c("F" = "Female",
-   #                           "M" = "Male")) +
   scale_color_brewer(palette = "Set2") +
   theme(text = element_text(color = "black", 
                             family = "sans", 
@@ -707,17 +687,7 @@ osml_diffs %>%
                                  size = 14),
         legend.text.align = 0,
         legend.position = "none"
-) #-> CEWL_fig
-#CEWL_fig
-
-# export figure
-#ggsave(filename = "hct_sex_fig.tiff",
- #      plot = hct_sex_fig,
-  #     path = "./final_figures",
-   #    device = "tiff",
-    #   dpi = 1200,
-     #  width = 6, height = 4)
-
+)
 ```
 
 model to test statistical significance of difference:
@@ -727,7 +697,7 @@ osml_diff_mod <- lm(data = osml_diffs,
                     osml_change ~ humidity_tmt_percent)
 summary(osml_diff_mod)
 ```
-Not different between the two treatment groups, and neither significantly different from zero.
+Not different between the two treatment groups.
 
 
 ### CEWL ~ Before/After
@@ -747,13 +717,6 @@ CEWL %>%
   theme_classic() + 
   xlab("") + 
   ylab("CEWL (g / m^2h)") + 
-  #annotate("text", x = 1.5, y = 45, 
-   #        label = "paste(italic(p), \" = 0.0152\")", 
-    #       parse = TRUE,
-     #      size = 6) +
-  #ylim(10, 50) +
-  #scale_x_discrete(labels = c("F" = "Female",
-   #                           "M" = "Male")) +
   scale_color_brewer(palette = "Set2") +
   theme(text = element_text(color = "black", 
                             family = "sans", 
@@ -763,17 +726,7 @@ CEWL %>%
                                  size = 14),
         legend.text.align = 0,
         legend.position = "bottom"
-) -> CEWL_fig
-CEWL_fig
-
-# export figure
-#ggsave(filename = "hct_sex_fig.tiff",
- #      plot = hct_sex_fig,
-  #     path = "./final_figures",
-   #    device = "tiff",
-    #   dpi = 1200,
-     #  width = 6, height = 4)
-
+)
 ```
 
 this is difficult to see changes, I think a line graph would be better...
@@ -787,44 +740,25 @@ CEWL %>%
                  ), 
              size = 1, 
              alpha = 0.6) +
-  geom_line(aes(x = n_day, 
+  geom_line(aes(x = n_day,
+                y = TEWL_g_m2h,
+                group = individual_ID,
+                color = humidity_tmt_percent),
+            alpha = 0.2) +
+  stat_smooth(aes(x = n_day, 
                   y = TEWL_g_m2h, 
                   color = humidity_tmt_percent
-                  )) + 
+                  ),
+              formula = y ~ x, 
+              method = "lm", 
+              se = F, 
+              size = 1.6, 
+              alpha = 1) + 
   theme_classic() + 
   facet_wrap(~region) +
   scale_x_continuous(breaks = c(0, 1),
-                     labels = c("0" = "before", "1" = "after")) +
-  xlab("") + 
-  ylab("TEWL (g / m2h)") + 
-  theme(text = element_text(color = "black", 
-                            family = "sans", 
-                            size = 12),
-        axis.text = element_text(color = "black", 
-                                 family = "sans", 
-                                 size = 10),
-        legend.text.align = 0
-)
-```
-I think this graph is awesome, but we lose the individual variation...
-
-```{r}
-CEWL %>% 
-  ggplot(data = .) + 
-  geom_point(aes(x = n_day,
-                 y = TEWL_g_m2h, 
-                 color = individual_ID
-                 ), 
-             size = 1, 
-             alpha = 0.6) +
-  geom_line(aes(x = n_day, 
-                  y = TEWL_g_m2h, 
-                  color = individual_ID
-                  )) + 
-  theme_classic() + 
-  facet_wrap(~region) +
-  scale_x_continuous(breaks = c(0, 1),
-                     labels = c("0" = "before", "1" = "after")) +
+                     labels = c("0" = "before", "1" = "after")
+                     ) +
   xlab("") + 
   ylab("TEWL (g / m2h)") + 
   theme(text = element_text(color = "black", 
@@ -834,24 +768,50 @@ CEWL %>%
                                  family = "sans", 
                                  size = 10),
         legend.text.align = 0,
-        legend.position = "none" # too many thngs in it
+        legend.position = "bottom"
 )
 ```
 
-Okay, now is ther any way to color by treatment?!
-
+Okay, to-do: rotate x-axis labels, redo legend
 
 ```{r}
 CEWL_mod <- CEWL %>%
-  dplyr::filter(complete.cases(CEWL)) %>%
+  dplyr::filter(complete.cases(.)) %>%
   lme4::lmer(data = .,
-               TEWL_g_m2h ~ day * humidity_tmt_percent + region +
+               TEWL_g_m2h ~ day * humidity_tmt_percent * region +
                (1|trial_number/individual_ID))
 summary(CEWL_mod)
 drop1(CEWL_mod)
 ```
 
-The model is best with all the parameters currently included. 
+Drop triple interaction. I think the day:region standalone would be weird too.
+
+```{r}
+CEWL_mod2 <- CEWL %>%
+  dplyr::filter(complete.cases(.)) %>%
+  lme4::lmer(data = .,
+               TEWL_g_m2h ~ 
+               day*humidity_tmt_percent +
+               humidity_tmt_percent*region +
+               (1|trial_number/individual_ID))
+summary(CEWL_mod2)
+drop1(CEWL_mod2)
+```
+
+We can drop the humidity:region interaction.
+
+```{r}
+CEWL_mod3 <- CEWL %>%
+  dplyr::filter(complete.cases(.)) %>%
+  lme4::lmer(data = .,
+               TEWL_g_m2h ~ 
+               day*humidity_tmt_percent + region +
+               (1|trial_number/individual_ID))
+summary(CEWL_mod3)
+drop1(CEWL_mod3)
+```
+
+The model is best with all the parameters currently included in model 3. 
 
 
 ### Change in CEWL

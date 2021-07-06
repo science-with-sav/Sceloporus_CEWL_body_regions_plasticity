@@ -21,9 +21,9 @@ individual_ID,temp_tmt_C,humidity_tmt_percent,trial_number,conclusion,notes
 72,35,humid,2,canceled,regrowing tail
 73,25,humid,2,complete,
 54,25,humid,2,complete,
-69,25,humid,2,complete,
+69,25,humid,2,died,
 80,25,humid,2,complete,
-64,25,dry,2,complete,
+64,25,dry,2,died,
 61,25,dry,2,complete,"tail tip gone, nothing regrown yet"
 74,25,dry,2,complete,
 66,25,dry,2,complete,
@@ -32,7 +32,7 @@ individual_ID,temp_tmt_C,humidity_tmt_percent,trial_number,conclusion,notes
 95,25,dry,3,complete,
 81,25,dry,3,complete,
 91,25,dry,3,complete,
-87,25,dry,3,complete,
+87,25,dry,3,died,
 99,25,humid,3,complete,
 96,25,humid,3,complete,
 92,25,humid,3,complete,
