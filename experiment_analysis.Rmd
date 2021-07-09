@@ -3,7 +3,7 @@ title: "Experimental Data Analysis"
 author: "Savannah Weaver"
 date: "June 2021"
 output: 
-  github_document:
+  pdf_document:
     toc: TRUE
 ---
 
@@ -36,7 +36,7 @@ variables:
 - trial_number = which set of lizards that individual was from
 - conclusion = how that individual's experiment ended (died, canceled, or complete)
 
-```{r}
+```{r tmt data}
 tmts <- read.csv("./data/exp_tmt_assignment.csv")
 ```
 
@@ -70,7 +70,7 @@ summary(capture_hydration)
 
 extract SVL data separately from capture data:
 
-```{r SVL}
+```{r SVL data}
 SVL <- read.csv("./exported_data/capture_hydration.csv",
                              na.strings=c("","NA") # fix empty cells
                              ) %>%
@@ -82,7 +82,7 @@ summary(SVL)
 
 extract capture CEWL cloacal temperature separately:
 
-```{r cap CT}
+```{r cap CT data}
 cap_CT <- read.csv("./exported_data/capture_hydration.csv",
                              na.strings=c("","NA") # fix empty cells
                              ) %>%
@@ -103,7 +103,7 @@ variables:
 - osmolality_mmol_kg = concentration of solutes in blood plasma
 - type = when the measurements were taken along the course of the experiment (either during experimental treatment or after rehab)
 
-```{r}
+```{r exp data}
 exp_dat <- read.csv("./data/experimental_data.csv",
                              na.strings=c("","NA") # fix empty cells
                              ) %>%
@@ -123,7 +123,7 @@ summary(exp_dat)
 Now, attach all the dataframes, only use individuals whose treatment was completed, and add a "day" variable for what day of treatment each lizard/observation was on. I also calculate SMI using the equation created in capture_analysis.
 
 
-```{r}
+```{r join morpho blood data}
 all_dat <- exp_dat %>%
   # join data
   rbind(capture_hydration) %>%
@@ -150,9 +150,18 @@ all_dat <- exp_dat %>%
 summary(all_dat)
 ```
 
+re-order some factors:
+
+```{r reorder all_dat humidity factor}
+all_dat$humidity_tmt_percent <- factor(all_dat$humidity_tmt_percent,
+                                       levels = c("humid", "dry"),
+                                       labels = c("Humid", "Dry"))
+```
+
+
 make a sub-dataframe without rehab data to prevent any mix-ups:
 
-```{r}
+```{r extra df}
 all_dat_no_rehab <- all_dat %>%
   dplyr::filter(type != "rehab")
 ```
@@ -162,14 +171,14 @@ all_dat_no_rehab <- all_dat %>%
 
 Dates:
 
-```{r}
+```{r check dates}
 # check that capture dates are valid
 unique(all_dat$capture_date)
 ```
 
-Check that each lizard only has one measurement for each day of measurements.
+Check that each lizard only has an accurate number of measurements.
 
-```{r}
+```{r check n measures per lizard}
 all_dat %>%
   group_by(individual_ID, type) %>%
   summarise(n = n()) %>%
@@ -191,7 +200,7 @@ variables:
 - TEWL_g_m2h = evaporative water loss
 - cloacal_temp_C = taken at measurement; influences CEWL
 
-```{r}
+```{r cap CEWL data}
 cap_CEWL <- read.csv("./exported_data/capture_CEWL.csv") %>%
   dplyr::select(date, individual_ID, region, TEWL_g_m2h) %>%
   mutate(#individual_ID = as.factor(individual_ID), # do later
@@ -212,7 +221,7 @@ summary(cap_CEWL)
 
 Load in each of the post-rehab datafiles:
 
-```{r}
+```{r exp CEWL data}
 # trial 1
 CEWL_t1 <- read.csv("./data/post_exp_CEWL/4-28-21-CEWL.csv", # filename
                           na.strings=c("","NA")) %>% # fix empty cells
@@ -256,7 +265,7 @@ CEWL_t4 <- read.csv("./data/post_exp_CEWL/5-18-21-CEWL.csv",
 
 Load in cloacal temperatures:
 
-```{r}
+```{r exp CT data}
 exp_CT <- read.csv("./data/post_exp_CEWL_cloacal_temps.csv") %>%
   mutate(date = as.Date(date, format = "%Y/%m/%d")) %>%
   dplyr::select(-time)
@@ -268,7 +277,7 @@ summary(exp_CT)
 
 Merge all post-experiment CEWL, add cloacal temperature, add capture CEWL:
 
-```{r}
+```{r join CEWL data}
 # merge all CEWL datafiles & reformat
 CEWL <- CEWL_t1 %>% # trial 1
   rbind(., CEWL_t2, # trial 2
@@ -309,12 +318,26 @@ CEWL <- CEWL_t1 %>% # trial 1
 summary(CEWL)
 ```
 
-Before/after aren't perfectly even because sometimes we were unable to get the AquaFlux to equilibrate and take a measurement post-experiment.
+Before/after aren't perfectly even because sometimes we were unable to get the AquaFlux to equilibrate and take a measurement.
+
+Finally, make a small edit so the regions are spelled out completely. This requires reordering factor levels:
+
+```{r reorder CEWL factors}
+CEWL$region <- factor(CEWL$region, 
+                      levels = c("head", "dewl", "dors", "vent", "mite"),
+                      labels = c("Head", "Dewlap", "Dorsum", 
+                                 "Ventrum", "Mite Patch")
+                  )
+CEWL$humidity_tmt_percent <- factor(CEWL$humidity_tmt_percent,
+                                       levels = c("humid", "dry"),
+                                       labels = c("Humid", "Dry"))
+```
+
 
 
 ## Export Data Frames for Power Analyses
 
-```{r}
+```{r write data}
 write.csv(all_dat, "exported_data/exp_effects_hydration.csv")
 write.csv(CEWL, "exported_data/exp_effects_CEWL.csv")
 ```
@@ -329,45 +352,45 @@ write.csv(CEWL, "exported_data/exp_effects_CEWL.csv")
 
 ### Mass
 
-```{r}
-exp_dat %>%
+```{r mass hist}
+all_dat %>%
   ggplot(., aes(x = mass_g)) +
   geom_histogram(color = "black", fill="steelblue", bins=50) + 
   theme_classic() +
   xlab("Mass (g)") + 
   ylab("Count")
-simple.eda(exp_dat$mass_g)
-shapiro.test(exp_dat$mass_g)
+simple.eda(all_dat$mass_g)
+shapiro.test(all_dat$mass_g)
 ```
 
 Mass distribution not normal, skewed to the left.
 
 
-### Body Condition Index
+### Scaled Mass Index
 
-```{r}
-exp_dat %>%
-  ggplot(., aes(x = mass_g)) +
+```{r SMI hist}
+all_dat %>%
+  ggplot(., aes(x = SMI)) +
   geom_histogram(color = "black", fill="steelblue", bins=50) + 
   theme_classic() +
-  xlab("Mass (g)") + 
+  xlab("Scaled Mass Index (g)") + 
   ylab("Count")
-simple.eda(exp_dat$mass_g)
-shapiro.test(exp_dat$mass_g)
+simple.eda(all_dat$SMI)
+shapiro.test(all_dat$SMI)
 ```
 
 
 ### Hematocrit
 
-```{r}
-exp_dat %>%
+```{r hct hist}
+all_dat %>%
   ggplot(., aes(x = hematocrit_percent)) +
   geom_histogram(color = "black", fill="steelblue", bins=50) + 
   theme_classic() +
   xlab("Hematocrit (%)") + 
   ylab("Count")
-simple.eda(exp_dat$hematocrit_percent)
-shapiro.test(exp_dat$hematocrit_percent)
+simple.eda(all_dat$hematocrit_percent)
+shapiro.test(all_dat$hematocrit_percent)
 ```
 
 Visually, looks slightly skewed to the right, but statistically, the distribution of hematocrit is normal.
@@ -375,15 +398,15 @@ Visually, looks slightly skewed to the right, but statistically, the distributio
 
 ### Osmolality
 
-```{r}
-exp_dat %>%
+```{r osml hist}
+all_dat %>%
   ggplot(., aes(x = osmolality_mmol_kg)) +
   geom_histogram(color = "black", fill="steelblue", bins=50) + 
   theme_classic() +
   xlab("Osmolality (mmol / kg)") + 
   ylab("Count")
-simple.eda(exp_dat$osmolality_mmol_kg)
-shapiro.test(exp_dat$osmolality_mmol_kg)
+simple.eda(all_dat$osmolality_mmol_kg)
+shapiro.test(all_dat$osmolality_mmol_kg)
 ```
 
 Visually, looks slightly skewed to the right, but statistically, the distribution of osmolality is normal.
@@ -397,15 +420,15 @@ Visually, looks slightly skewed to the right, but statistically, the distributio
 
 
 
-# Basic Figures & SLR
+# Basic Figures & Models
 
-### Mass ~ Time
+## Mass ~ Time
 
 I won't be using this, SMI is more applicable.
 
 Just look at plot:
 
-```{r}
+```{r mass fig}
 all_dat_no_rehab %>% 
   ggplot(data = .) + 
   geom_point(aes(x = day,
@@ -425,6 +448,9 @@ all_dat_no_rehab %>%
               alpha = 1 ) + 
   theme_classic() + 
   scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
+  
+  scale_color_brewer(palette = "Set2",
+                     name = "Humidity Treatment") +
   xlab("Day") + 
   ylab("Mass (g)") + 
   theme(text = element_text(color = "black", 
@@ -439,11 +465,11 @@ all_dat_no_rehab %>%
 
 
 
-### SMI ~ Time
+## SMI ~ Time
 
 plot over course of experiment:
 
-```{r}
+```{r SMI fig}
 all_dat_no_rehab %>% 
   ggplot(data = .) + 
   geom_point(aes(x = day,
@@ -468,6 +494,8 @@ all_dat_no_rehab %>%
             alpha = 0.2) +
   theme_classic() + 
   scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
+  scale_color_brewer(palette = "Set2",
+                     name = "Humidity Treatment") +
   xlab("Day") + 
   ylab("Scaled Mass Index (g)") + 
   theme(text = element_text(color = "black", 
@@ -476,20 +504,34 @@ all_dat_no_rehab %>%
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 10),
-        legend.text.align = 0
-)
+        legend.text.align = 0,
+        legend.position = "bottom"
+) -> tmt_effects_SMI
+tmt_effects_SMI
+
+# export figure
+ggsave(filename = "tmt_effects_SMI.jpeg",
+       plot = tmt_effects_SMI,
+       path = "./final_figures",
+       device = "jpeg",
+       dpi = 1200,
+       width = 5, height = 4)
 ```
 
 Check whether means started out different:
 
-```{r}
-t.test()
+```{r SMI check original difference}
+SMI_diff_lm <- all_dat_no_rehab %>%
+  dplyr::filter(day == 0) %>%
+  lm(data = ., SMI ~humidity_tmt_percent)
+summary(SMI_diff_lm)
 ```
 
+NOT significantly different, which is good. t-test and p-value have very similar results
 
 model:
 
-```{r}
+```{r SMI models}
 SMI_mod <- lme4::lmer(data = all_dat_no_rehab,
                SMI ~ day*humidity_tmt_percent +
                (1|trial_number))
@@ -506,17 +548,10 @@ drop1(SMI_mod2)
 
 SMI is best predicted by day and treatment, but not including their interaction.
 
-boxplot comparing before exp, after exp, and after rehab:
 
-```{r}
+## Hct ~ Time
 
-```
-
-
-
-### Hct ~ Time
-
-```{r}
+```{r hct fig}
 all_dat_no_rehab %>% 
   ggplot(data = .) + 
   geom_point(aes(x = day,
@@ -541,6 +576,8 @@ all_dat_no_rehab %>%
             alpha = 0.2) +
   theme_classic() + 
   scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
+  scale_color_brewer(palette = "Set2",
+                     name = "Humidity Treatment") +
   xlab("Day") + 
   ylab("Hematocrit (%)") + 
   theme(text = element_text(color = "black", 
@@ -549,13 +586,23 @@ all_dat_no_rehab %>%
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 10),
-        legend.text.align = 0
-)
+        legend.text.align = 0,
+        legend.position = "bottom"
+        ) -> tmt_effects_hct
+tmt_effects_hct
+
+# export figure
+ggsave(filename = "tmt_effects_hct.jpeg",
+       plot = tmt_effects_hct,
+       path = "./final_figures",
+       device = "jpeg",
+       dpi = 1200,
+       width = 5, height = 4)
 ```
 
 this model seemed to work well with indiv as a random factor, but still excluded because it's probably unnecessary
 
-```{r}
+```{r hct models}
 hct_mod <- all_dat_no_rehab %>%
   dplyr::filter(complete.cases(hematocrit_percent)) %>%
   lme4::lmer(data = .,
@@ -576,17 +623,10 @@ drop1(hct_mod2)
 
 The model AIC is slightly better without the interaction effect, so I removed that. The effect of humidity could ALSO be dropped, so humidity treatment was not an important factor affecting hematocrit, but how many days lizards were in treatment was. Both treatment groups lost hematocrit at approximately the same rate. 
 
-boxplot comparing before exp, after exp, and after rehab:
 
-```{r}
+## Osml ~ Time
 
-```
-
-
-
-### Osml ~ Time
-
-```{r}
+```{r osmolality fig}
 all_dat_no_rehab %>% 
   ggplot(data = .) + 
   geom_point(aes(x = day,
@@ -611,6 +651,8 @@ all_dat_no_rehab %>%
             alpha = 0.2) +
   theme_classic() + 
   scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
+  scale_color_brewer(palette = "Set2",
+                     name = "Humidity Treatment") +
   xlab("Date") + 
   ylab("Osmolality (mmol / kg)") + 
   theme(text = element_text(color = "black", 
@@ -619,13 +661,23 @@ all_dat_no_rehab %>%
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 10),
-        legend.text.align = 0
-)
+        legend.text.align = 0,
+        legend.position = "bottom"
+        ) -> tmt_effects_osml
+tmt_effects_osml
+
+# export figure
+ggsave(filename = "tmt_effects_osml.jpeg",
+       plot = tmt_effects_osml,
+       path = "./final_figures",
+       device = "jpeg",
+       dpi = 1200,
+       width = 5, height = 4)
 ```
 
 singular warning - do NOT include individual ID as a random effect
 
-```{r}
+```{r osmolality model}
 osml_mod <- all_dat_no_rehab %>%
   dplyr::filter(complete.cases(osmolality_mmol_kg)) %>%
   lme4::lmer(data = .,
@@ -638,17 +690,10 @@ drop1(osml_mod)
 The model seems good as-is. 
 
 
-boxplot comparing before exp, after exp, and after rehab:
 
-```{r}
+## Change in Osmolality
 
-```
-
-
-
-### Change in Osmolality
-
-```{r}
+```{r osmol change data}
 osml_d0 <- all_dat_no_rehab %>%
   dplyr::filter(day == 0) %>%
   dplyr::select(individual_ID, osml0 = osmolality_mmol_kg, 
@@ -666,12 +711,13 @@ osml_diffs <- osml_d0 %>%
 
 boxplot:
 
-```{r}
+```{r osmol change fig}
 osml_diffs %>% 
   ggplot(data = .) + 
   geom_boxplot(aes(x = humidity_tmt_percent, 
                    y = osml_change, 
-                   group = humidity_tmt_percent
+                   group = humidity_tmt_percent,
+                   color = humidity_tmt_percent
                    ), 
                size = 1,
                alpha = 1) + 
@@ -692,19 +738,19 @@ osml_diffs %>%
 
 model to test statistical significance of difference:
 
-```{r}
+```{r osmol change model}
 osml_diff_mod <- lm(data = osml_diffs,
                     osml_change ~ humidity_tmt_percent)
 summary(osml_diff_mod)
 ```
-Not different between the two treatment groups.
+Not difference between the two treatment groups.
 
 
-### CEWL ~ Before/After
+## CEWL ~ Before/After
 
 try a boxplot:
 
-```{r}
+```{r CEWL fig 1}
 CEWL %>% 
   ggplot(data = .) + 
   geom_boxplot(aes(x = humidity_tmt_percent, 
@@ -731,7 +777,7 @@ CEWL %>%
 
 this is difficult to see changes, I think a line graph would be better...
 
-```{r}
+```{r CEWL fig 2}
 CEWL %>% 
   ggplot(data = .) + 
   geom_point(aes(x = n_day,
@@ -755,26 +801,38 @@ CEWL %>%
               size = 1.6, 
               alpha = 1) + 
   theme_classic() + 
-  facet_wrap(~region) +
+  scale_color_brewer(palette = "Set2",
+                     name = "Humidity Treatment") +
+  facet_wrap(~region, ncol = 2) +
   scale_x_continuous(breaks = c(0, 1),
                      labels = c("0" = "before", "1" = "after")
                      ) +
   xlab("") + 
-  ylab("TEWL (g / m2h)") + 
+  ylab(bquote('CEWL (g / '*m^2~h*')')) + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
                             size = 12),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 10),
+                                 size = 10,
+                                 angle = 90),
         legend.text.align = 0,
-        legend.position = "bottom"
-)
+        legend.position = "none"
+) -> CEWL_tmt_fig
+CEWL_tmt_fig
+
+# export figure
+ggsave(filename = "tmt_effects_CEWL.jpeg",
+       plot = CEWL_tmt_fig,
+       path = "./final_figures",
+       device = "jpeg",
+       dpi = 1200,
+       width = 4, height = 6)
 ```
 
-Okay, to-do: rotate x-axis labels, redo legend
+I saved the legend separately to make the figure layout better.
 
-```{r}
+```{r CEWL model 1}
 CEWL_mod <- CEWL %>%
   dplyr::filter(complete.cases(.)) %>%
   lme4::lmer(data = .,
@@ -786,7 +844,7 @@ drop1(CEWL_mod)
 
 Drop triple interaction. I think the day:region standalone would be weird too.
 
-```{r}
+```{r CEWL model 2}
 CEWL_mod2 <- CEWL %>%
   dplyr::filter(complete.cases(.)) %>%
   lme4::lmer(data = .,
@@ -800,7 +858,7 @@ drop1(CEWL_mod2)
 
 We can drop the humidity:region interaction.
 
-```{r}
+```{r CEWL model 3}
 CEWL_mod3 <- CEWL %>%
   dplyr::filter(complete.cases(.)) %>%
   lme4::lmer(data = .,
@@ -814,9 +872,9 @@ drop1(CEWL_mod3)
 The model is best with all the parameters currently included in model 3. 
 
 
-### Change in CEWL
+## Change in CEWL
 
-```{r}
+```{r CEWL change data}
 CEWL_before <- CEWL %>%
   dplyr::filter(day == "before") %>%
   dplyr::select(CEWL_before = TEWL_g_m2h,
@@ -837,7 +895,7 @@ CEWL_diffs <- CEWL_before %>%
 
 plot:
 
-```{r}
+```{r CEWL change fig}
 CEWL_diffs %>% 
   ggplot(data = .) + 
   geom_boxplot(aes(x = humidity_tmt_percent, 
@@ -874,7 +932,7 @@ CEWL_diffs %>%
 
 model:
 
-```{r}
+```{r CEWL change model}
 CEW_diffs_mod <- lm(data = CEWL_diffs,
                     CEWL_diff ~ humidity_tmt_percent)
 summary(CEW_diffs_mod)
@@ -883,9 +941,180 @@ summary(CEW_diffs_mod)
 
 
 
-# Rehydration... still need to do!
+# Rehydration...
+
+## Data
+
+First, get only the data for before experiment, after experiment, and after rehab.
+
+```{r rehydration model}
+summary(all_dat)
+rehydrat_dat <- all_dat %>%
+  dplyr::filter(day %in% c(0, 8, 9, 10, 11))
+rehydrat_dat$day <- factor(rehydrat_dat$day,
+                           levels = c(0, 8, 9, 10, 11),
+                           labels = c("Before Experiment",
+                                      "After Experiment",
+                                      "After Experiment",
+                                      "After Rehydration",
+                                      "After Rehydration"))
+summary(rehydrat_dat)
+```
+
+## SMI
+
+```{r rehydration SMI fig}
+rehydrat_dat %>% 
+  ggplot(data = .) + 
+  geom_point(aes(x = day,
+                 y = SMI, 
+                 color = humidity_tmt_percent
+                 ), 
+             size = 1, 
+             alpha = 1) +
+  geom_line(aes(x = day,
+                y = SMI,
+                group = individual_ID,
+                color = humidity_tmt_percent),
+            alpha = 0.6) +
+  theme_classic() + 
+  scale_color_brewer(palette = "Set2",
+                     name = "Humidity Treatment") +
+  scale_x_discrete(labels = c("Before\nExperiment",
+                              "After\nExperiment",
+                              "After\nRehydration")) +
+  xlab("") + 
+  xlab("") + 
+  ylab("Scaled Mass Index (g)") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0,
+        legend.position = "bottom"
+        ) -> rehab_SMI_fig
+rehab_SMI_fig
+
+# export figure
+ggsave(filename = "rehab_SMI_fig.jpeg",
+       plot = rehab_SMI_fig,
+       path = "./final_figures",
+       device = "jpeg",
+       dpi = 1200,
+       width = 5, height = 4)
+```
+
+
+## Osmolality
+
+first, make a list of all the IDs that have a post-rehab osmolality measurement, since this has a lot of missing data
+
+```{r rehydration osmol data}
+rehab_osmols <- rehydrat_dat %>%
+  dplyr::filter(day == "After Rehydration") %>%
+  dplyr::filter(complete.cases(osmolality_mmol_kg))
+```
+
+
+```{r rehydration osmol fig}
+rehydrat_dat %>% 
+  dplyr::filter(individual_ID %in% rehab_osmols$individual_ID) %>%
+  ggplot(data = .) + 
+  geom_point(aes(x = day,
+                 y = osmolality_mmol_kg, 
+                 color = humidity_tmt_percent
+                 ), 
+             size = 1, 
+             alpha = 1) +
+  geom_line(aes(x = day,
+                y = osmolality_mmol_kg,
+                group = individual_ID,
+                color = humidity_tmt_percent),
+            alpha = 0.6) +
+  theme_classic() + 
+  scale_color_brewer(palette = "Set2",
+                     name = "Humidity Treatment") +
+  scale_x_discrete(labels = c("Before\nExperiment",
+                              "After\nExperiment",
+                              "After\nRehydration")) +
+  xlab("") + 
+  xlab("") + 
+  ylab("Osmolality (mmol/kg)") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0,
+        legend.position = "bottom"
+  ) -> rehab_osml_fig
+rehab_osml_fig
+
+# export figure
+ggsave(filename = "rehab_osml_fig.jpeg",
+       plot = rehab_osml_fig,
+       path = "./final_figures",
+       device = "jpeg",
+       dpi = 1200,
+       width = 5, height = 4)
+```
 
 
 
+## Hematocrit
 
+first, make a list of all the IDs that have all three measurements:
+
+```{r rehydration hct data}
+rehab_hct <- rehydrat_dat %>%
+  dplyr::filter(day == "After Rehydration") %>%
+  dplyr::filter(complete.cases(hematocrit_percent))
+```
+
+
+```{r rehydration hct fig}
+rehydrat_dat %>% 
+  dplyr::filter(individual_ID %in% rehab_osmols$individual_ID) %>%
+  ggplot(data = .) + 
+  geom_point(aes(x = day,
+                 y = hematocrit_percent, 
+                 color = humidity_tmt_percent
+                 ), 
+             size = 1, 
+             alpha = 1) +
+  geom_line(aes(x = day,
+                y = hematocrit_percent,
+                group = individual_ID,
+                color = humidity_tmt_percent),
+            alpha = 0.6) +
+  theme_classic() + 
+  scale_color_brewer(palette = "Set2",
+                     name = "Humidity Treatment") +
+  scale_x_discrete(labels = c("Before\nExperiment",
+                              "After\nExperiment",
+                              "After\nRehydration")) +
+  xlab("") + 
+  ylab("Hematocrit (%)") + 
+  theme(text = element_text(color = "black", 
+                            family = "sans", 
+                            size = 12),
+        axis.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 10),
+        legend.text.align = 0,
+        legend.position = "bottom"
+  ) -> rehab_hct_fig
+rehab_hct_fig
+
+# export figure
+ggsave(filename = "rehab_hct_fig.jpeg",
+       plot = rehab_hct_fig,
+       path = "./final_figures",
+       device = "jpeg",
+       dpi = 1200,
+       width = 5, height = 4)
+```
 
