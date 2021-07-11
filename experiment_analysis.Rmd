@@ -20,6 +20,8 @@ if (!require("MASS")) install.packages("MASS")
 library("MASS") # model selection & box-cox
 if (!require("lme4")) install.packages("lme4")
 library("lme4") # for LMMs
+if (!require("ggpubr")) install.packages("ggpubr")
+library("ggpubr") # for Brown-Forsythe test
 ```
 
 
@@ -496,16 +498,19 @@ all_dat_no_rehab %>%
   scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
   scale_color_brewer(palette = "Set2",
                      name = "Humidity Treatment") +
-  xlab("Day") + 
+  xlab("") + 
   ylab("Scaled Mass Index (g)") + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 12),
+                            size = 18),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 10),
+                                 size = 12),
+        legend.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 18),
         legend.text.align = 0,
-        legend.position = "bottom"
+        legend.position = "none"
 ) -> tmt_effects_SMI
 tmt_effects_SMI
 
@@ -582,12 +587,12 @@ all_dat_no_rehab %>%
   ylab("Hematocrit (%)") + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 12),
+                            size = 18),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 10),
+                                 size = 12),
         legend.text.align = 0,
-        legend.position = "bottom"
+        legend.position = "none"
         ) -> tmt_effects_hct
 tmt_effects_hct
 
@@ -653,16 +658,16 @@ all_dat_no_rehab %>%
   scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
   scale_color_brewer(palette = "Set2",
                      name = "Humidity Treatment") +
-  xlab("Date") + 
+  xlab("") + 
   ylab("Osmolality (mmol / kg)") + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 12),
+                            size = 18),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 10),
+                                 size = 12),
         legend.text.align = 0,
-        legend.position = "bottom"
+        legend.position = "none"
         ) -> tmt_effects_osml
 tmt_effects_osml
 
@@ -811,15 +816,21 @@ CEWL %>%
   ylab(bquote('CEWL (g / '*m^2~h*')')) + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 12),
+                            size = 18),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 10,
+                                 size = 12,
                                  angle = 90),
+        legend.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 18),
         legend.text.align = 0,
         legend.position = "none"
 ) -> CEWL_tmt_fig
 CEWL_tmt_fig
+
+# extract legend
+tmt_legend <- as_ggplot(get_legend(CEWL_tmt_fig))
 
 # export figure
 ggsave(filename = "tmt_effects_CEWL.jpeg",
@@ -831,6 +842,8 @@ ggsave(filename = "tmt_effects_CEWL.jpeg",
 ```
 
 I saved the legend separately to make the figure layout better.
+
+*TO DO: figure out how to annotate legend onto figure?!*
 
 ```{r CEWL model 1}
 CEWL_mod <- CEWL %>%
@@ -939,7 +952,23 @@ summary(CEW_diffs_mod)
 ```
 
 
+## Multi-Figure
 
+```{r}
+ggarrange(tmt_effects_SMI, tmt_effects_osml, tmt_effects_hct,
+          ncol = 1, nrow = 3,
+          common.legend = TRUE,
+          legend = "bottom"
+          ) -> tmt_multi_fig
+tmt_multi_fig
+# export figure
+ggsave(filename = "tmt_multi_fig.jpeg",
+       plot = tmt_multi_fig,
+       path = "./final_figures",
+       device = "jpeg",
+       dpi = 1200,
+       width = 6, height = 12)
+```
 
 # Rehydration...
 
