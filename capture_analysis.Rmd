@@ -27,6 +27,8 @@ if (!require("lme4")) install.packages("lme4")
 library("lme4") # for LMMs
 if (!require("onewaytests")) install.packages("onewaytests")
 library("onewaytests") # for Brown-Forsythe test
+if (!require("ggpubr")) install.packages("ggpubr")
+library("ggpubr") # for Brown-Forsythe test
 ```
 
 
@@ -1052,12 +1054,12 @@ hct_sex_fig
      #  width = 6, height = 4)
 
 # lms
-aov_hct_sex <- aov(hematocrit_percent ~ sex_M_F,
-           data = morpho_blood_SMI)
-TukeyHSD(aov_hct_sex) # this is the stat to present
-lm_hct_sex_mass <- glm(hematocrit_percent ~ sex_M_F*mass_g - mass_g,
+lm_hct_sex_mass <- lm(hematocrit_percent ~ sex_M_F*mass_g - mass_g,
            data = morpho_blood_SMI)
 summary(lm_hct_sex_mass)
+lm_hct_sex <- lm(hematocrit_percent ~ sex_M_F,
+           data = morpho_blood_SMI)
+summary(lm_hct_sex)
 ```
 
 Hematocrit is significantly predicted by sex, but the interaction between sex and mass is ~nonexistent. 
@@ -1406,8 +1408,9 @@ morpho_blood_SMI %>%
               size = 1.6, 
               alpha = 1 ) + 
   theme_classic() + 
-  xlab(bquote('Absolute Humidity at Capture (g / '*m^2*')')) + 
-  ylab("Osmolality (mmol / kg)") + 
+  xlab(bquote('Absolute Humidity at Capture (g/'*m^2*')')) + 
+  #ylab("Osmolality (mmol/kg)") + 
+  ylab("") +
   xlim(8, 12) +
   ylim(300, 450) +
   annotate("text", x = 8.5, y = 440, 
@@ -1540,7 +1543,7 @@ morpho_blood_SMI %>%
               alpha = 1 ) + 
   theme_classic() + 
   xlab("Ambient Temperature at Capture (°C)") + 
-  ylab("Osmolality (mmol / kg)") + 
+  ylab("Plasma Osmolality (mmol / kg)") + 
   annotate("text", x = 22, y = 320, 
            label = "paste(italic(R) ^ 2, \" = 0.2929\")", 
            parse = TRUE,
@@ -1653,6 +1656,24 @@ Osmolality seems to be affected by:
 So, for the LMM to predict osmolality, we will start with SMI, hemolyzed/not, week/date, and capture temp and absolute humidity as our predictor variables in the model. 
 
 Hematocrit was only meaningfully different based on sex, so that's the only statistic we'll include in the paper for what variables affect hematocrit.
+
+
+## Osmolality Multi-Figure
+
+```{r}
+ggarrange(osml_temp_fig, osml_abhum_fig,
+          ncol = 2, nrow = 1
+          ) -> osml_multi_fig
+osml_multi_fig
+# export figure
+ggsave(filename = "osml_multi_fig.jpeg",
+       plot = osml_multi_fig,
+       path = "./final_figures",
+       device = "jpeg",
+       dpi = 1200,
+       width = 12, height = 4)
+```
+
 
 
 
@@ -1865,7 +1886,8 @@ CEWL_data_full %>%
               alpha = 1) + 
   theme_classic() + 
   xlab("Cloacal Temperature (°C)") + 
-  ylab(bquote('CEWL (g / '*m^2~h*')')) + 
+  ylab("") +
+  #ylab(bquote('CEWL (g/'*m^2*'h)')) + 
   #annotate("text", x = 1, y = 65, label = "a", size = 6) +
   scale_color_brewer(palette = "Set2",
                      labels = c("Dewlap", "Dorsum", "Head",
@@ -1882,8 +1904,10 @@ CEWL_data_full %>%
         legend.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 12),
+        plot.margin = unit(c(0.1,0.1,0.1,0), "cm"),
         legend.text.align = 0,
-        legend.position = c(0.9, 0.85)
+        legend.position = "none"
+        #legend.position = c(0.9, 0.85)
   #) +
   #guides(color = guide_legend(nrow = 2, byrow = TRUE)
          ) -> CEWL_ctemp_fig
@@ -1919,8 +1943,6 @@ CEWL_data_full %>%
                  ), 
              size = 1, 
              alpha = 0.6) + 
-  scale_colour_manual(values = c("palegreen4", "lightblue4", 
-                                 "plum4", "lightpink3", "seashell4")) +
   stat_smooth(aes(x = temp_C_interpol, 
                   y = TEWL_g_m2h, 
                   color = region
@@ -1930,17 +1952,23 @@ CEWL_data_full %>%
               se = F, 
               size = 1.6, 
               alpha = 1 ) + 
+  scale_color_brewer(palette = "Set2") +
   theme_classic() + 
-  xlab("Ambient Temperature at Capture") + 
-  ylab("CEWL") + 
+  xlab("Ambient Temperature at Capture (°C)") + 
+  #ylab("") +
+  ylim(1, 100) +
+  ylab(bquote('CEWL (g/'*m^2*'h)')) + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 12),
+                            size = 18),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 10),
+                                 size = 14),
+        plot.margin = unit(c(0.1,0.5,0.1,0.1), "cm"),
         legend.text.align = 0,
-)
+        legend.position = "none"
+) -> cap_temp_CEWL
+cap_temp_CEWL
 
 # lm: CEWL ~ region + capture temp
 CEWL_lm5 <- lm(TEWL_g_m2h ~ region * temp_C_interpol,
@@ -1970,15 +1998,15 @@ CEWL_data_full %>%
               size = 1.6, 
               alpha = 1 ) + 
   theme_classic() + 
-  xlab('Absolute Humidity at Capture (g / '*m^3~')') + 
-  ylab(bquote('CEWL (g / '*m^2~h*')')) + 
+  xlab(bquote('Absolute Humidity at Capture (g/'*m^3*')')) + 
+  ylab(bquote('CEWL (g/'*m^2*'h)')) + 
   #annotate("text", x = 1, y = 65, label = "a", size = 6) +
   scale_color_brewer(palette = "Set2",
                      labels = c("Dewlap", "Dorsum",
                               "Head", "Mite Patch", "Ventrum"),
                      name = "") +
   ylim(1, 100) +
-  xlim(8, 12) +
+  xlim(8.9, 11.5) +
   theme(text = element_text(color = "black", 
                             family = "sans", 
                             size = 18),
@@ -1989,7 +2017,9 @@ CEWL_data_full %>%
                                  family = "sans", 
                                  size = 12),
         legend.text.align = 0,
-        legend.position = c(0.15, 0.85)
+        plot.margin = unit(c(0.1,0.5,0.1,0.1), "cm"),
+        legend.position = "none"
+        #legend.position = c(0.15, 0.85)
          ) -> CEWL_abshum_fig
 CEWL_abshum_fig
 
@@ -2036,6 +2066,7 @@ CEWL_data_full %>%
   theme_classic() + 
   xlab("Average Windspeed During Measurement") + 
   ylab("CEWL") + 
+  ylim(1, 100) +
   theme(text = element_text(color = "black", 
                             family = "sans", 
                             size = 12),
@@ -2062,8 +2093,6 @@ CEWL_data_full %>%
                  ), 
              size = 1, 
              alpha = 0.6) + 
-  scale_colour_manual(values = c("palegreen4", "lightblue4", 
-                                 "plum4", "lightpink3", "seashell4")) +
   stat_smooth(aes(x = Solar_rad_Wm2_interpol, 
                   y = TEWL_g_m2h, 
                   color = region
@@ -2074,16 +2103,25 @@ CEWL_data_full %>%
               size = 1.6, 
               alpha = 1 ) + 
   theme_classic() + 
-  xlab("Solar Radiation W/m^2") + 
-  ylab("CEWL") + 
+  scale_color_brewer(palette = "Set2") +
+  xlab(bquote('Solar Radiation at Capture (W/'*m^2*')')) + 
+  ylab(bquote('CEWL (g/'*m^2*'h)')) + 
+  #ylab("") +
+  ylim(0,100) +
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 12),
+                            size = 18),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 10),
+                                 size = 14),
+        legend.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 12),
+        plot.margin = unit(c(0.1,0.5,0.1,0.1), "cm"),
         legend.text.align = 0,
-)
+        legend.position = "none"
+) -> sorad_CEWL_plot
+sorad_CEWL_plot
 
 # lm: CEWL ~ region + aquaflux measurement RH
 CEWL_lm8 <- lm(TEWL_g_m2h ~ region + Solar_rad_Wm2_interpol,
@@ -2104,8 +2142,6 @@ CEWL_data_full %>%
                  ), 
              size = 1, 
              alpha = 0.6) + 
-  scale_colour_manual(values = c("palegreen4", "lightblue4", 
-                                 "plum4", "lightpink3", "seashell4")) +
   stat_smooth(aes(x = ambient_temp_C, 
                   y = TEWL_g_m2h, 
                   color = region
@@ -2116,15 +2152,17 @@ CEWL_data_full %>%
               size = 1.6, 
               alpha = 1 ) + 
   theme_classic() + 
+  scale_color_brewer(palette = "Set2") +
   xlab("Ambient Temperature During Measurement") + 
   ylab("CEWL") + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 12),
+                            size = 18),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 10),
+                                 size = 12),
         legend.text.align = 0,
+        legend.position = "none"
 )
 
 # lm: CEWL ~ region + aquaflux measurement temp
@@ -2302,6 +2340,7 @@ CEWL_data_full %>%
         legend.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 12),
+        plot.margin = unit(c(0.1,0.5,0.1,0.1), "cm"),
         legend.text.align = 0,
         legend.position = c(0.15, 0.85)
          ) -> CEWL_SMI_fig
@@ -2348,7 +2387,8 @@ CEWL_data_full %>%
               alpha = 1 ) + 
   theme_classic() + 
   xlab("Mass (g)") + 
-  ylab(bquote('CEWL (g / '*m^2~h*')')) + 
+  ylab("") +
+  #ylab(bquote('CEWL (g/'*m^2*'h)')) + 
   #annotate("text", x = 1, y = 65, label = "a", size = 6) +
   scale_color_brewer(palette = "Set2",
                      labels = c("Dewlap", "Dorsum",
@@ -2365,11 +2405,15 @@ CEWL_data_full %>%
                                  size = 14),
         legend.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 12),
+                                 size = 18),
+        plot.margin = unit(c(0.1,0.1,0.1,0), "cm"),
         legend.text.align = 0,
-        legend.position = c(0.15, 0.85)
+        legend.position = "none"
+        #legend.position = c(0.15, 0.85)
          ) -> CEWL_mass_fig
 CEWL_mass_fig
+
+CEWL_legend <- as_ggplot(get_legend(CEWL_mass_fig))
 
 # export figure
 #ggsave(filename = "CEWL_mass_fig.tiff",
@@ -2531,6 +2575,25 @@ The following variables should be included in the full LMM:
 - *SVL* and *mass*
 - *hold time*
 
+## CEWL Multi-Figure
+
+```{r}
+ggarrange(cap_temp_CEWL, CEWL_ctemp_fig, 
+          CEWL_abshum_fig, CEWL_mass_fig, 
+          sorad_CEWL_plot, CEWL_legend,
+          ncol = 2, nrow = 3
+          ) -> CEWL_multi_fig
+CEWL_multi_fig
+# export figure
+ggsave(filename = "CEWL_multi_fig.jpeg",
+       plot = CEWL_multi_fig,
+       path = "./final_figures",
+       device = "jpeg",
+       dpi = 1200,
+       width = 12, height = 12)
+```
+
+
 
 # LMMs
 
@@ -2627,7 +2690,7 @@ osml_best_mod <- summary(hydrat_mod2)
 # extract stats table from summary object
 osml_best_mod_vals <- data.frame(osml_best_mod$coefficients)
 # export 
-write.csv(osml_best_mod_vals, "osml_best_mod_vals.csv")
+write.csv(osml_best_mod_vals, "./best models/osml_best_mod_vals.csv")
 ```
 
 
@@ -2893,7 +2956,7 @@ CEWL_best_mod <- summary(CEWL_mod3)
 # extract stats table from summary object
 CEWL_best_mod_vals <- data.frame(CEWL_best_mod$coefficients)
 # export 
-write.csv(CEWL_best_mod_vals, "CEWL_best_mod_vals.csv")
+write.csv(CEWL_best_mod_vals, "./best models/CEWL_best_mod_vals.csv")
 ```
 
 
@@ -3167,7 +3230,7 @@ CEWL_best_t_mod <- summary(CEWL_mod3_t)
 # extract stats table from summary object
 CEWL_best_t_mod_vals <- data.frame(CEWL_best_t_mod$coefficients)
 # export 
-write.csv(CEWL_best_t_mod_vals, "CEWL_best_mod_vals.csv")
+write.csv(CEWL_best_t_mod_vals, "./best models/CEWL_best_mod_t_vals.csv")
 ```
 
 
