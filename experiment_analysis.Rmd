@@ -553,6 +553,11 @@ drop1(SMI_mod2)
 
 SMI is best predicted by day and treatment, but not including their interaction.
 
+```{r}
+write.csv(data.frame((summary(SMI_mod2))$coefficients), 
+          "./best models/exp_effects_SMI.csv")
+```
+
 
 ## Hct ~ Time
 
@@ -628,6 +633,12 @@ drop1(hct_mod2)
 
 The model AIC is slightly better without the interaction effect, so I removed that. The effect of humidity could ALSO be dropped, so humidity treatment was not an important factor affecting hematocrit, but how many days lizards were in treatment was. Both treatment groups lost hematocrit at approximately the same rate. 
 
+```{r}
+write.csv(data.frame((summary(hct_mod2))$coefficients), 
+          "./best models/exp_effects_hct.csv")
+```
+
+
 
 ## Osml ~ Time
 
@@ -693,6 +704,11 @@ drop1(osml_mod)
 ```
 
 The model seems good as-is. 
+
+```{r}
+write.csv(data.frame((summary(osml_mod))$coefficients), 
+          "./best models/exp_effects_osml.csv")
+```
 
 
 
@@ -813,24 +829,22 @@ CEWL %>%
                      labels = c("0" = "before", "1" = "after")
                      ) +
   xlab("") + 
-  ylab(bquote('CEWL (g / '*m^2~h*')')) + 
+  ylab(bquote('CEWL (g/'*m^2*'h)')) + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 18),
+                            size = 12),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 12,
+                                 size = 10,
                                  angle = 90),
         legend.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 18),
+                                 size = 10),
         legend.text.align = 0,
-        legend.position = "none"
+        legend.position = c(0.75,0.12),
+        #legend.justification = c(1, 1)
 ) -> CEWL_tmt_fig
 CEWL_tmt_fig
-
-# extract legend
-tmt_legend <- as_ggplot(get_legend(CEWL_tmt_fig))
 
 # export figure
 ggsave(filename = "tmt_effects_CEWL.jpeg",
@@ -883,6 +897,11 @@ drop1(CEWL_mod3)
 ```
 
 The model is best with all the parameters currently included in model 3. 
+
+```{r}
+write.csv(data.frame((summary(CEWL_mod3))$coefficients), 
+          "./best models/exp_effects_CEWL.csv")
+```
 
 
 ## Change in CEWL
@@ -1017,10 +1036,13 @@ rehydrat_dat %>%
   ylab("Scaled Mass Index (g)") + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 12),
+                            size = 18),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 10),
+                                 size = 12),
+        legend.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 14),
         legend.text.align = 0,
         legend.position = "bottom"
         ) -> rehab_SMI_fig
@@ -1073,10 +1095,13 @@ rehydrat_dat %>%
   ylab("Osmolality (mmol/kg)") + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 12),
+                            size = 18),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 10),
+                                 size = 12),
+        legend.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 14),
         legend.text.align = 0,
         legend.position = "bottom"
   ) -> rehab_osml_fig
@@ -1129,10 +1154,13 @@ rehydrat_dat %>%
   ylab("Hematocrit (%)") + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 12),
+                            size = 18),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 10),
+                                 size = 12),
+        legend.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 14),
         legend.text.align = 0,
         legend.position = "bottom"
   ) -> rehab_hct_fig
@@ -1146,4 +1174,25 @@ ggsave(filename = "rehab_hct_fig.jpeg",
        dpi = 1200,
        width = 5, height = 4)
 ```
+
+
+## Multi-Figure
+
+```{r}
+ggarrange(rehab_SMI_fig, rehab_osml_fig, rehab_hct_fig,
+          ncol = 1, nrow = 3,
+          common.legend = TRUE,
+          legend = "bottom"
+          ) -> rehab_multi_fig
+rehab_multi_fig
+# export figure
+ggsave(filename = "rehab_multi_fig.jpeg",
+       plot = rehab_multi_fig,
+       path = "./final_figures",
+       device = "jpeg",
+       dpi = 1200,
+       width = 6, height = 12)
+```
+
+
 
