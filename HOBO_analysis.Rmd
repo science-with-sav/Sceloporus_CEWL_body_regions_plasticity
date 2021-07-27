@@ -1,0 +1,223 @@
+---
+title: "HOBO Logger Data for Sceloporus Climate Studies"
+author: "Savannah Weaver"
+output: pdf_document
+toc: TRUE
+---
+
+# Packages
+
+```{r setup, echo=T, results='hide', message=FALSE}
+if (!require("tidyverse")) install.packages("tidyverse") 
+library("tidyverse")
+```
+
+# Load in Data
+
+This data was collected using Onset HOBO temperature and humidity dataloggers during the course of our experiment. See __ for full details. 
+
+The data is in a separate file for each download for each logger, so I need to compile each of those into one dataset. 
+
+To do this, first I compile a list of the filenames I need to read-in.
+
+```{r, filenames}
+# make a list of file names of all data to load in
+filenames <- list.files(path = "data/HOBOs")
+```
+
+Next, I make a function that will read in the data from each csv, name and organize the data correctly. 
+
+```{r, create read_HOBO_files function to get each csv data}
+# make a function to read in data from each csv file and add correct identifiers
+read_HOBO_files <- function(filename) {
+  
+  # edit the filename inputted to funtion
+  # to make a unique identifier for each logger
+  name <- substr(filename, 1, nchar(filename)-15)
+  
+  # also make an identifier for the site
+  site <- substr(filename, 1, nchar(filename)-15)
+  
+  # read in the csv file for this given filename
+  dat <- read.csv(file.path("data/HOBOs", filename),
+                # each csv has headers
+                header = TRUE,
+                # this is what I want to rename the col headers
+                col.names = c("order", "date_time_PST", "temp_C", 
+                              "relative_humidity", "dew_pt_C", 
+                              # the 6,7,8th cols are not data
+                              # logger use info we don't need
+                              "mostly_blank", "mostly_blank", "mostly_blank")
+                ) %>%
+    # select only the cols with data we want
+    # don't need order- just an arbitrary observation identifier
+    # don't need "mostly_blank" cols- unnecessary logger use info
+    # but get the rest of the cols with informative data
+    dplyr::select(date_time_PST, temp_C, relative_humidity, dew_pt_C) %>%
+    # add a column with the name of the HOBO the data is from 
+    dplyr::mutate(HOBO_ID = name)
+  
+  # return the dataframe for that single csv file
+  dat
+}
+```
+
+Finally, I apply the function I made to all of the filenames I compiled, then put all of those dataframes into one dataframe for my analyses.
+
+This will print warnings saying that header and col.names are different lengths, because the data has extra notes on logger usage that we read-in, but get rid of.
+
+```{r, apply read_HOBO_files function}
+# apply function to get data from all csvs
+all_HOBO_data <- lapply(filenames, read_HOBO_files) %>%
+  # paste all data files together into one df by row
+  reduce(rbind)
+```
+
+
+
+# Data Wrangling
+
+Now that I have a full dataframe, I want to make sure all the data is there and correct. 
+
+```{r}
+str(all_HOBO_data)
+summary(all_HOBO_data)
+```
+
+I need to subset the data based on a date range to extract data for actual experiment days, since the loggers run continuously. There are also NA's which are an artifact of the logger's notes.
+
+```{r}
+exp_dates <- as.Date(c("2021-04-19", "2021-04-20", 
+                       "2021-04-21", "2021-04-22",
+               "2021-04-23", "2021-04-24", "2021-04-25", "2021-04-26",
+               "2021-04-27", "2021-04-28", "2021-04-29", "2021-04-30",
+               "2021-05-01", "2021-05-02", "2021-05-03", "2021-05-04",
+               "2021-05-05", "2021-05-06", "2021-05-07", "2021-05-08",
+               "2021-05-09", "2021-05-10", "2021-05-11", "2021-05-12",
+               "2021-05-13", "2021-05-14", "2021-05-15", "2021-05-16",
+               "2021-05-17", "2021-05-18"), 
+               format = "%Y-%m-%d")
+
+subset_HOBO_data <- all_HOBO_data %>%
+  dplyr::filter(complete.cases(temp_C, relative_humidity)) %>%
+  mutate(date_only = as.Date(date_time_PST, format = "%m/%d/%Y")) %>%
+  dplyr::filter(date_only %in% exp_dates)
+```
+
+Next, format the data:
+
+```{r}
+format_HOBO_data <- subset_HOBO_data %>% 
+  mutate(date_time_PST = as.POSIXct(date_time_PST, 
+                                    format = "%m/%d/%Y %H:%M:%S"),
+         HOBO_ID = as.factor(substr(HOBO_ID, 1, 10))
+         )
+summary(format_HOBO_data)
+```
+
+I'm also going to omit the data for the hot treatments that failed, since we will not be presenting that.
+
+Check temperature values:
+
+```{r}
+format_HOBO_data %>% 
+  ggplot(data = ., aes(x = temp_C)) +
+  geom_histogram()
+format_HOBO_data %>% 
+  ggplot(.) +
+  geom_point()
+format_HOBO_data %>%
+  group_by(date_only, HOBO_ID) %>%
+  summarise(mean_temp = mean(temp_C)) %>%
+  arrange(mean_temp, date_only)
+```
+
+We do NOT want data for Dry-Hot-1/2 or Humid-Hot between April 19-29. Everything else should be fine, so just filter those out.
+
+The goal is to get everything EXCEPT those three loggers on those dates. The most straightforward way I know how to do this is to just filter out by temperature.
+
+```{r}
+filter_dates <- as.Date(c("2021-04-19", "2021-04-20", 
+                       "2021-04-21", "2021-04-22",
+               "2021-04-23", "2021-04-24", "2021-04-25", "2021-04-26",
+               "2021-04-27", "2021-04-28", "2021-04-29"), 
+               format = "%Y-%m-%d")
+
+# get subsets
+filt_keep1 <- format_HOBO_data %>%
+  dplyr::filter('HOBO_ID' %in% c("Dry-Hot-1", "Dry-Hot-2", "Humid-Hot"))
+filt_keep2 <- format_HOBO_data %>%
+  dplyr::filter(HOBO_ID %in% c("Dry-Hot-1", "Dry-Hot-2", "Humid-Hot") & 
+                  date_only %nin% filter_dates)
+filt_dontwant_check <- format_HOBO_data %>%
+  dplyr::filter(HOBO_ID %in% c("Dry-Hot-1", "Dry-Hot-2", "Humid-Hot") & 
+                  date_only %in% filter_dates)
+
+# rejoin
+filtered_HOBO_data <- format_HOBO_data %>%
+  dplyr::filter(temp_C < 28)
+
+# check that it worked correctly
+filtered_HOBO_data %in% filt_dontwant_check
+```
+
+I need to I'll also add a column for what treatment the logger was put in because that doesn't match the HOBO_ID's.
+
+```{r}
+
+```
+
+I'm also going to rename the HOBO_ID's because the logger names don't actually match the treatment they were in.
+
+```{r}
+levels(format_HOBO_data$HOBO_ID) <- list("Dry" = "Dry-Cool-1",
+                                         "Dry-Cool-2" = "Humid",
+                                         "Dry-Hot-1" = "Dry",
+                                         "Dry-Hot-2" = "Humid",
+                                         "Humid-Cool" = "Humid",
+                                         "Humid-Hot" = "Humid")
+                                         
+  format_HOBO_data$HOBO_ID,	29.54950	6.492429	64.37734	32.061846
+	25.58470	1.865721	84.76560	14.486066
+
+                                   levels = c("Dry1", "Humid1", "Dry2", 
+                                              "Humid2", "Humid3", "Humid4"),
+                                   labels = c("Dry1", "Humid1", "Dry2", 
+                                              "Humid2", "Humid3", "Humid4"))
+```
+
+
+re-check:
+
+```{r}
+summary(format_HOBO_data)
+```
+
+
+# Get Means
+
+```{r}
+format_HOBO_data %>%
+  group_by(HOBO_ID) %>%
+  summarise(mean_temp_C = mean(temp_C),
+            sd_temp_C = sd(temp_C),
+            mean_humidity = mean(relative_humidity),
+            sd_humidity = sd(relative_humidity))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
