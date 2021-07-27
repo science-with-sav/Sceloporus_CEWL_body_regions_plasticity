@@ -136,16 +136,18 @@ We do NOT want data for Dry-Hot-1/2 or Humid-Hot between April 19-29. Everything
 
 The goal is to get everything EXCEPT those three loggers on those dates. The most straightforward way I know how to do this is to just filter out by temperature.
 
+**NOT WORKING**
 ```{r}
 filter_dates <- as.Date(c("2021-04-19", "2021-04-20", 
                        "2021-04-21", "2021-04-22",
                "2021-04-23", "2021-04-24", "2021-04-25", "2021-04-26",
                "2021-04-27", "2021-04-28", "2021-04-29"), 
                format = "%Y-%m-%d")
-
+filter_HOBOs <- c("Dry-Hot-1", "Dry-Hot-2", "Humid-Hot")
+unique(format_HOBO_data$HOBO_ID)
 # get subsets
 filt_keep1 <- format_HOBO_data %>%
-  dplyr::filter('HOBO_ID' %in% c("Dry-Hot-1", "Dry-Hot-2", "Humid-Hot"))
+  dplyr::filter(HOBO_ID == ('Dry-Hot-1'))
 filt_keep2 <- format_HOBO_data %>%
   dplyr::filter(HOBO_ID %in% c("Dry-Hot-1", "Dry-Hot-2", "Humid-Hot") & 
                   date_only %nin% filter_dates)
@@ -161,14 +163,8 @@ filtered_HOBO_data <- format_HOBO_data %>%
 filtered_HOBO_data %in% filt_dontwant_check
 ```
 
-I need to I'll also add a column for what treatment the logger was put in because that doesn't match the HOBO_ID's.
 
-```{r}
-
-```
-
-I'm also going to rename the HOBO_ID's because the logger names don't actually match the treatment they were in.
-
+**NOT WORKING**
 ```{r}
 levels(format_HOBO_data$HOBO_ID) <- list("Dry" = "Dry-Cool-1",
                                          "Dry-Cool-2" = "Humid",
