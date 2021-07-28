@@ -123,9 +123,6 @@ Check temperature values:
 format_HOBO_data %>% 
   ggplot(data = ., aes(x = temp_C)) +
   geom_histogram()
-format_HOBO_data %>% 
-  ggplot(.) +
-  geom_point()
 format_HOBO_data %>%
   group_by(date_only, HOBO_ID) %>%
   summarise(mean_temp = mean(temp_C)) %>%
@@ -147,13 +144,15 @@ filter_HOBOs <- c("Dry-Hot-1", "Dry-Hot-2", "Humid-Hot")
 unique(format_HOBO_data$HOBO_ID)
 # get subsets
 filt_keep1 <- format_HOBO_data %>%
-  dplyr::filter(HOBO_ID == ('Dry-Hot-1'))
+  dplyr::filter(HOBO_ID == 'Dry-Hot-1')
 filt_keep2 <- format_HOBO_data %>%
   dplyr::filter(HOBO_ID %in% c("Dry-Hot-1", "Dry-Hot-2", "Humid-Hot") & 
                   date_only %nin% filter_dates)
 filt_dontwant_check <- format_HOBO_data %>%
   dplyr::filter(HOBO_ID %in% c("Dry-Hot-1", "Dry-Hot-2", "Humid-Hot") & 
                   date_only %in% filter_dates)
+
+format_HOBO_data[format_HOBO_data$HOBO_ID == ('Dry-Hot-1')]
 
 # rejoin
 filtered_HOBO_data <- format_HOBO_data %>%
