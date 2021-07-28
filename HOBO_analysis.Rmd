@@ -142,7 +142,9 @@ filter_dates <- as.Date(c("2021-04-19", "2021-04-20",
                format = "%Y-%m-%d")
 filter_HOBOs <- c("Dry-Hot-1", "Dry-Hot-2", "Humid-Hot")
 unique(format_HOBO_data$HOBO_ID)
-# get subsets
+
+
+# none of these work
 filt_keep1 <- format_HOBO_data %>%
   dplyr::filter(HOBO_ID == 'Dry-Hot-1')
 filt_keep2 <- format_HOBO_data %>%
@@ -154,31 +156,15 @@ filt_dontwant_check <- format_HOBO_data %>%
 
 format_HOBO_data[format_HOBO_data$HOBO_ID == ('Dry-Hot-1')]
 
-# rejoin
+# but this works
 filtered_HOBO_data <- format_HOBO_data %>%
   dplyr::filter(temp_C < 28)
-
-# check that it worked correctly
-filtered_HOBO_data %in% filt_dontwant_check
 ```
 
 
 **NOT WORKING**
 ```{r}
-levels(format_HOBO_data$HOBO_ID) <- list("Dry" = "Dry-Cool-1",
-                                         "Dry-Cool-2" = "Humid",
-                                         "Dry-Hot-1" = "Dry",
-                                         "Dry-Hot-2" = "Humid",
-                                         "Humid-Cool" = "Humid",
-                                         "Humid-Hot" = "Humid")
-                                         
-  format_HOBO_data$HOBO_ID,	29.54950	6.492429	64.37734	32.061846
-	25.58470	1.865721	84.76560	14.486066
 
-                                   levels = c("Dry1", "Humid1", "Dry2", 
-                                              "Humid2", "Humid3", "Humid4"),
-                                   labels = c("Dry1", "Humid1", "Dry2", 
-                                              "Humid2", "Humid3", "Humid4"))
 ```
 
 
