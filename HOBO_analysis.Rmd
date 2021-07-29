@@ -87,16 +87,7 @@ summary(all_HOBO_data)
 I need to subset the data based on a date range to extract data for actual experiment days, since the loggers run continuously. There are also NA's which are an artifact of the logger's notes.
 
 ```{r}
-exp_dates <- as.Date(c("2021-04-19", "2021-04-20", 
-                       "2021-04-21", "2021-04-22",
-               "2021-04-23", "2021-04-24", "2021-04-25", "2021-04-26",
-               "2021-04-27", "2021-04-28", "2021-04-29", "2021-04-30",
-               "2021-05-01", "2021-05-02", "2021-05-03", "2021-05-04",
-               "2021-05-05", "2021-05-06", "2021-05-07", "2021-05-08",
-               "2021-05-09", "2021-05-10", "2021-05-11", "2021-05-12",
-               "2021-05-13", "2021-05-14", "2021-05-15", "2021-05-16",
-               "2021-05-17", "2021-05-18"), 
-               format = "%Y-%m-%d")
+exp_dates <- seq(as.Date("2021-04-19"), as.Date("2021-05-18"), "days")
 
 subset_HOBO_data <- all_HOBO_data %>%
   dplyr::filter(complete.cases(temp_C, relative_humidity)) %>%
@@ -110,12 +101,15 @@ Next, format the data:
 format_HOBO_data <- subset_HOBO_data %>% 
   mutate(date_time_PST = as.POSIXct(date_time_PST, 
                                     format = "%m/%d/%Y %H:%M:%S"),
-         HOBO_ID = as.factor(substr(HOBO_ID, 1, 10))
+         HOBO_ID = (substr(HOBO_ID, 1, 10)), # select first 10 characters
+         HOBO_ID = str_trim(HOBO_ID), # remove trailing white space
+         HOBO_ID = str_replace_all(HOBO_ID, "[^A-z0-9]", "_"), # replace any special characters with underscores
+         HOBO_ID = as.factor(HOBO_ID) # set class as factor
          )
 summary(format_HOBO_data)
 ```
 
-I'm also going to omit the data for the hot treatments that failed, since we will not be presenting that.
+I'm also going to omit the data for the hot treatments that failed, since we will not be presenting that. Also, when a couple of lizards died, their loggers were moved, not always to the same treatment... So I need to look for those changes. *Finally, the time of day I started the experiment on capture day and ended the experiment varied, and we also took them out of treatment for checkups. The loggers should reflect this, so I need to find those values and exclude them.*
 
 Check temperature values:
 
@@ -129,27 +123,107 @@ format_HOBO_data %>%
   arrange(mean_temp, date_only)
 ```
 
+
+# Data Cleaning
+
+## HOBO "dry cool 1":
+
+```{r}
+format_HOBO_data %>% 
+  dplyr::filter(HOBO_ID == "Dry_Cool_1") %>%
+  ggplot(data = ., aes(x = date_time_PST, 
+                       y = temp_C, 
+                       color = HOBO_ID
+                       )) +
+  geom_point() + 
+  geom_line() +
+  geom_vline(xintercept = as.POSIXct(as.Date("2021-04-27")), 
+             linetype = 4, color = "purple") +
+  geom_vline(xintercept = as.POSIXct(as.Date("2021-04-29")), 
+             linetype = 4, color = "purple") +
+  geom_vline(xintercept = as.POSIXct(as.Date("2021-05-04")), 
+             linetype = 4, color = "purple") +
+  geom_vline(xintercept = as.POSIXct(as.Date("2021-05-08")), 
+             linetype = 4, color = "purple") +
+  geom_vline(xintercept = as.POSIXct(as.Date("2021-05-11")), 
+             linetype = 4, color = "purple") +
+  geom_vline(xintercept = as.POSIXct(as.Date("2021-05-12")), 
+             linetype = 4, color = "purple") +
+  geom_hline(yintercept = 23) +
+  geom_hline(yintercept = 29) +
+  theme_classic()
+```
+
+There is room temperature/wacky data between April 27-29, and on May 4, 8, 11, and 12. 
+
+Try excluding. For some reason the dates plotted versus filtered line up differently, which is why I filter out the date before what I plotted.
+
+```{r}
+unwanted_dates_dc1 <- as.Date(c("2021-04-26", "2021-04-27", 
+                        "2021-04-28",
+                        "2021-05-03", "2021-05-07", 
+                        "2021-05-10", "2021-05-11"),
+                        format = "%Y-%m-%d")
+dc1_subset <- format_HOBO_data %>%
+  dplyr::filter(HOBO_ID == "Dry_Cool_1") %>%
+  dplyr::filter(date_only %nin% unwanted_dates_dc1)
+```
+
+plot again to show that we removed erroneous data:
+
+```{r}
+dc1_subset %>% 
+  ggplot(data = ., aes(x = date_time_PST, 
+                       y = temp_C, 
+                       color = HOBO_ID
+                       )) +
+  geom_point() + 
+  geom_line() +
+  geom_vline(xintercept = as.POSIXct(as.Date("2021-04-27")), 
+             linetype = 4, color = "purple") +
+  geom_vline(xintercept = as.POSIXct(as.Date("2021-04-29")), 
+             linetype = 4, color = "purple") +
+  geom_vline(xintercept = as.POSIXct(as.Date("2021-05-04")), 
+             linetype = 4, color = "purple") +
+  geom_vline(xintercept = as.POSIXct(as.Date("2021-05-08")), 
+             linetype = 4, color = "purple") +
+  geom_vline(xintercept = as.POSIXct(as.Date("2021-05-11")), 
+             linetype = 4, color = "purple") +
+  geom_vline(xintercept = as.POSIXct(as.Date("2021-05-12")), 
+             linetype = 4, color = "purple") +
+  geom_hline(yintercept = 23) +
+  geom_hline(yintercept = 29) +
+  theme_classic()
+```
+
+
+
 We do NOT want data for Dry-Hot-1/2 or Humid-Hot between April 19-29. Everything else should be fine, so just filter those out.
 
 The goal is to get everything EXCEPT those three loggers on those dates. The most straightforward way I know how to do this is to just filter out by temperature.
 
-**NOT WORKING**
 ```{r}
 filter_dates <- as.Date(c("2021-04-19", "2021-04-20", 
                        "2021-04-21", "2021-04-22",
                "2021-04-23", "2021-04-24", "2021-04-25", "2021-04-26",
                "2021-04-27", "2021-04-28", "2021-04-29"), 
                format = "%Y-%m-%d")
-filter_HOBOs <- c("Dry-Hot-1", "Dry-Hot-2", "Humid-Hot")
+filter_HOBOs <- c("Dry-Hot-1 ", "Dry-Hot-2", "Humid-Hot")
 unique(format_HOBO_data$HOBO_ID)
 
 
 # none of these work
-filt_keep1 <- format_HOBO_data %>%
-  dplyr::filter(HOBO_ID == 'Dry-Hot-1')
-filt_keep2 <- format_HOBO_data %>%
-  dplyr::filter(HOBO_ID %in% c("Dry-Hot-1", "Dry-Hot-2", "Humid-Hot") & 
+format_HOBO_data %>%
+  dplyr::filter(HOBO_ID == 'Dry-Hot-1 ')
+
+levels(format_HOBO_data$HOBO_ID)
+
+`%nin%` = Negate(`%in%`)
+format_HOBO_data %>%
+  dplyr::filter(#HOBO_ID %in% c("Dry-Hot-1", "Dry-Hot-2", "Humid-Hot") & 
                   date_only %nin% filter_dates)
+
+
 filt_dontwant_check <- format_HOBO_data %>%
   dplyr::filter(HOBO_ID %in% c("Dry-Hot-1", "Dry-Hot-2", "Humid-Hot") & 
                   date_only %in% filter_dates)
@@ -159,6 +233,9 @@ format_HOBO_data[format_HOBO_data$HOBO_ID == ('Dry-Hot-1')]
 # but this works
 filtered_HOBO_data <- format_HOBO_data %>%
   dplyr::filter(temp_C < 28)
+
+
+
 ```
 
 
@@ -176,6 +253,7 @@ summary(format_HOBO_data)
 
 
 # Get Means
+by trail and tmt
 
 ```{r}
 format_HOBO_data %>%

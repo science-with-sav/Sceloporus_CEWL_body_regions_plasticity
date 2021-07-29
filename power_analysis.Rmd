@@ -212,9 +212,10 @@ region, humidity treatment, before/after, and the before/after interaction with 
 Now that I have models for everything, I'll go through and test the power of each predictor variable (including interactions) to guess-timate whether my current sample size could be effective in distinguishing the same differences in future, slightly different studies. 
 
 ```{r}
-CEWL_mod_ext <- extend(CEWL_mod_real,
+CEWL_mod_ext <- extend(CEWL_mod,
                        along = "individual_ID",
                        n = 40)
+fixef(CEWL_mod_ext) <- 1/26
 
 powerSim(CEWL_mod_ext, 
          fixed("humidity_tmt_percent:day", "lr"), 
@@ -231,7 +232,7 @@ num_liz <- (4:10)*10
 
 extensions <- purrr::map(num_liz,
                   function(x)
-                    extend(CEWL_mod_real, along = "individual_ID", n = x))
+                    extend(CEWL_mod, along = "individual_ID", n = x))
 
 powersims <- map_dfr(extensions,
                  ~powerSim(.x,

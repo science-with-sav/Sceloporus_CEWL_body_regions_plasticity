@@ -320,6 +320,17 @@ CEWL <- CEWL_t1 %>% # trial 1
 summary(CEWL)
 ```
 
+Check that data looks correct:
+
+```{r}
+CEWL %>%
+  group_by(individual_ID, day) %>%
+  summarise(n = n()) %>%
+  arrange(individual_ID, n)
+```
+
+49, 80 is missing before measurements..... 
+
 Before/after aren't perfectly even because sometimes we were unable to get the AquaFlux to equilibrate and take a measurement.
 
 Finally, make a small edit so the regions are spelled out completely. This requires reordering factor levels:
