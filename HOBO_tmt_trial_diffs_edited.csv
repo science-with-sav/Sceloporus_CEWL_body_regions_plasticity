@@ -1,0 +1,10 @@
+,,temperature (_),,,humidity (%),,
+humidity treatment,trial,mean,SD,ANOVA group ,mean,SD,ANOVA group 
+dry,1,27.43,1.21,a,11.05,4.16,a
+humid,1,27.46,1.29,a,71.81,13.86,b
+dry,2,25.05,1.41,b,10.87,4.95,a
+humid,2,25.52,1.93,c,89.18,10.31,c
+dry,3,24.47,1.05,d,15.03,7.42,d
+humid,3,23.78,1.73,e,83.70,14.44,e
+dry,4,24.45,1.01,d,15.90,6.76,d
+humid,4,24.46,1.41,d,85.32,10.96,f
