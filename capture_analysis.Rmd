@@ -100,11 +100,13 @@ morpho_blood_dat <- read.csv("./data/Herpetology_Data.csv", # filename
                 ) %>%
   # remove two columns not relevant for statistics
   dplyr::select(-sock_ID, -notes)
+
+# check
 summary(morpho_blood_dat)
 unique(morpho_blood_dat$date)
 
 # export
-write.csv(morpho_blood_dat, "exported_data/capture_hydration.csv")
+#write.csv(morpho_blood_dat, "exported_data/capture_hydration.csv")
 ```
 
 I want to test if any IDs are missing, and which ones if so.
@@ -247,7 +249,7 @@ summary(CEWL)
 Write CEWL dataframe as a csv for use in other analyses:
 
 ```{r}
-write.csv(CEWL, "exported_data/capture_CEWL.csv")
+#write.csv(CEWL, "exported_data/capture_CEWL.csv")
 ```
 
 
@@ -257,7 +259,7 @@ write.csv(CEWL, "exported_data/capture_CEWL.csv")
 
 This data was obtained from http://www.itrc.org/databases/precip/ (Adcon Server Data) to test the effect of ambient conditions on CEWL. This is different from the ambient conditions already measured with CEWL, which are the temperature and humidity around the measurement device at the time of measurement. We think that the temperature, humidity, wind speed, and solar radiation the lizard was exposed to prior to capture may also affect CEWL.
 
-tbd = daylight savings
+We didn't have a daylight savings time switchover during this study, so we don't need to worry about incorporating. 
 
 ```{r}
 # load in csvs and put all in one dataframe
@@ -610,9 +612,7 @@ morpho_blood_SMI %>%
 
 ### Join Data 
 
-There are several CEWL measurements for each of the other measures, so I'm going to join two ways. Each way allows slightly different analyses.
-
-First, with CEWL as the primary dataframe. This means each of the other variables will be duplicated for each lizards CEWL measurements.
+Add CEWL and morpho_blood_SMI data together. 
 
 ```{r}
 CEWL_data_full <- CEWL %>%
@@ -620,21 +620,23 @@ CEWL_data_full <- CEWL %>%
             by = c("date", "individual_ID")
             ) 
 summary(CEWL_data_full)
-unique(CEWL_data_full$individual_ID)
 ```
 
 
+### Final Formatting
 
-
-### Export Data
-
-I want to save the data as a csv for loading into other analyses.
+redo the levels for body region:
 
 ```{r}
-write.csv(CEWL_data_full, "exported_data/capture_data_long.csv")
+CEWL_data_full$region <- factor(CEWL_data_full$region,
+                                levels = c("dors", "vent", 
+                                           "head", "dewl", "mite"),
+                                labels = c("Dorsum", "Ventrum", "Head",
+                                           "Dewlap", "Mite Patch"),
+                                ordered = TRUE)
 ```
 
-
+NOTE: running this more than once overrides things, so be careful
 
 
 # Check Data Distributions
@@ -1699,21 +1701,19 @@ Potential relationships:
 ```{r}
 CEWL_data_full %>% 
   ggplot(data = .) + 
-  geom_boxplot(aes(x = reorder(region, TEWL_g_m2h), 
+  geom_boxplot(aes(x = (region), 
                    y = TEWL_g_m2h, 
                    color = region
                    ), 
                size = 1,
                alpha = 1) +
-  scale_x_discrete(labels = c("Dewlap", "Dorsum",
-                              "Mite Patch", "Head", "Ventrum")) +
   theme_classic() + 
   xlab("Body Region") + 
   ylab(bquote('CEWL (g / '*m^2~h*')')) + 
   annotate("text", x = 1, y = 65, label = "a", size = 6) +
-  annotate("text", x = 2, y = 62, label = "a", size = 6) +
+  annotate("text", x = 2, y = 62, label = "b", size = 6) +
   annotate("text", x = 3, y = 105, label = "b", size = 6) +
-  annotate("text", x = 4, y = 92, label = "b", size = 6) +
+  annotate("text", x = 4, y = 92, label = "a", size = 6) +
   annotate("text", x = 5, y = 75, label = "b", size = 6) +
   scale_color_brewer(palette = "Set2") +
   ylim(1, 110) +
@@ -1766,8 +1766,6 @@ CEWL_data_full %>%
                  ), 
              size = 1, 
              alpha = 0.6) + 
-  scale_colour_manual(values = c("palegreen4", "lightblue4", 
-                                 "plum4", "lightpink3", "seashell4")) +
   stat_smooth(aes(x = osmolality_mmol_kg, 
                   y = TEWL_g_m2h, 
                   color = region
@@ -1833,8 +1831,6 @@ CEWL_data_full %>%
                  ), 
              size = 1, 
              alpha = 0.6) + 
-  scale_colour_manual(values = c("palegreen4", "lightblue4", 
-                                 "plum4", "lightpink3", "seashell4")) +
   stat_smooth(aes(x = hematocrit_percent, 
                   y = TEWL_g_m2h, 
                   color = region
@@ -1890,8 +1886,6 @@ CEWL_data_full %>%
   #ylab(bquote('CEWL (g/'*m^2*'h)')) + 
   #annotate("text", x = 1, y = 65, label = "a", size = 6) +
   scale_color_brewer(palette = "Set2",
-                     labels = c("Dewlap", "Dorsum", "Head",
-                              "Mite Patch", "Ventrum"),
                      name = "") +
   ylim(1, 100) +
   xlim(20, 28) +
@@ -2002,8 +1996,6 @@ CEWL_data_full %>%
   ylab(bquote('CEWL (g/'*m^2*'h)')) + 
   #annotate("text", x = 1, y = 65, label = "a", size = 6) +
   scale_color_brewer(palette = "Set2",
-                     labels = c("Dewlap", "Dorsum",
-                              "Head", "Mite Patch", "Ventrum"),
                      name = "") +
   ylim(1, 100) +
   xlim(8.9, 11.5) +
@@ -2052,8 +2044,6 @@ CEWL_data_full %>%
                  ), 
              size = 1, 
              alpha = 0.6) + 
-  scale_colour_manual(values = c("palegreen4", "lightblue4", 
-                                 "plum4", "lightpink3", "seashell4")) +
   stat_smooth(aes(x = Wind_mph_interpol, 
                   y = TEWL_g_m2h, 
                   color = region
@@ -2185,8 +2175,6 @@ CEWL_data_full %>%
                  ), 
              size = 1, 
              alpha = 0.6) + 
-  scale_colour_manual(values = c("palegreen4", "lightblue4", 
-                                 "plum4", "lightpink3", "seashell4")) +
   stat_smooth(aes(x = ambient_RH_percent, 
                   y = TEWL_g_m2h, 
                   color = region
@@ -2225,8 +2213,6 @@ CEWL_data_full %>%
                  ), 
              size = 1, 
              alpha = 0.6) + 
-  scale_colour_manual(values = c("palegreen4", "lightblue4", 
-                                 "plum4", "lightpink3", "seashell4")) +
   stat_smooth(aes(x = individual_ID, 
                   y = TEWL_g_m2h, 
                   color = region
@@ -2269,8 +2255,6 @@ CEWL_data_full %>%
                  ), 
              size = 1, 
              alpha = 0.6) + 
-  scale_colour_manual(values = c("palegreen4", "lightblue4", 
-                                 "plum4", "lightpink3", "seashell4")) +
   stat_smooth(aes(x = SVL_mm, 
                   y = TEWL_g_m2h, 
                   color = region
@@ -2309,8 +2293,6 @@ CEWL_data_full %>%
                  ), 
              size = 1, 
              alpha = 0.4) + 
-  #scale_colour_manual(values = c("palegreen4", "lightblue4", 
-   #                              "plum4", "lightpink3", "seashell4")) +
   stat_smooth(aes(x = SMI, 
                   y = TEWL_g_m2h, 
                   color = region
@@ -2325,8 +2307,6 @@ CEWL_data_full %>%
   ylab(bquote('CEWL (g / '*m^2~h*')')) + 
   #annotate("text", x = 1, y = 65, label = "a", size = 6) +
   scale_color_brewer(palette = "Set2",
-                     labels = c("Dewlap", "Dorsum",
-                              "Head", "Mite Patch", "Ventrum"),
                      name = "") +
   ylim(1, 100) +
   xlim(2, 16) +
@@ -2374,8 +2354,6 @@ CEWL_data_full %>%
                  ), 
              size = 1, 
              alpha = 0.4) + 
-  #scale_colour_manual(values = c("palegreen4", "lightblue4", 
-   #                              "plum4", "lightpink3", "seashell4")) +
   stat_smooth(aes(x = mass_g, 
                   y = TEWL_g_m2h, 
                   color = region
@@ -2391,8 +2369,6 @@ CEWL_data_full %>%
   #ylab(bquote('CEWL (g/'*m^2*'h)')) + 
   #annotate("text", x = 1, y = 65, label = "a", size = 6) +
   scale_color_brewer(palette = "Set2",
-                     labels = c("Dewlap", "Dorsum",
-                              "Head", "Mite Patch", "Ventrum"),
                      name = "") +
   ylim(1, 100) +
   xlim(2, 16) +
@@ -2532,8 +2508,6 @@ CEWL_data_full %>%
                  ), 
              size = 1, 
              alpha = 0.6) + 
-  scale_colour_manual(values = c("palegreen4", "lightblue4", 
-                                 "plum4", "lightpink3", "seashell4")) +
   stat_smooth(aes(x = hold_time, 
                   y = TEWL_g_m2h, 
                   color = region
@@ -2690,11 +2664,11 @@ osml_best_mod <- summary(hydrat_mod2)
 # extract stats table from summary object
 osml_best_mod_vals <- data.frame(osml_best_mod$coefficients)
 # export 
-write.csv(osml_best_mod_vals, "./best models/osml_best_mod_vals.csv")
+#write.csv(osml_best_mod_vals, "./best models/osml_best_mod_vals.csv")
 ```
 
 
-### Check LM Assumptions (Hydration Model )
+### Check LM Assumptions (Hydration Model)
 
 First, get residuals:
 
@@ -2813,7 +2787,7 @@ CEWL_mod_dat <- CEWL_data_full %>%
                 Solar_rad_Wm2_interpol,
                 ambient_temp_C
                 ) %>%
-  dplyr::filter(complete.cases(.))
+  dplyr::filter(complete.cases(.)) # removes 69 observations
 ```
 
 
@@ -2945,6 +2919,37 @@ anova(CEWL_mod4, CEWL_mod3)
 
 We do lose significant predictive power when we go from model 3 to 4... So model 3 is the best model to predict CEWL.
 
+Since we dropped a lot of variables, I want to go back and make sure to use as much data as possible in the final model, so I can add back in observations with missing values for variables no longer included in the reduced model.
+
+```{r}
+# filter
+CEWL_mod_dat2 <- CEWL_data_full %>% 
+  # select variables of interest
+  dplyr::select(individual_ID,
+                mass_g,
+                TEWL_g_m2h,
+                region,
+                cloacal_temp_C,
+                temp_C_interpol,
+                abs_humidity_g_m3_interpol,
+                Solar_rad_Wm2_interpol,
+                ) %>%
+  dplyr::filter(complete.cases(.)) # able to have 5 more observations
+
+# redo best model
+# model 3
+CEWL_mod3_adj <- lme4::lmer(data = CEWL_mod_dat2,
+                        TEWL_g_m2h ~
+                         region * (mass_g +
+                                     temp_C_interpol +
+                                     abs_humidity_g_m3_interpol) +
+                         cloacal_temp_C +
+                         Solar_rad_Wm2_interpol + 
+                         (1|individual_ID)) 
+summary(CEWL_mod3_adj)
+```
+
+
 
 ### Best Model
 
@@ -2952,7 +2957,7 @@ The best model is CEWL predicted by: body region and its interaction with mass a
 
 ```{r}
 # save best model summary object
-CEWL_best_mod <- summary(CEWL_mod3)
+CEWL_best_mod <- summary(CEWL_mod3_adj)
 # extract stats table from summary object
 CEWL_best_mod_vals <- data.frame(CEWL_best_mod$coefficients)
 # export 
@@ -2966,9 +2971,9 @@ write.csv(CEWL_best_mod_vals, "./best models/CEWL_best_mod_vals.csv")
 First, get residuals:
 
 ```{r}
-CEWL_mod_res <- CEWL_mod_dat %>%
-  mutate(y_hat = predict(CEWL_mod3),
-         e = residuals(CEWL_mod3))
+CEWL_mod_res <- CEWL_mod_dat2 %>%
+  mutate(y_hat = predict(CEWL_mod3_adj),
+         e = residuals(CEWL_mod3_adj))
 ```
 
 
@@ -3102,7 +3107,7 @@ Run CEWL model 4 with log-transformed CEWL:
 
 ```{r}
 # log-transformed model 3
-CEWL_mod3_t <- lme4::lmer(data = CEWL_mod_dat,
+CEWL_mod3_t <- lme4::lmer(data = CEWL_mod_dat2,
                           log(TEWL_g_m2h) ~
                             region * (mass_g +
                                      temp_C_interpol +
@@ -3112,7 +3117,7 @@ CEWL_mod3_t <- lme4::lmer(data = CEWL_mod_dat,
 summary(CEWL_mod3_t)
 
 # compare
-anova(CEWL_mod3_t, CEWL_mod3)
+anova(CEWL_mod3_t, CEWL_mod3_adj)
 ```
 
 
@@ -3122,7 +3127,7 @@ anova(CEWL_mod3_t, CEWL_mod3)
 First, get residuals:
 
 ```{r}
-CEWL_t_mod_res <- CEWL_mod_dat %>%
+CEWL_t_mod_res <- CEWL_mod_dat2 %>%
   mutate(y_hat = predict(CEWL_mod3_t),
          e = residuals(CEWL_mod3_t))
 ```
