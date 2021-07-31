@@ -25,10 +25,14 @@ if (!require("MASS")) install.packages("MASS")
 library("MASS") # model selection & box-cox
 if (!require("lme4")) install.packages("lme4")
 library("lme4") # for LMMs
+if (!require("lmerTest")) install.packages("lmerTest")
+library("lmerTest") # for p-values
 if (!require("onewaytests")) install.packages("onewaytests")
 library("onewaytests") # for Brown-Forsythe test
 if (!require("ggpubr")) install.packages("ggpubr")
 library("ggpubr") # for Brown-Forsythe test
+if (!require("broom")) install.packages("broom")
+library("broom") # lmer model export
 ```
 
 
@@ -2635,7 +2639,7 @@ The model would improve (based on lower AIC) if we drop SMI as a predictor.
 
 ```{r, hydration model 2}
 # model 2
-hydrat_mod2 <- lme4::lmer(data = hydrat_mod_dat,
+hydrat_mod2 <- lmerTest::lmer(data = hydrat_mod_dat,
                           osmolality_mmol_kg ~ 
                            abs_humidity_g_m3_interpol*temp_C_interpol +
                             (1|date) + (1|hemolyzed)) 
@@ -2660,11 +2664,9 @@ Dropping the current predictors will not improve AIC any more than its current v
 
 ```{r}
 # save model 2 summary object
-osml_best_mod <- summary(hydrat_mod2)
-# extract stats table from summary object
-osml_best_mod_vals <- data.frame(osml_best_mod$coefficients)
+osml_best_mod <- broom::tidy(hydrat_mod2)
 # export 
-#write.csv(osml_best_mod_vals, "./best models/osml_best_mod_vals.csv")
+write.csv(osml_best_mod, "./best models/osml_best_mod_vals.csv")
 ```
 
 
@@ -2961,7 +2963,7 @@ CEWL_best_mod <- summary(CEWL_mod3_adj)
 # extract stats table from summary object
 CEWL_best_mod_vals <- data.frame(CEWL_best_mod$coefficients)
 # export 
-write.csv(CEWL_best_mod_vals, "./best models/CEWL_best_mod_vals.csv")
+#write.csv(CEWL_best_mod_vals, "./best models/CEWL_best_mod_vals.csv")
 ```
 
 
@@ -3106,8 +3108,9 @@ I will log-transform CEWL and see whether it makes the models satisfy LMM assump
 Run CEWL model 4 with log-transformed CEWL:
 
 ```{r}
+summary(CEWL_mod_dat2)
 # log-transformed model 3
-CEWL_mod3_t <- lme4::lmer(data = CEWL_mod_dat2,
+CEWL_mod3_t <- lmerTest::lmer(data = CEWL_mod_dat2,
                           log(TEWL_g_m2h) ~
                             region * (mass_g +
                                      temp_C_interpol +
@@ -3231,11 +3234,9 @@ The best CEWL model should use log-transformed CEWL because this greatly improve
 
 ```{r}
 # save log model 3 summary object
-CEWL_best_t_mod <- summary(CEWL_mod3_t)
-# extract stats table from summary object
-CEWL_best_t_mod_vals <- data.frame(CEWL_best_t_mod$coefficients)
+CEWL_best_t_mod <- broom::tidy(CEWL_mod3_t)
 # export 
-write.csv(CEWL_best_t_mod_vals, "./best models/CEWL_best_mod_t_vals.csv")
+write.csv(CEWL_best_t_mod, "./best models/CEWL_best_mod_t_vals.csv")
 ```
 
 

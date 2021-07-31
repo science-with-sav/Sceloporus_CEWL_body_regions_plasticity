@@ -20,12 +20,21 @@ if (!require("MASS")) install.packages("MASS")
 library("MASS") # model selection & box-cox
 if (!require("lme4")) install.packages("lme4")
 library("lme4") # for LMMs
+if (!require("lmerTest")) install.packages("lmerTest")
+library("lmerTest") # for p-values
 if (!require("ggpubr")) install.packages("ggpubr")
 library("ggpubr") # for Brown-Forsythe test
+if (!require("broom")) install.packages("broom")
+library("broom") # lmer model export
+if (!require("broom.mixed")) install.packages("broom.mixed")
+library("broom.mixed") # lmer model export
 ```
 
 
 # Data
+
+This data was collected in the Spring of 2021 in conjuction with a study carried out in Cal Poly's Herpetology class. Some lizards measured for that primary study were kept to observe physiological changes in response to different climate treatments. 
+
 
 ## Morphometrics & Hydration
 
@@ -102,7 +111,7 @@ variables:
 - individual lizard ID
 - mass_g = mass in grams
 - hematocrit_percent = % of blood sample that's red blood cells
-- osmolality_mmol_kg = concentration of solutes in blood plasma
+- osmolality_mmol_kg = concentration of solutes in blood plasma (mean of 1-3 replicates)
 - type = when the measurements were taken along the course of the experiment (either during experimental treatment or after rehab)
 
 ```{r exp data}
@@ -150,6 +159,7 @@ all_dat <- exp_dat %>%
          )
 
 summary(all_dat)
+unique(all_dat$individual_ID)
 ```
 
 re-order some factors:
@@ -208,7 +218,7 @@ cap_CEWL <- read.csv("./exported_data/capture_CEWL.csv") %>%
   mutate(#individual_ID = as.factor(individual_ID), # do later
          date = as.Date(date, format = "%Y-%m-%d"),
          region = as.factor(region),
-         day = as.factor("before"), # might change... tbd
+         day = as.factor("before"),
          n_day = 0
          ) %>%
   dplyr::filter(individual_ID %in% all_dat$individual_ID) %>%
@@ -277,6 +287,13 @@ summary(exp_CT)
 
 ### Join Dataframes 
 
+define not-in function:
+
+```{r}
+`%nin%` = Negate(`%in%`)
+```
+
+
 Merge all post-experiment CEWL, add cloacal temperature, add capture CEWL:
 
 ```{r join CEWL data}
@@ -293,17 +310,18 @@ CEWL <- CEWL_t1 %>% # trial 1
   # reformat data
   dplyr::mutate(# reformat date
                 date = as.Date(date, format = "%m/%d/%y"),
-                # format individual ID as a factor
+                # format individual ID
                 individual_ID = as.integer(individual_ID),
                 # set body region as a factor variable after getting only the consistent characters due to typos
                 region = as.factor(substring(region, 1, 4)),
                 # add when measurement taken
-                day = as.factor("after"), # may rename...
-                n_day = 1
+                day = as.factor("after"),
+                n_day = 1 # technically day 8/9, just to help with figures
                 ) %>%
   # remove cols not relevant to stats
   dplyr::select(-Status) %>%
   # remove any rows with missing values
+  # none actually needed to be removed
   dplyr::filter(complete.cases(.)) %>%
   # add cloacal temperatures
   left_join(exp_CT, by = c("date", "individual_ID")) %>%
@@ -315,7 +333,9 @@ CEWL <- CEWL_t1 %>% # trial 1
          individual_ID = as.factor(individual_ID),
          conclusion = as.factor(conclusion),
          trial_number = as.factor(trial_number)
-         ) 
+         ) %>%
+  # lizards 49 & 80 are missing pre-exp CEWL, so remove them
+  dplyr::filter((individual_ID %nin% c('49', '80')))
 # every lizard should have 10 measurements
 summary(CEWL)
 ```
@@ -329,7 +349,7 @@ CEWL %>%
   arrange(individual_ID, n)
 ```
 
-49, 80 is missing before measurements..... 
+Everything looks great! (after removing the observations for the two lizards with missing pre-experiment CEWL measurements.)
 
 Before/after aren't perfectly even because sometimes we were unable to get the AquaFlux to equilibrate and take a measurement.
 
@@ -337,13 +357,14 @@ Finally, make a small edit so the regions are spelled out completely. This requi
 
 ```{r reorder CEWL factors}
 CEWL$region <- factor(CEWL$region, 
-                      levels = c("head", "dewl", "dors", "vent", "mite"),
-                      labels = c("Head", "Dewlap", "Dorsum", 
-                                 "Ventrum", "Mite Patch")
+                      levels = c("dors", "vent", "head", "dewl", "mite"),
+                      labels = c("Dorsum", "Ventrum", "Head", 
+                                 "Dewlap", "Mite Patch")
                   )
 CEWL$humidity_tmt_percent <- factor(CEWL$humidity_tmt_percent,
                                        levels = c("humid", "dry"),
                                        labels = c("Humid", "Dry"))
+summary(CEWL)
 ```
 
 
@@ -351,8 +372,8 @@ CEWL$humidity_tmt_percent <- factor(CEWL$humidity_tmt_percent,
 ## Export Data Frames for Power Analyses
 
 ```{r write data}
-write.csv(all_dat, "exported_data/exp_effects_hydration.csv")
-write.csv(CEWL, "exported_data/exp_effects_CEWL.csv")
+#write.csv(all_dat, "exported_data/exp_effects_hydration.csv")
+#write.csv(CEWL, "exported_data/exp_effects_CEWL.csv")
 ```
 
 
@@ -539,11 +560,11 @@ Check whether means started out different:
 ```{r SMI check original difference}
 SMI_diff_lm <- all_dat_no_rehab %>%
   dplyr::filter(day == 0) %>%
-  lm(data = ., SMI ~humidity_tmt_percent)
+  lm(data = ., SMI ~ humidity_tmt_percent)
 summary(SMI_diff_lm)
 ```
 
-NOT significantly different, which is good. t-test and p-value have very similar results
+NOT significantly different, which is good.
 
 model:
 
@@ -552,10 +573,10 @@ SMI_mod <- lme4::lmer(data = all_dat_no_rehab,
                SMI ~ day*humidity_tmt_percent +
                (1|trial_number))
 summary(SMI_mod)
-drop1(SMI_mod)
+drop1(SMI_mod) # this was more intuitive using lme4::lmer but I switched to be able to get p-values
 
 # drop interaction term
-SMI_mod2 <- lme4::lmer(data = all_dat_no_rehab,
+SMI_mod2 <- lmerTest::lmer(data = all_dat_no_rehab,
                SMI ~ day + humidity_tmt_percent +
                (1|trial_number))
 summary(SMI_mod2)
@@ -565,7 +586,7 @@ drop1(SMI_mod2)
 SMI is best predicted by day and treatment, but not including their interaction.
 
 ```{r}
-write.csv(data.frame((summary(SMI_mod2))$coefficients), 
+write.csv(broom.mixed::tidy(SMI_mod2), 
           "./best models/exp_effects_SMI.csv")
 ```
 
@@ -635,7 +656,7 @@ drop1(hct_mod)
 # drop humidity
 hct_mod2 <- all_dat_no_rehab %>%
   dplyr::filter(complete.cases(hematocrit_percent)) %>%
-  lme4::lmer(data = .,
+  lmerTest::lmer(data = .,
                hematocrit_percent ~ day +
                (1|trial_number))
 summary(hct_mod2)
@@ -645,7 +666,7 @@ drop1(hct_mod2)
 The model AIC is slightly better without the interaction effect, so I removed that. The effect of humidity could ALSO be dropped, so humidity treatment was not an important factor affecting hematocrit, but how many days lizards were in treatment was. Both treatment groups lost hematocrit at approximately the same rate. 
 
 ```{r}
-write.csv(data.frame((summary(hct_mod2))$coefficients), 
+write.csv(broom::tidy(hct_mod2), 
           "./best models/exp_effects_hct.csv")
 ```
 
@@ -707,7 +728,7 @@ singular warning - do NOT include individual ID as a random effect
 ```{r osmolality model}
 osml_mod <- all_dat_no_rehab %>%
   dplyr::filter(complete.cases(osmolality_mmol_kg)) %>%
-  lme4::lmer(data = .,
+  lmerTest::lmer(data = .,
                osmolality_mmol_kg ~ day * humidity_tmt_percent +
                (1|trial_number))
 summary(osml_mod)
@@ -717,7 +738,7 @@ drop1(osml_mod)
 The model seems good as-is. 
 
 ```{r}
-write.csv(data.frame((summary(osml_mod))$coefficients), 
+write.csv(broom::tidy(osml_mod), 
           "./best models/exp_effects_osml.csv")
 ```
 
@@ -754,6 +775,7 @@ osml_diffs %>%
                size = 1,
                alpha = 1) + 
   theme_classic() + 
+  geom_hline(yintercept = 0) +
   xlab("") + 
   ylab("Osmolality Change (mmol / kg)") + 
   scale_color_brewer(palette = "Set2") +
@@ -768,14 +790,6 @@ osml_diffs %>%
 )
 ```
 
-model to test statistical significance of difference:
-
-```{r osmol change model}
-osml_diff_mod <- lm(data = osml_diffs,
-                    osml_change ~ humidity_tmt_percent)
-summary(osml_diff_mod)
-```
-Not difference between the two treatment groups.
 
 
 ## CEWL ~ Before/After
@@ -868,13 +882,11 @@ ggsave(filename = "tmt_effects_CEWL.jpeg",
 
 I saved the legend separately to make the figure layout better.
 
-*TO DO: figure out how to annotate legend onto figure?!*
-
 ```{r CEWL model 1}
 CEWL_mod <- CEWL %>%
-  dplyr::filter(complete.cases(.)) %>%
   lme4::lmer(data = .,
                TEWL_g_m2h ~ day * humidity_tmt_percent * region +
+               cloacal_temp_C +
                (1|trial_number/individual_ID))
 summary(CEWL_mod)
 drop1(CEWL_mod)
@@ -884,11 +896,10 @@ Drop triple interaction. I think the day:region standalone would be weird too.
 
 ```{r CEWL model 2}
 CEWL_mod2 <- CEWL %>%
-  dplyr::filter(complete.cases(.)) %>%
   lme4::lmer(data = .,
                TEWL_g_m2h ~ 
-               day*humidity_tmt_percent +
-               humidity_tmt_percent*region +
+               humidity_tmt_percent * (day + region) +
+               cloacal_temp_C +
                (1|trial_number/individual_ID))
 summary(CEWL_mod2)
 drop1(CEWL_mod2)
@@ -899,9 +910,9 @@ We can drop the humidity:region interaction.
 ```{r CEWL model 3}
 CEWL_mod3 <- CEWL %>%
   dplyr::filter(complete.cases(.)) %>%
-  lme4::lmer(data = .,
+  lmerTest::lmer(data = .,
                TEWL_g_m2h ~ 
-               day*humidity_tmt_percent + region +
+               day*humidity_tmt_percent + region + cloacal_temp_C +
                (1|trial_number/individual_ID))
 summary(CEWL_mod3)
 drop1(CEWL_mod3)
@@ -910,7 +921,7 @@ drop1(CEWL_mod3)
 The model is best with all the parameters currently included in model 3. 
 
 ```{r}
-write.csv(data.frame((summary(CEWL_mod3))$coefficients), 
+write.csv(broom::tidy(CEWL_mod3), 
           "./best models/exp_effects_CEWL.csv")
 ```
 
@@ -972,14 +983,6 @@ CEWL_diffs %>%
 )
 ```
 
-
-model:
-
-```{r CEWL change model}
-CEW_diffs_mod <- lm(data = CEWL_diffs,
-                    CEWL_diff ~ humidity_tmt_percent)
-summary(CEW_diffs_mod)
-```
 
 
 ## Multi-Figure

@@ -126,6 +126,13 @@ format_HOBO_data %>%
 
 # Data Cleaning
 
+set the not in function:
+
+```{r}
+`%nin%` = Negate(`%in%`)
+```
+
+
 ## HOBO "dry cool 1":
 
 ```{r}
