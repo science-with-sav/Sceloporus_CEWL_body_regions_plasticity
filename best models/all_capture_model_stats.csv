@@ -1,32 +1,32 @@
-,,estimate,SE,t-value
-log(CEWL) ~,,,,
-ask KB if this could be named dewlap,(Intercept),-2.449,0.671,-3.649
-,dorsum,2.115,0.770,2.748
-,head,2.252,0.767,2.935
-,mite patch,4.125,0.776,5.317
-,ventrum,2.609,0.766,3.407
-,mass,0.064,0.014,4.619
-,capture temperature,0.038,0.015,2.572
-,capture absolute humidity,0.151,0.058,2.605
-,cloacal temperature,0.087,0.014,6.277
-,capture solar radiation,0.000,0.000,2.320
-,dorsum * mass,-0.042,0.016,-2.568
-,head * mass,-0.058,0.016,-3.579
-,mite patch * mass,0.001,0.017,0.069
-,ventrum * mass,-0.017,0.016,-1.058
-,dorsum * capture temperature,-0.091,0.016,-5.584
-,head * capture temperature,-0.064,0.016,-3.933
-,mite patch * capture temperature,-0.027,0.016,-1.692
-,ventrum * capture temperature,-0.046,0.016,-2.791
-,dorsum capture absolute humidity,0.013,0.065,0.194
-,head * capture absolute humidity,-0.012,0.064,-0.185
-,mite patch * capture absolute humidity,-0.321,0.065,-4.926
-,ventrum * capture absolute humidity,-0.107,0.064,-1.665
-osmolality ~,,,,
-,(Intercept),861.250,330.658,2.605
-,absolute humidity,-57.895,36.763,-1.575
-,temperature,-28.063,17.782,-1.578
-,absolute humidity * temperature,3.247,1.974,1.645
-hematocrit ~,,,,
-,(Intercept),33.659,0.876,38.410
-,male,2.666,1.099,2.427
+,,estimate,SE,t-value,df,p-value
+log(CEWL) ~,,,,,,
+ask KB if this could be named dewlap,(Intercept),-2.45,0.67,-3.65,,
+,dorsum,2.12,0.77,2.75,,
+,head,2.25,0.77,2.94,,
+,mite patch,4.13,0.78,5.32,,
+,ventrum,2.61,0.77,3.41,,
+,mass,0.06,0.01,4.62,,
+,capture temperature,0.04,0.02,2.57,,
+,capture absolute humidity,0.15,0.06,2.61,,
+,cloacal temperature,0.09,0.01,6.28,,
+,capture solar radiation,0.00,0.00,2.32,,
+,dorsum * mass,-0.04,0.02,-2.57,,
+,head * mass,-0.06,0.02,-3.58,,
+,mite patch * mass,0.00,0.02,0.07,,
+,ventrum * mass,-0.02,0.02,-1.06,,
+,dorsum * capture temperature,-0.09,0.02,-5.58,,
+,head * capture temperature,-0.06,0.02,-3.93,,
+,mite patch * capture temperature,-0.03,0.02,-1.69,,
+,ventrum * capture temperature,-0.05,0.02,-2.79,,
+,dorsum capture absolute humidity,0.01,0.07,0.19,,
+,head * capture absolute humidity,-0.01,0.06,-0.19,,
+,mite patch * capture absolute humidity,-0.32,0.07,-4.93,,
+,ventrum * capture absolute humidity,-0.11,0.06,-1.67,,
+osmolality ~,,,,,,
+,(Intercept),861.25,330.66,2.61,20.28,0.017
+,absolute humidity,-57.90,36.76,-1.58,13.21,0.139
+,temperature,-28.06,17.78,-1.58,17.71,0.132
+,absolute humidity * temperature,3.25,1.97,1.65,11.89,0.126
+hematocrit ~,,,,,,
+,(Intercept),33.66,0.88,38.41,,
+,male,2.67,1.10,2.43,,
