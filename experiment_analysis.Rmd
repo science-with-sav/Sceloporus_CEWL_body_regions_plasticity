@@ -14,16 +14,10 @@ if (!require("tidyverse")) install.packages("tidyverse")
 library("tidyverse")
 if (!require("UsingR")) install.packages("UsingR")
 library("UsingR")
-if (!require("PerformanceAnalytics")) install.packages("PerformanceAnalytics") 
-library("PerformanceAnalytics") # pretty multicollinearity plots
-if (!require("MASS")) install.packages("MASS")
-library("MASS") # model selection & box-cox
 if (!require("lme4")) install.packages("lme4")
 library("lme4") # for LMMs
 if (!require("lmerTest")) install.packages("lmerTest")
 library("lmerTest") # for p-values
-if (!require("ggpubr")) install.packages("ggpubr")
-library("ggpubr") # for Brown-Forsythe test
 if (!require("broom")) install.packages("broom")
 library("broom") # lmer model export
 if (!require("broom.mixed")) install.packages("broom.mixed")
@@ -456,6 +450,7 @@ Visually, looks slightly skewed to the right, but statistically, the distributio
 
 # Basic Figures & Models
 
+
 ## Mass ~ Time
 
 I won't be using this, SMI is more applicable.
@@ -531,7 +526,7 @@ all_dat_no_rehab %>%
   scale_color_brewer(palette = "Set2",
                      name = "Humidity Treatment") +
   xlab("") + 
-  ylab("Scaled Mass Index (g)") + 
+  ylab("Body Condition (g)") + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
                             size = 18),
@@ -547,12 +542,12 @@ all_dat_no_rehab %>%
 tmt_effects_SMI
 
 # export figure
-ggsave(filename = "tmt_effects_SMI.jpeg",
-       plot = tmt_effects_SMI,
-       path = "./final_figures",
-       device = "jpeg",
-       dpi = 1200,
-       width = 5, height = 4)
+#ggsave(filename = "tmt_effects_SMI.jpeg",
+ #      plot = tmt_effects_SMI,
+  #     path = "./final_figures",
+   #    device = "jpeg",
+    #   dpi = 1200,
+     #  width = 5, height = 4)
 ```
 
 Check whether means started out different:
@@ -566,7 +561,17 @@ summary(SMI_diff_lm)
 
 NOT significantly different, which is good.
 
-model:
+Check whether means ended differently:
+
+```{r SMI check original difference}
+SMI_diff_lm_end <- all_dat_no_rehab %>%
+  dplyr::filter(day %in% c(8, 9)) %>%
+  lm(data = ., SMI ~ humidity_tmt_percent)
+summary(SMI_diff_lm_end)
+```
+
+
+mixed model:
 
 ```{r SMI models}
 SMI_mod <- lme4::lmer(data = all_dat_no_rehab,
@@ -634,12 +639,12 @@ all_dat_no_rehab %>%
 tmt_effects_hct
 
 # export figure
-ggsave(filename = "tmt_effects_hct.jpeg",
-       plot = tmt_effects_hct,
-       path = "./final_figures",
-       device = "jpeg",
-       dpi = 1200,
-       width = 5, height = 4)
+#ggsave(filename = "tmt_effects_hct.jpeg",
+ #      plot = tmt_effects_hct,
+  #     path = "./final_figures",
+   #    device = "jpeg",
+    #   dpi = 1200,
+     #  width = 5, height = 4)
 ```
 
 this model seemed to work well with indiv as a random factor, but still excluded because it's probably unnecessary
@@ -715,12 +720,12 @@ all_dat_no_rehab %>%
 tmt_effects_osml
 
 # export figure
-ggsave(filename = "tmt_effects_osml.jpeg",
-       plot = tmt_effects_osml,
-       path = "./final_figures",
-       device = "jpeg",
-       dpi = 1200,
-       width = 5, height = 4)
+#ggsave(filename = "tmt_effects_osml.jpeg",
+ #      plot = tmt_effects_osml,
+  #     path = "./final_figures",
+   #    device = "jpeg",
+    #   dpi = 1200,
+     #  width = 5, height = 4)
 ```
 
 singular warning - do NOT include individual ID as a random effect
@@ -872,12 +877,12 @@ CEWL %>%
 CEWL_tmt_fig
 
 # export figure
-ggsave(filename = "tmt_effects_CEWL.jpeg",
-       plot = CEWL_tmt_fig,
-       path = "./final_figures",
-       device = "jpeg",
-       dpi = 1200,
-       width = 4, height = 6)
+#ggsave(filename = "tmt_effects_CEWL.jpeg",
+ #      plot = CEWL_tmt_fig,
+  #     path = "./final_figures",
+   #    device = "jpeg",
+    #   dpi = 1200,
+     #  width = 4, height = 6)
 ```
 
 I saved the legend separately to make the figure layout better.
@@ -988,19 +993,19 @@ CEWL_diffs %>%
 ## Multi-Figure
 
 ```{r}
-ggarrange(tmt_effects_SMI, tmt_effects_osml, tmt_effects_hct,
+ggarrange(tmt_effects_osml, tmt_effects_SMI, tmt_effects_hct,
           ncol = 1, nrow = 3,
           common.legend = TRUE,
           legend = "bottom"
           ) -> tmt_multi_fig
 tmt_multi_fig
 # export figure
-ggsave(filename = "tmt_multi_fig.jpeg",
-       plot = tmt_multi_fig,
-       path = "./final_figures",
-       device = "jpeg",
-       dpi = 1200,
-       width = 6, height = 12)
+#ggsave(filename = "tmt_multi_fig.jpeg",
+ #      plot = tmt_multi_fig,
+  #     path = "./final_figures",
+   #    device = "jpeg",
+    #   dpi = 1200,
+     #  width = 6, height = 12)
 ```
 
 # Rehydration...
@@ -1023,22 +1028,47 @@ rehydrat_dat$day <- factor(rehydrat_dat$day,
 summary(rehydrat_dat)
 ```
 
+
+prepare summary data to overlay on plots:
+
+```{r}
+hydrat_means <- rehydrat_dat %>%
+  dplyr::filter(complete.cases(osmolality_mmol_kg, SMI, 
+                               hematocrit_percent)) %>%
+  group_by(humidity_tmt_percent, day) %>%
+  summarise(osml_mean = mean(osmolality_mmol_kg),
+            SMI_mean = mean(SMI),
+            hct_mean = mean(hematocrit_percent))
+hydrat_means
+```
+
+
+
 ## SMI
 
+
 ```{r rehydration SMI fig}
-rehydrat_dat %>% 
-  ggplot(data = .) + 
-  geom_point(aes(x = day,
+ggplot() + 
+  geom_point(data = rehydrat_dat,
+             aes(x = day,
                  y = SMI, 
                  color = humidity_tmt_percent
                  ), 
              size = 1, 
-             alpha = 1) +
-  geom_line(aes(x = day,
+             alpha = 0.6) + 
+  geom_line(data = rehydrat_dat,
+            aes(x = day,
                 y = SMI,
                 group = individual_ID,
                 color = humidity_tmt_percent),
-            alpha = 0.6) +
+            alpha = 0.2) +
+  geom_line(data = hydrat_means, # new data
+            aes(x = day,
+                y = SMI_mean,
+                group = humidity_tmt_percent,
+                color = humidity_tmt_percent),
+            size = 1.6,
+            alpha = 1) +
   theme_classic() + 
   scale_color_brewer(palette = "Set2",
                      name = "Humidity Treatment") +
@@ -1047,7 +1077,7 @@ rehydrat_dat %>%
                               "After\nRehydration")) +
   xlab("") + 
   xlab("") + 
-  ylab("Scaled Mass Index (g)") + 
+  ylab("Body Condition (g)") + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
                             size = 18),
@@ -1063,12 +1093,12 @@ rehydrat_dat %>%
 rehab_SMI_fig
 
 # export figure
-ggsave(filename = "rehab_SMI_fig.jpeg",
-       plot = rehab_SMI_fig,
-       path = "./final_figures",
-       device = "jpeg",
-       dpi = 1200,
-       width = 5, height = 4)
+#ggsave(filename = "rehab_SMI_fig.jpeg",
+ #      plot = rehab_SMI_fig,
+  #     path = "./final_figures",
+   #    device = "jpeg",
+    #   dpi = 1200,
+     #  width = 5, height = 4)
 ```
 
 
@@ -1092,12 +1122,19 @@ rehydrat_dat %>%
                  color = humidity_tmt_percent
                  ), 
              size = 1, 
-             alpha = 1) +
+             alpha = 0.6) +
   geom_line(aes(x = day,
                 y = osmolality_mmol_kg,
                 group = individual_ID,
                 color = humidity_tmt_percent),
-            alpha = 0.6) +
+            alpha = 0.2) +
+  geom_line(data = hydrat_means, # new data
+            aes(x = day,
+                y = osml_mean,
+                group = humidity_tmt_percent,
+                color = humidity_tmt_percent),
+            size = 1.6,
+            alpha = 1) +
   theme_classic() + 
   scale_color_brewer(palette = "Set2",
                      name = "Humidity Treatment") +
@@ -1122,12 +1159,12 @@ rehydrat_dat %>%
 rehab_osml_fig
 
 # export figure
-ggsave(filename = "rehab_osml_fig.jpeg",
-       plot = rehab_osml_fig,
-       path = "./final_figures",
-       device = "jpeg",
-       dpi = 1200,
-       width = 5, height = 4)
+#ggsave(filename = "rehab_osml_fig.jpeg",
+ #      plot = rehab_osml_fig,
+  #     path = "./final_figures",
+   #    device = "jpeg",
+    #   dpi = 1200,
+     #  width = 5, height = 4)
 ```
 
 
@@ -1152,12 +1189,19 @@ rehydrat_dat %>%
                  color = humidity_tmt_percent
                  ), 
              size = 1, 
-             alpha = 1) +
+             alpha = 0.6) +
   geom_line(aes(x = day,
                 y = hematocrit_percent,
                 group = individual_ID,
                 color = humidity_tmt_percent),
-            alpha = 0.6) +
+            alpha = 0.2) +
+  geom_line(data = hydrat_means, # new data
+            aes(x = day,
+                y = hct_mean,
+                group = humidity_tmt_percent,
+                color = humidity_tmt_percent),
+            size = 1.6,
+            alpha = 1) +
   theme_classic() + 
   scale_color_brewer(palette = "Set2",
                      name = "Humidity Treatment") +
@@ -1181,31 +1225,31 @@ rehydrat_dat %>%
 rehab_hct_fig
 
 # export figure
-ggsave(filename = "rehab_hct_fig.jpeg",
-       plot = rehab_hct_fig,
-       path = "./final_figures",
-       device = "jpeg",
-       dpi = 1200,
-       width = 5, height = 4)
+#ggsave(filename = "rehab_hct_fig.jpeg",
+ #      plot = rehab_hct_fig,
+  #     path = "./final_figures",
+   #    device = "jpeg",
+    #   dpi = 1200,
+     #  width = 5, height = 4)
 ```
 
 
 ## Multi-Figure
 
 ```{r}
-ggarrange(rehab_SMI_fig, rehab_osml_fig, rehab_hct_fig,
+ggarrange(rehab_osml_fig, rehab_SMI_fig, rehab_hct_fig,
           ncol = 1, nrow = 3,
           common.legend = TRUE,
           legend = "bottom"
           ) -> rehab_multi_fig
 rehab_multi_fig
 # export figure
-ggsave(filename = "rehab_multi_fig.jpeg",
-       plot = rehab_multi_fig,
-       path = "./final_figures",
-       device = "jpeg",
-       dpi = 1200,
-       width = 6, height = 12)
+#ggsave(filename = "rehab_multi_fig.jpeg",
+ #      plot = rehab_multi_fig,
+  #     path = "./final_figures",
+   #    device = "jpeg",
+    #   dpi = 1200,
+     #  width = 6, height = 12)
 ```
 
 

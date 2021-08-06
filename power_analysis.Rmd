@@ -36,7 +36,9 @@ Factors to remember/include:
 
 # Load Data
 
-```{r load data}
+## CEWL 
+
+```{r load CEWL data}
 # CEWL data
 CEWL <- read.csv("./exported_data/exp_effects_CEWL.csv",
                              na.strings=c("","NA")
@@ -51,12 +53,17 @@ CEWL <- read.csv("./exported_data/exp_effects_CEWL.csv",
   dplyr::select(-X) %>%
   dplyr::filter(complete.cases(TEWL_g_m2h))
 summary(CEWL)
+```
 
+
+## Hydration
+
+```{r}
 # hydration data
 hydration <- read.csv("./exported_data/exp_effects_hydration.csv",
                              na.strings=c("","NA")
                              ) %>%
-  dplyr::filter(type %in% c("exp", "capture")) %>%
+  dplyr::filter(type %in% c("exp", "capture")) %>% # don't include rehab
   dplyr::mutate(date = as.Date(date, format = "%Y-%m-%d"),
                 type = as.factor(type),
                 humidity_tmt_percent = as.factor(humidity_tmt_percent),
@@ -70,14 +77,82 @@ summary(hydration)
 
 
 
+# CEWL 
 
-# Data Prep
+## Augment Data
 
 Since my first try of doing this experiment only had temperature 25C, I'm going to duplicate the data and remake it as 35C so I can build a model off of that.
 
-*Does this even make sense?*
+```{r}
+# make fake
+fake_35C_CEWL <- CEWL %>%
+  mutate(temp_tmt_C = 35)
 
-## Hydration
+# join & format
+fake_CEWL_dat <- fake_35C_CEWL %>%
+  rbind(CEWL) %>%
+  # make indiv ID and trial num factors
+  mutate(individual_ID = as.factor(individual_ID),
+         trial_number = as.factor(trial_number),
+         #temp_tmt_C = as.factor(temp_tmt_C) # CANNOT BE A FACTOR ?!
+         )
+
+# check
+summary(fake_CEWL_dat)
+```
+
+
+## Model
+
+```{r}
+CEWL_mod_fake <- lme4::lmer(data = fake_CEWL_dat,
+                         TEWL_g_m2h ~ 
+                         temp_tmt_C*humidity_tmt_percent*day + region +
+                         (1|trial_number/individual_ID))
+                    # random effect of individual nested within trial number
+summary(CEWL_mod_fake)
+```
+
+region, humidity treatment, before/after, and the before/after interaction with treatment are all significant and important
+
+
+## Power Analysis
+
+```{r}
+num_liz <- (4:10)*10
+
+#CEWL_mod <- lme4::lmer(data = fake_CEWL_dat,
+ #                        TEWL_g_m2h ~
+  #                       temp_tmt_C*humidity_tmt_percent*day + region +
+   #                      (1|trial_number/individual_ID))
+
+extensions <- purrr::map(num_liz,
+                  function(x)
+                    extend(CEWL_mod_fake, along = "individual_ID", n = x))
+
+powersims <- map_dfr(extensions,
+                 ~powerSim(.x,
+                           fixed("humidity_tmt_percent:day", "lr"),
+                           nsim = 20) %>%
+                   summary()
+)
+
+powersims$sample_size = num_liz
+
+powersims %>%
+  ggplot(aes(x = sample_size, y = mean)) +
+  geom_point() +
+  geom_line() +
+  theme_classic() +
+  geom_hline(yintercept = .8) +
+  geom_errorbar(aes(ymin = lower, ymax = upper))
+```
+
+
+
+# Hydration
+
+## Augment Data
 
 ```{r}
 # make fake
@@ -96,47 +171,8 @@ fake_hydration_dat <- fake_35C_hyd %>%
 summary(fake_hydration_dat)
 ```
 
-## CEWL
 
-```{r}
-# make fake
-fake_35C_CEWL <- CEWL %>%
-  mutate(temp_tmt_C = 35)
-
-# join & format
-fake_CEWL_dat <- fake_35C_CEWL %>%
-  rbind(CEWL) %>%
-  # make indiv ID and trial num factors
-  mutate(individual_ID = as.factor(individual_ID),
-         trial_number = as.factor(trial_number),
-         temp_tmt_C = as.factor(temp_tmt_C))
-
-# check
-summary(fake_CEWL_dat)
-```
-
-
-## Effect Sizes
-
-Calculate the desired effect sizes for each variable as (mean treatment (humid) - mean control (dry)) / sd control. 
-
-```{r}
-effects <- hydration %>%
-  group_by(humidity_tmt_percent) %>%
-  summarise(mean_osml = mean(osmolality_mmol_kg, na.rm = TRUE),
-            sd_osml = sd(osmolality_mmol_kg, na.rm = TRUE),
-            mean_hct = mean(hematocrit_percent, na.rm = TRUE),
-            sd_hct = sd(hematocrit_percent, na.rm = TRUE),
-            mean_mass = mean(mass_g),
-            sd_mass = sd(mass_g)
-            )
-effects
-```
-
-
-# Create Models
-
-## Osmolality
+## Model
 
 ```{r}
 # compute with fake temperature effects
@@ -154,10 +190,12 @@ osmol_mod_real <- lme4::lmer(data = hydration,
 
 summary(osmol_mod_real)
 ```
-humidity treatment, day, and their interaction are all important for osmolality
+humidity treatment, day, and their interaction are all already important for osmolality
 
 
-## Hematocrit
+# Hematocrit
+
+## Model
 
 ```{r}
 hct_mod_real <- lme4::lmer(data = hydration,
@@ -172,7 +210,9 @@ only day is important for hematocrit
 
 
 
-## SMI (Mass)
+# SMI (Mass)
+
+## Model
 
 ```{r}
 SMI_mod_real <- lme4::lmer(data = hydration,
@@ -184,32 +224,11 @@ summary(SMI_mod_real)
 only day is really important for scaled mass index, so this is definitely an important variable for doing power analysis
 
 
-## CEWL
 
-```{r}
-# compute with fake data
-CEWL_mod <- lme4::lmer(data = fake_CEWL_dat,
-                         TEWL_g_m2h ~ 
-                         temp_tmt_C*humidity_tmt_percent*day + region +
-                         (1|trial_number/individual_ID))
-                    # random effect of individual nested within trial number
-summary(CEWL_mod)
-
-# compute without fake data
-CEWL_mod_real <- lme4::lmer(data = CEWL,
-                         TEWL_g_m2h ~ 
-                         humidity_tmt_percent*day + region +
-                         (1|trial_number/individual_ID))
-                    # random effect of individual nested within trial number
-summary(CEWL_mod_real)
-```
-
-region, humidity treatment, before/after, and the before/after interaction with treatment are all significant and important
 
 
 # Power Analyses
 
-Now that I have models for everything, I'll go through and test the power of each predictor variable (including interactions) to guess-timate whether my current sample size could be effective in distinguishing the same differences in future, slightly different studies. 
 
 ```{r}
 CEWL_mod_ext <- extend(CEWL_mod,
@@ -222,36 +241,7 @@ powerSim(CEWL_mod_ext,
          nsim = 20) 
 ```
 
-```{r}
-num_liz <- (4:10)*10
 
-#CEWL_mod <- lme4::lmer(data = fake_CEWL_dat,
- #                        TEWL_g_m2h ~
-  #                       temp_tmt_C*humidity_tmt_percent*day + region +
-   #                      (1|trial_number/individual_ID))
-
-extensions <- purrr::map(num_liz,
-                  function(x)
-                    extend(CEWL_mod, along = "individual_ID", n = x))
-
-powersims <- map_dfr(extensions,
-                 ~powerSim(.x,
-                           fixed("humidity_tmt_percent:day", "lr"),
-                           nsim = 20) %>%
-                   summary()
-)
-
-powersims$sample_size = num_liz
-
-powersims %>%
-  ggplot(aes(x = sample_size, y = mean)) +
-  geom_point() +
-  geom_line() +
-  theme_classic() +
-  geom_hline(yintercept = .8) +
-  geom_errorbar(aes(ymin = lower, ymax = upper))
-
-```
 
 
 

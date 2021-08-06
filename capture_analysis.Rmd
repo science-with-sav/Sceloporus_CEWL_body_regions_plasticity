@@ -636,8 +636,9 @@ CEWL_data_full$region <- factor(CEWL_data_full$region,
                                 levels = c("dors", "vent", 
                                            "head", "dewl", "mite"),
                                 labels = c("Dorsum", "Ventrum", "Head",
-                                           "Dewlap", "Mite Patch"),
-                                ordered = TRUE)
+                                           "Dewlap", "Mite Patch")
+                                )
+head(CEWL_data_full)
 ```
 
 NOTE: running this more than once overrides things, so be careful
@@ -1033,7 +1034,7 @@ morpho_blood_SMI %>%
   xlab("Sex") + 
   ylab("Hematocrit (%)") + 
   annotate("text", x = 1.5, y = 45, 
-           label = "paste(italic(p), \" = 0.0167\")", 
+           label = "paste(italic(p), \" = 0.02\")", 
            parse = TRUE,
            size = 6) +
   ylim(10, 50) +
@@ -1052,12 +1053,12 @@ morpho_blood_SMI %>%
 hct_sex_fig
 
 # export figure
-#ggsave(filename = "hct_sex_fig.tiff",
- #      plot = hct_sex_fig,
-  #     path = "./final_figures",
-   #    device = "tiff",
-    #   dpi = 1200,
-     #  width = 6, height = 4)
+ggsave(filename = "hct_sex_fig.jpeg",
+       plot = hct_sex_fig,
+       path = "./final_figures",
+       device = "jpeg",
+       dpi = 1200,
+       width = 6, height = 4)
 
 # lms
 lm_hct_sex_mass <- lm(hematocrit_percent ~ sex_M_F*mass_g - mass_g,
@@ -1398,6 +1399,7 @@ morpho_blood_SMI %>%
 ### Osml ~ Abs. Humidity
 
 ```{r}
+my_blue <- RColorBrewer::brewer.pal(8, "Set2")[3]
 morpho_blood_SMI %>% 
   ggplot(data = .) + 
   geom_point(aes(x = abs_humidity_g_m3_interpol,
@@ -1410,7 +1412,7 @@ morpho_blood_SMI %>%
               formula = y ~ x, 
               method = "lm", 
               se = F, 
-              color = "royalblue",
+              color = my_blue,
               size = 1.6, 
               alpha = 1 ) + 
   theme_classic() + 
@@ -1419,12 +1421,12 @@ morpho_blood_SMI %>%
   ylab("") +
   xlim(8, 12) +
   ylim(300, 450) +
-  annotate("text", x = 8.5, y = 440, 
-           label = "paste(italic(R) ^ 2, \" = 0.038\")", 
+  annotate("text", x = 8.4, y = 450, 
+           label = "paste(italic(R) ^ 2, \" = 0.04\")", 
            parse = TRUE,
            size = 6) +
-  annotate("text", x = 8.5, y = 428, 
-           label = "paste(italic(p), \" = 0.011\")", 
+  annotate("text", x = 8.4, y = 435, 
+           label = "paste(italic(p), \" = 0.01\")", 
            parse = TRUE,
            size = 6) +
   theme(text = element_text(color = "black", 
@@ -1438,10 +1440,10 @@ morpho_blood_SMI %>%
 osml_abhum_fig
 
 # export figure
-#ggsave(filename = "osml_abhum_fig.tiff",
+#ggsave(filename = "osml_abhum_fig.jpeg",
  #      plot = osml_abhum_fig,
   #     path = "./final_figures",
-   #    device = "tiff",
+   #    device = "jpeg",
     #   dpi = 1200,
      #  width = 6, height = 4)
 
@@ -1532,6 +1534,8 @@ summary(lm_hct_temp)
 ### Osml ~ Temperature
 
 ```{r}
+my_red <- RColorBrewer::brewer.pal(8, "Set2")[4]
+
 morpho_blood_SMI %>% 
   ggplot(data = .) + 
   geom_point(aes(x = temp_C_interpol,
@@ -1544,17 +1548,17 @@ morpho_blood_SMI %>%
               formula = y ~ x, 
               method = "lm", 
               se = F, 
-              color = "maroon",
+              color = my_red,
               size = 1.6, 
               alpha = 1 ) + 
   theme_classic() + 
   xlab("Ambient Temperature at Capture (°C)") + 
   ylab("Plasma Osmolality (mmol / kg)") + 
-  annotate("text", x = 22, y = 320, 
-           label = "paste(italic(R) ^ 2, \" = 0.2929\")", 
+  annotate("text", x = 23, y = 320, 
+           label = "paste(italic(R) ^ 2, \" = 0.29\")", 
            parse = TRUE,
            size = 6) +
-  annotate("text", x = 22, y = 308, 
+  annotate("text", x = 23, y = 305, 
            label = "paste(italic(p), \" < 0.0001\")", 
            parse = TRUE,
            size = 6) +
@@ -1571,10 +1575,10 @@ morpho_blood_SMI %>%
 osml_temp_fig
 
 # export figure
-#ggsave(filename = "osml_temp_fig.tiff",
+#ggsave(filename = "osml_temp_fig.jpeg",
  #      plot = osml_temp_fig,
   #     path = "./final_figures",
-   #    device = "tiff",
+   #    device = "jpeg",
     #   dpi = 1200,
      #  width = 6, height = 4)
 
@@ -1672,12 +1676,12 @@ ggarrange(osml_temp_fig, osml_abhum_fig,
           ) -> osml_multi_fig
 osml_multi_fig
 # export figure
-ggsave(filename = "osml_multi_fig.jpeg",
-       plot = osml_multi_fig,
-       path = "./final_figures",
-       device = "jpeg",
-       dpi = 1200,
-       width = 12, height = 4)
+#ggsave(filename = "osml_multi_fig.jpeg",
+ #      plot = osml_multi_fig,
+  #     path = "./final_figures",
+   #    device = "jpeg",
+    #   dpi = 1200,
+     #  width = 12, height = 4)
 ```
 
 
@@ -1714,11 +1718,11 @@ CEWL_data_full %>%
   theme_classic() + 
   xlab("Body Region") + 
   ylab(bquote('CEWL (g / '*m^2~h*')')) + 
-  annotate("text", x = 1, y = 65, label = "a", size = 6) +
-  annotate("text", x = 2, y = 62, label = "b", size = 6) +
-  annotate("text", x = 3, y = 105, label = "b", size = 6) +
-  annotate("text", x = 4, y = 92, label = "a", size = 6) +
-  annotate("text", x = 5, y = 75, label = "b", size = 6) +
+  annotate("text", x = 1, y = 64, label = "a", size = 6) +
+  annotate("text", x = 2, y = 77, label = "b", size = 6) +
+  annotate("text", x = 3, y = 95, label = "b", size = 6) +
+  annotate("text", x = 4, y = 65, label = "a", size = 6) +
+  annotate("text", x = 5, y = 106, label = "b", size = 6) +
   scale_color_brewer(palette = "Set2") +
   ylim(1, 110) +
   theme(text = element_text(color = "black", 
@@ -1733,12 +1737,12 @@ CEWL_data_full %>%
 CEWL_region_fig
 
 # export figure
-#ggsave(filename = "CEWL_region_fig.tiff",
- #      plot = CEWL_region_fig,
-  #     path = "./final_figures",
-   #    device = "tiff",
-    #   dpi = 1200,
-     #  width = 6, height = 4)
+ggsave(filename = "CEWL_region_fig.jpeg",
+       plot = CEWL_region_fig,
+       path = "./final_figures",
+       device = "jpeg",
+       dpi = 1200,
+       width = 6, height = 4)
 ```
 
 
@@ -2389,10 +2393,11 @@ CEWL_data_full %>%
         plot.margin = unit(c(0.1,0.1,0.1,0), "cm"),
         legend.text.align = 0,
         legend.position = "none"
-        #legend.position = c(0.15, 0.85)
+        #legend.position = c(0.5, 0.5)
          ) -> CEWL_mass_fig
 CEWL_mass_fig
 
+# MUST CHANGE COMMENTS ABOVE to produce this
 CEWL_legend <- as_ggplot(get_legend(CEWL_mass_fig))
 
 # export figure
@@ -2557,18 +2562,19 @@ The following variables should be included in the full LMM:
 
 ```{r}
 ggarrange(cap_temp_CEWL, CEWL_ctemp_fig, 
-          CEWL_abshum_fig, CEWL_mass_fig, 
-          sorad_CEWL_plot, CEWL_legend,
+          sorad_CEWL_plot, CEWL_mass_fig, 
+          CEWL_abshum_fig, 
+          CEWL_legend, # doesn't actually work
           ncol = 2, nrow = 3
           ) -> CEWL_multi_fig
 CEWL_multi_fig
 # export figure
-ggsave(filename = "CEWL_multi_fig.jpeg",
-       plot = CEWL_multi_fig,
-       path = "./final_figures",
-       device = "jpeg",
-       dpi = 1200,
-       width = 12, height = 12)
+#ggsave(filename = "CEWL_multi_fig.jpeg",
+ #      plot = CEWL_multi_fig,
+  #     path = "./final_figures",
+   #    device = "jpeg",
+    #   dpi = 1200,
+     #  width = 12, height = 12)
 ```
 
 
@@ -2664,7 +2670,7 @@ Dropping the current predictors will not improve AIC any more than its current v
 
 ```{r}
 # save model 2 summary object
-osml_best_mod <- broom::tidy(hydrat_mod2)
+osml_best_mod <- broom.mixed::tidy(hydrat_mod2)
 # export 
 write.csv(osml_best_mod, "./best models/osml_best_mod_vals.csv")
 ```
@@ -2939,6 +2945,9 @@ CEWL_mod_dat2 <- CEWL_data_full %>%
   dplyr::filter(complete.cases(.)) # able to have 5 more observations
 
 # redo best model
+
+
+
 # model 3
 CEWL_mod3_adj <- lme4::lmer(data = CEWL_mod_dat2,
                         TEWL_g_m2h ~
@@ -3234,7 +3243,7 @@ The best CEWL model should use log-transformed CEWL because this greatly improve
 
 ```{r}
 # save log model 3 summary object
-CEWL_best_t_mod <- broom::tidy(CEWL_mod3_t)
+CEWL_best_t_mod <- broom.mixed::tidy(CEWL_mod3_t)
 # export 
 write.csv(CEWL_best_t_mod, "./best models/CEWL_best_mod_t_vals.csv")
 ```

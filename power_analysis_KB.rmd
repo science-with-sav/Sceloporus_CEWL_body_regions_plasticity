@@ -76,7 +76,9 @@ fake_CEWL_dat <- fake_35C_CEWL %>%
   rbind(CEWL) %>%
   # make indiv ID and trial num factors
   mutate(individual_ID = as.factor(individual_ID),
-         trial_number = as.factor(trial_number))
+         trial_number = as.factor(trial_number),
+         #temp_tmt_C = as.factor(temp_tmt_C) # CANNOT BE A FACTOR
+         )
 
 # check
 summary(fake_CEWL_dat)
@@ -86,7 +88,7 @@ summary(fake_CEWL_dat)
 
 
 ```{r}
-num_liz <- (4:10)*10
+num_liz <- (4:10)*10 # this is the TOTAL number of lizards
 
 CEWL_mod <- lme4::lmer(data = fake_CEWL_dat,
                          TEWL_g_m2h ~ 
