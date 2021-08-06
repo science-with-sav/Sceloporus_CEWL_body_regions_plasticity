@@ -1762,6 +1762,42 @@ TukeyHSD(CEWL_region_aov)
 ```
 
 
+### CEWL Heat Map
+
+get means:
+
+```{r}
+mean_CEWL_region <- CEWL_data_full %>%
+  group_by(region) %>%
+  summarise(CEWL = mean(TEWL_g_m2h)) %>%
+  arrange(CEWL)
+mean_CEWL_region
+```
+
+get colors:
+
+```{r}
+my_CEWL_colors <- RColorBrewer::brewer.pal(9, "Blues")[1:9]
+```
+
+assign colors:
+
+```{r}
+CEWL_heatmap_colors <- data.frame(region = c("Dorsum", 
+                                             "Ventrum", 
+                                             "Head",
+                                             "Dewlap", 
+                                             "Mite Patch"), 
+                                  color = c(my_CEWL_colors[1], #dorsum
+                                            my_CEWL_colors[2], #ventrum
+                                            my_CEWL_colors[7], #head
+                                            my_CEWL_colors[8], #dewlap
+                                            my_CEWL_colors[9])) #mite patch
+
+#write.csv(CEWL_heatmap_colors, "./CEWL_heatmap_colors.csv")
+```
+
+
 
 ### CEWL ~ Osmolality
 
@@ -2949,7 +2985,7 @@ CEWL_mod_dat2 <- CEWL_data_full %>%
 
 
 # model 3
-CEWL_mod3_adj <- lme4::lmer(data = CEWL_mod_dat2,
+CEWL_mod3_adj <- lmerTest::lmer(data = CEWL_mod_dat2,
                         TEWL_g_m2h ~
                          region * (mass_g +
                                      temp_C_interpol +
@@ -2967,12 +3003,10 @@ summary(CEWL_mod3_adj)
 The best model is CEWL predicted by: body region and its interaction with mass and capture temp and humidity, cloacal temperature, solar radiation at capture time, and individual ID as a random effect.
 
 ```{r}
-# save best model summary object
-CEWL_best_mod <- summary(CEWL_mod3_adj)
-# extract stats table from summary object
-CEWL_best_mod_vals <- data.frame(CEWL_best_mod$coefficients)
+# save best model info
+CEWL_best_mod <- broom.mixed::tidy(CEWL_mod3_adj)
 # export 
-#write.csv(CEWL_best_mod_vals, "./best models/CEWL_best_mod_vals.csv")
+#write.csv(CEWL_best_mod, "./best models/CEWL_best_mod_vals.csv")
 ```
 
 

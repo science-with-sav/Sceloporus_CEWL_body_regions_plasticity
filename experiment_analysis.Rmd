@@ -358,6 +358,9 @@ CEWL$region <- factor(CEWL$region,
 CEWL$humidity_tmt_percent <- factor(CEWL$humidity_tmt_percent,
                                        levels = c("humid", "dry"),
                                        labels = c("Humid", "Dry"))
+CEWL$day <- factor(CEWL$day,
+                                       levels = c("before", "after"),
+                                       labels = c("Before", "After"))
 summary(CEWL)
 ```
 
