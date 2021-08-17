@@ -1,7 +1,7 @@
 ---
 title: "Power Analysis for Future Hydration Studies"
 author: "Savannah Weaver"
-date: "June 2021"
+date: "August 2021"
 output: pdf_document
 ---
 
@@ -12,14 +12,12 @@ if (!require("tidyverse")) install.packages("tidyverse")
 library("tidyverse")
 if (!require("UsingR")) install.packages("UsingR")
 library("UsingR")
-if (!require("pwr")) install.packages("pwr")
-library("pwr") # basic power analysis
 if (!require("simr")) install.packages("simr")
 library("simr") # more complex power analysis
-if (!require("nlme")) install.packages("nlme")
-library("nlme") # for LMMs
-if (!require("purrr")) install.packages("purrr")
-library("purrr")
+if (!require("lme4")) install.packages("lme4")
+library("lme4") # for LMMs
+if (!require("ggpubr")) install.packages("ggpubr")
+library("ggpubr") # for ggplot multi-figures
 ```
 
 
@@ -34,12 +32,15 @@ Factors to remember/include:
 
 
 
-# Load Data
+# Load & Augment Data
+
+Since my first try of doing this experiment only had temperature 25C, I'm going to duplicate the data and remake it as 35C so I can build a model off of that.
+
 
 ## CEWL 
 
 ```{r load CEWL data}
-# CEWL data
+# real CEWL data
 CEWL <- read.csv("./exported_data/exp_effects_CEWL.csv",
                              na.strings=c("","NA")
                              ) %>%
@@ -53,37 +54,7 @@ CEWL <- read.csv("./exported_data/exp_effects_CEWL.csv",
   dplyr::select(-X) %>%
   dplyr::filter(complete.cases(TEWL_g_m2h))
 summary(CEWL)
-```
 
-
-## Hydration
-
-```{r}
-# hydration data
-hydration <- read.csv("./exported_data/exp_effects_hydration.csv",
-                             na.strings=c("","NA")
-                             ) %>%
-  dplyr::filter(type %in% c("exp", "capture")) %>% # don't include rehab
-  dplyr::mutate(date = as.Date(date, format = "%Y-%m-%d"),
-                type = as.factor(type),
-                humidity_tmt_percent = as.factor(humidity_tmt_percent),
-                individual_ID = as.factor(individual_ID),
-                trial_number = as.factor(trial_number)
-                ) %>%
-  dplyr::select(-X) 
-summary(hydration)
-```
-
-
-
-
-# CEWL 
-
-## Augment Data
-
-Since my first try of doing this experiment only had temperature 25C, I'm going to duplicate the data and remake it as 35C so I can build a model off of that.
-
-```{r}
 # make fake
 fake_35C_CEWL <- CEWL %>%
   mutate(temp_tmt_C = 35)
@@ -102,59 +73,23 @@ summary(fake_CEWL_dat)
 ```
 
 
-## Model
+## Hydration
 
 ```{r}
-CEWL_mod_fake <- lme4::lmer(data = fake_CEWL_dat,
-                         TEWL_g_m2h ~ 
-                         temp_tmt_C*humidity_tmt_percent*day + region +
-                         (1|trial_number/individual_ID))
-                    # random effect of individual nested within trial number
-summary(CEWL_mod_fake)
-```
+# real hydration data
+hydration <- read.csv("./exported_data/exp_effects_hydration.csv",
+                             na.strings=c("","NA")
+                             ) %>%
+  dplyr::filter(type %in% c("exp", "capture")) %>% # don't include rehab
+  dplyr::mutate(date = as.Date(date, format = "%Y-%m-%d"),
+                type = as.factor(type),
+                humidity_tmt_percent = as.factor(humidity_tmt_percent),
+                individual_ID = as.factor(individual_ID),
+                trial_number = as.factor(trial_number)
+                ) %>%
+  dplyr::select(-X) 
+summary(hydration)
 
-region, humidity treatment, before/after, and the before/after interaction with treatment are all significant and important
-
-
-## Power Analysis
-
-```{r}
-num_liz <- (4:10)*10
-
-#CEWL_mod <- lme4::lmer(data = fake_CEWL_dat,
- #                        TEWL_g_m2h ~
-  #                       temp_tmt_C*humidity_tmt_percent*day + region +
-   #                      (1|trial_number/individual_ID))
-
-extensions <- purrr::map(num_liz,
-                  function(x)
-                    extend(CEWL_mod_fake, along = "individual_ID", n = x))
-
-powersims <- map_dfr(extensions,
-                 ~powerSim(.x,
-                           fixed("humidity_tmt_percent:day", "lr"),
-                           nsim = 20) %>%
-                   summary()
-)
-
-powersims$sample_size = num_liz
-
-powersims %>%
-  ggplot(aes(x = sample_size, y = mean)) +
-  geom_point() +
-  geom_line() +
-  theme_classic() +
-  geom_hline(yintercept = .8) +
-  geom_errorbar(aes(ymin = lower, ymax = upper))
-```
-
-
-
-# Hydration
-
-## Augment Data
-
-```{r}
 # make fake
 fake_35C_hyd <- hydration %>%
   mutate(temp_tmt_C = 35)
@@ -172,25 +107,236 @@ summary(fake_hydration_dat)
 ```
 
 
+
+
+# CEWL 
+
 ## Model
 
 ```{r}
-# compute with fake temperature effects
-osmol_mod <- lme4::lmer(data = fake_hydration_dat,
+CEWL_mod_fake <- lme4::lmer(data = fake_CEWL_dat,
+                         TEWL_g_m2h ~ 
+                         temp_tmt_C*humidity_tmt_percent*day + region +
+                         (1|trial_number/individual_ID))
+                    # random effect of individual nested within trial number
+```
+
+region, humidity treatment, before/after, and the before/after interaction with treatment are all significant and important
+
+
+## Power Analysis Calculations
+
+```{r}
+num_liz <- (4:12)*10 # TOTAL number of lizards 40-120
+
+CEWL_extensions <- purrr::map(num_liz,
+                  function(x)
+                    extend(CEWL_mod_fake, along = "individual_ID", n = x))
+
+# temp:humidity INTERACTION effect over course of experiment
+CEWL_powersimsboth <- map_dfr(CEWL_extensions,
+                 ~powerSim(.x,
+                           fixed("temp_tmt_C:humidity_tmt_percent:day", "lr"),
+                           nsim = 100) %>%
+                   summary()
+)
+
+CEWL_powersimsboth$sample_size = num_liz
+
+# humidity only
+CEWL_powersimshum <- map_dfr(CEWL_extensions,
+                 ~powerSim(.x,
+                           fixed("humidity_tmt_percent:day", "lr"),
+                           nsim = 100) %>%
+                   summary()
+)
+
+CEWL_powersimshum$sample_size = num_liz
+
+# temp only
+CEWL_powersimstemp <- map_dfr(CEWL_extensions,
+                 ~powerSim(.x,
+                           fixed("temp_tmt_C:day", "lr"),
+                           nsim = 100) %>%
+                   summary()
+)
+
+CEWL_powersimstemp$sample_size = num_liz
+```
+
+
+## Figures
+
+```{r}
+CEWL_sim_fig_both <- CEWL_powersimsboth %>%
+  ggplot(aes(x = sample_size, y = mean)) +
+  geom_point() +
+  geom_line() +
+  theme_classic() +
+  scale_x_continuous(breaks = c((4:12)*10)) +
+  geom_hline(yintercept = .8, color = "darkorchid4") +
+  geom_hline(yintercept = 1, color = "chartreuse4") +
+  geom_hline(yintercept = .9, color = "darkblue") +
+  geom_errorbar(aes(ymin = lower, ymax = upper)) +
+  ggtitle("CEWL ~ Temp*Humidity*Day Power Analysis") +
+  ylab("Mean Power to Detect Differences") + 
+  xlab("Total Sample Size Across Tmts & Trials")
+
+CEWL_sim_fig_hum <- CEWL_powersimshum %>%
+  ggplot(aes(x = sample_size, y = mean)) +
+  geom_point() +
+  geom_line() +
+  theme_classic() +
+  scale_x_continuous(breaks = c((4:12)*10)) +
+  geom_hline(yintercept = .8, color = "darkorchid4") +
+  geom_hline(yintercept = 1, color = "chartreuse4") +
+  geom_hline(yintercept = .9, color = "darkblue") +
+  geom_errorbar(aes(ymin = lower, ymax = upper)) +
+  ggtitle("CEWL ~ Humidity*Day Power Analysis") +
+  ylab("Mean Power to Detect Differences") + 
+  xlab("Total Sample Size Across Tmts & Trials")
+
+CEWL_sim_fig_temp <- CEWL_powersimstemp %>%
+  ggplot(aes(x = sample_size, y = mean)) +
+  geom_point() +
+  geom_line() +
+  theme_classic() +
+  scale_x_continuous(breaks = c((4:12)*10)) +
+  geom_hline(yintercept = .8, color = "darkorchid4") +
+  geom_hline(yintercept = 1, color = "chartreuse4") +
+  geom_hline(yintercept = .9, color = "darkblue") +
+  geom_errorbar(aes(ymin = lower, ymax = upper)) +
+  ggtitle("CEWL ~ Temp*Day Power Analysis") +
+  ylab("Mean Power to Detect Differences") + 
+  xlab("Total Sample Size Across Tmts & Trials")
+
+CEWL_multi_power_fig <- ggarrange(CEWL_sim_fig_both, 
+                                  CEWL_sim_fig_hum, 
+                                  CEWL_sim_fig_temp, 
+                                  ncol = 1, nrow = 3)
+
+ggsave(filename = "power_sim_fig_CEWL.jpeg",
+       plot = CEWL_multi_power_fig,
+       path = "./power_analysis",
+       device = "jpeg",
+       dpi = 1200,
+       width = 6, height = 12)
+```
+
+
+
+# Hydration
+
+## Model
+
+```{r}
+osml_mod_fake <- lme4::lmer(data = fake_hydration_dat,
                          osmolality_mmol_kg ~ 
                          temp_tmt_C*humidity_tmt_percent*day + 
                           (1|trial_number))
-summary(osmol_mod)
-
-# compute without fake temperature effects
-osmol_mod_real <- lme4::lmer(data = hydration,
-                         osmolality_mmol_kg ~ 
-                         humidity_tmt_percent*day + 
-                          (1|trial_number))
-
-summary(osmol_mod_real)
+summary(osml_mod_fake)
 ```
 humidity treatment, day, and their interaction are all already important for osmolality
+
+## Power Analysis Calculations
+
+```{r}
+osml_extensions <- purrr::map(num_liz,
+                  function(x)
+                    extend(osml_mod_fake, along = "individual_ID", n = x))
+
+# temp:humidity INTERACTION effect over course of experiment
+osml_powersimsboth <- map_dfr(osml_extensions,
+                 ~powerSim(.x,
+                           fixed("temp_tmt_C:humidity_tmt_percent:day", "lr"),
+                           nsim = 100) %>%
+                   summary()
+)
+
+osml_powersimsboth$sample_size = num_liz
+
+# humidity only
+osml_powersimshum <- map_dfr(osml_extensions,
+                 ~powerSim(.x,
+                           fixed("humidity_tmt_percent:day", "lr"),
+                           nsim = 100) %>%
+                   summary()
+)
+
+osml_powersimshum$sample_size = num_liz
+
+# temp only
+osml_powersimstemp <- map_dfr(osml_extensions,
+                 ~powerSim(.x,
+                           fixed("temp_tmt_C:day", "lr"),
+                           nsim = 100) %>%
+                   summary()
+)
+
+osml_powersimstemp$sample_size = num_liz
+```
+
+
+## Figures
+
+```{r}
+osml_sim_fig_both <- osml_powersimsboth %>%
+  ggplot(aes(x = sample_size, y = mean)) +
+  geom_point() +
+  geom_line() +
+  theme_classic() +
+  scale_x_continuous(breaks = c((4:12)*10)) +
+  geom_hline(yintercept = .8, color = "darkorchid4") +
+  geom_hline(yintercept = 1, color = "chartreuse4") +
+  geom_hline(yintercept = .9, color = "darkblue") +
+  geom_errorbar(aes(ymin = lower, ymax = upper)) +
+  ggtitle("Osmolality ~ Temp*Humidity*Day Power Analysis") +
+  ylab("Mean Power to Detect Differences") + 
+  xlab("Total Sample Size Across Tmts & Trials")
+
+osml_sim_fig_hum <- osml_powersimshum %>%
+  ggplot(aes(x = sample_size, y = mean)) +
+  geom_point() +
+  geom_line() +
+  theme_classic() +
+  scale_x_continuous(breaks = c((4:12)*10)) +
+  geom_hline(yintercept = .8, color = "darkorchid4") +
+  geom_hline(yintercept = 1, color = "chartreuse4") +
+  geom_hline(yintercept = .9, color = "darkblue") +
+  geom_errorbar(aes(ymin = lower, ymax = upper)) +
+  ggtitle("Osmolality ~ Humidity*Day Power Analysis") +
+  ylab("Mean Power to Detect Differences") + 
+  xlab("Total Sample Size Across Tmts & Trials")
+
+osml_sim_fig_temp <- osml_powersimstemp %>%
+  ggplot(aes(x = sample_size, y = mean)) +
+  geom_point() +
+  geom_line() +
+  theme_classic() +
+  scale_x_continuous(breaks = c((4:12)*10)) +
+  geom_hline(yintercept = .8, color = "darkorchid4") +
+  geom_hline(yintercept = 1, color = "chartreuse4") +
+  geom_hline(yintercept = .9, color = "darkblue") +
+  geom_errorbar(aes(ymin = lower, ymax = upper)) +
+  ggtitle("Osmolality ~ Temp*Day Power Analysis") +
+  ylab("Mean Power to Detect Differences") + 
+  xlab("Total Sample Size Across Tmts & Trials")
+
+osml_multi_power_fig <- ggarrange(osml_sim_fig_both, 
+                                  osml_sim_fig_hum, 
+                                  osml_sim_fig_temp, 
+                                  ncol = 1, nrow = 3)
+
+ggsave(filename = "power_sim_fig_osml.jpeg",
+       plot = osml_multi_power_fig,
+       path = "./power_analysis",
+       device = "jpeg",
+       dpi = 1200,
+       width = 6, height = 12)
+```
+
+
+
 
 
 # Hematocrit
@@ -198,15 +344,113 @@ humidity treatment, day, and their interaction are all already important for osm
 ## Model
 
 ```{r}
-hct_mod_real <- lme4::lmer(data = hydration,
+hct_mod_fake <- lme4::lmer(data = fake_hydration_dat,
                          hematocrit_percent ~ 
-                         #temp_tmt_C * 
-                           humidity_tmt_percent * day + 
+                         temp_tmt_C * humidity_tmt_percent * day + 
                          (1|trial_number))
-summary(hct_mod_real)
+summary(hct_mod_fake)
 ```
 
 only day is important for hematocrit
+
+
+## Power Analysis Calculations
+
+```{r}
+hct_extensions <- purrr::map(num_liz,
+                  function(x)
+                    extend(hct_mod_fake, along = "individual_ID", n = x))
+
+# temp:humidity INTERACTION effect over course of experiment
+hct_powersimsboth <- map_dfr(hct_extensions,
+                 ~powerSim(.x,
+                           fixed("temp_tmt_C:humidity_tmt_percent:day", "lr"),
+                           nsim = 100) %>%
+                   summary()
+)
+
+hct_powersimsboth$sample_size = num_liz
+
+# humidity only
+hct_powersimshum <- map_dfr(hct_extensions,
+                 ~powerSim(.x,
+                           fixed("humidity_tmt_percent:day", "lr"),
+                           nsim = 100) %>%
+                   summary()
+)
+
+hct_powersimshum$sample_size = num_liz
+
+# temp only
+hct_powersimstemp <- map_dfr(hct_extensions,
+                 ~powerSim(.x,
+                           fixed("temp_tmt_C:day", "lr"),
+                           nsim = 100) %>%
+                   summary()
+)
+
+hct_powersimstemp$sample_size = num_liz
+```
+
+
+## Figures
+
+```{r}
+hct_sim_fig_both <- hct_powersimsboth %>%
+  ggplot(aes(x = sample_size, y = mean)) +
+  geom_point() +
+  geom_line() +
+  theme_classic() +
+  scale_x_continuous(breaks = c((4:12)*10)) +
+  geom_hline(yintercept = .8, color = "darkorchid4") +
+  geom_hline(yintercept = 1, color = "chartreuse4") +
+  geom_hline(yintercept = .9, color = "darkblue") +
+  geom_errorbar(aes(ymin = lower, ymax = upper)) +
+  ggtitle("Hematocrit ~ Temp*Humidity*Day Power Analysis") +
+  ylab("Mean Power to Detect Differences") + 
+  xlab("Total Sample Size Across Tmts & Trials")
+
+hct_sim_fig_hum <- hct_powersimshum %>%
+  ggplot(aes(x = sample_size, y = mean)) +
+  geom_point() +
+  geom_line() +
+  theme_classic() +
+  scale_x_continuous(breaks = c((4:12)*10)) +
+  geom_hline(yintercept = .8, color = "darkorchid4") +
+  geom_hline(yintercept = 1, color = "chartreuse4") +
+  geom_hline(yintercept = .9, color = "darkblue") +
+  geom_errorbar(aes(ymin = lower, ymax = upper)) +
+  ggtitle("Hematocrit ~ Humidity*Day Power Analysis") +
+  ylab("Mean Power to Detect Differences") + 
+  xlab("Total Sample Size Across Tmts & Trials")
+
+hct_sim_fig_temp <- hct_powersimstemp %>%
+  ggplot(aes(x = sample_size, y = mean)) +
+  geom_point() +
+  geom_line() +
+  theme_classic() +
+  scale_x_continuous(breaks = c((4:12)*10)) +
+  geom_hline(yintercept = .8, color = "darkorchid4") +
+  geom_hline(yintercept = 1, color = "chartreuse4") +
+  geom_hline(yintercept = .9, color = "darkblue") +
+  geom_errorbar(aes(ymin = lower, ymax = upper)) +
+  ggtitle("Hematocrit ~ Temp*Day Power Analysis") +
+  ylab("Mean Power to Detect Differences") + 
+  xlab("Total Sample Size Across Tmts & Trials")
+
+hct_multi_power_fig <- ggarrange(hct_sim_fig_both, 
+                                  hct_sim_fig_hum, 
+                                  hct_sim_fig_temp, 
+                                  ncol = 1, nrow = 3)
+
+ggsave(filename = "power_sim_fig_hct.jpeg",
+       plot = hct_multi_power_fig,
+       path = "./power_analysis",
+       device = "jpeg",
+       dpi = 1200,
+       width = 6, height = 12)
+```
+
 
 
 
@@ -215,133 +459,113 @@ only day is important for hematocrit
 ## Model
 
 ```{r}
-SMI_mod_real <- lme4::lmer(data = hydration,
-                         mass_g ~ humidity_tmt_percent * day + 
+SMI_mod_fake <- lme4::lmer(data = fake_hydration_dat,
+                         mass_g ~ 
+                           temp_tmt_C * humidity_tmt_percent * day + 
                          (1|trial_number))
-summary(SMI_mod_real)
+summary(SMI_mod_fake)
 ```
 
 only day is really important for scaled mass index, so this is definitely an important variable for doing power analysis
 
 
 
-
-
-# Power Analyses
-
+## Power Analysis Calculations
 
 ```{r}
-CEWL_mod_ext <- extend(CEWL_mod,
-                       along = "individual_ID",
-                       n = 40)
-fixef(CEWL_mod_ext) <- 1/26
+SMI_extensions <- purrr::map(num_liz,
+                  function(x)
+                    extend(SMI_mod_fake, along = "individual_ID", n = x))
 
-powerSim(CEWL_mod_ext, 
-         fixed("humidity_tmt_percent:day", "lr"), 
-         nsim = 20) 
+# temp:humidity INTERACTION effect over course of experiment
+SMI_powersimsboth <- map_dfr(SMI_extensions,
+                 ~powerSim(.x,
+                           fixed("temp_tmt_C:humidity_tmt_percent:day", "lr"),
+                           nsim = 100) %>%
+                   summary()
+)
+
+SMI_powersimsboth$sample_size = num_liz
+
+# humidity only
+SMI_powersimshum <- map_dfr(SMI_extensions,
+                 ~powerSim(.x,
+                           fixed("humidity_tmt_percent:day", "lr"),
+                           nsim = 100) %>%
+                   summary()
+)
+
+SMI_powersimshum$sample_size = num_liz
+
+# temp only
+SMI_powersimstemp <- map_dfr(SMI_extensions,
+                 ~powerSim(.x,
+                           fixed("temp_tmt_C:day", "lr"),
+                           nsim = 100) %>%
+                   summary()
+)
+
+SMI_powersimstemp$sample_size = num_liz
 ```
 
 
-
-
-
-## Osmolality
-
-First, see what the power was for the preliminary trials we did.
+## Figures
 
 ```{r}
-powerSim(osmol_mod2, fixed("humidity_tmt_percent","lr"), nsim = 50) # 8-31
-powerSim(osmol_mod2, fixed("day","lr"), nsim = 50) # 0-7
-powerSim(osmol_mod2, fixed("humidity_tmt_percent:day","lr"), nsim = 50) # 21-49
+SMI_sim_fig_both <- SMI_powersimsboth %>%
+  ggplot(aes(x = sample_size, y = mean)) +
+  geom_point() +
+  geom_line() +
+  theme_classic() +
+  scale_x_continuous(breaks = c((4:12)*10)) +
+  geom_hline(yintercept = .8, color = "darkorchid4") +
+  geom_hline(yintercept = 1, color = "chartreuse4") +
+  geom_hline(yintercept = .9, color = "darkblue") +
+  geom_errorbar(aes(ymin = lower, ymax = upper)) +
+  ggtitle("SMI ~ Temp*Humidity*Day Power Analysis") +
+  ylab("Mean Power to Detect Differences") + 
+  xlab("Total Sample Size Across Tmts & Trials")
+
+SMI_sim_fig_hum <- SMI_powersimshum %>%
+  ggplot(aes(x = sample_size, y = mean)) +
+  geom_point() +
+  geom_line() +
+  theme_classic() +
+  scale_x_continuous(breaks = c((4:12)*10)) +
+  geom_hline(yintercept = .8, color = "darkorchid4") +
+  geom_hline(yintercept = 1, color = "chartreuse4") +
+  geom_hline(yintercept = .9, color = "darkblue") +
+  geom_errorbar(aes(ymin = lower, ymax = upper)) +
+  ggtitle("SMI ~ Humidity*Day Power Analysis") +
+  ylab("Mean Power to Detect Differences") + 
+  xlab("Total Sample Size Across Tmts & Trials")
+
+SMI_sim_fig_temp <- SMI_powersimstemp %>%
+  ggplot(aes(x = sample_size, y = mean)) +
+  geom_point() +
+  geom_line() +
+  theme_classic() +
+  scale_x_continuous(breaks = c((4:12)*10)) +
+  geom_hline(yintercept = .8, color = "darkorchid4") +
+  geom_hline(yintercept = 1, color = "chartreuse4") +
+  geom_hline(yintercept = .9, color = "darkblue") +
+  geom_errorbar(aes(ymin = lower, ymax = upper)) +
+  ggtitle("SMI ~ Temp*Day Power Analysis") +
+  ylab("Mean Power to Detect Differences") + 
+  xlab("Total Sample Size Across Tmts & Trials")
+
+SMI_multi_power_fig <- ggarrange(SMI_sim_fig_both, 
+                                  SMI_sim_fig_hum, 
+                                  SMI_sim_fig_temp, 
+                                  ncol = 1, nrow = 3)
+
+ggsave(filename = "power_sim_fig_SMI.jpeg",
+       plot = SMI_multi_power_fig,
+       path = "./power_analysis",
+       device = "jpeg",
+       dpi = 1200,
+       width = 6, height = 12)
 ```
-
-
-Now, compute the effect of increased sample sizes within treatment groups for each trial. This addresses how much power we can get if we increase the sample size within trials and treatment groups, and do the same number of treatment groups and trials as the data used to compute the power.
-
-```{r}
-osml_mod_ext <- extend(osmol_mod2,
-                       within = "humidity_tmt_percent +
-                       trial_number", 
-                       n = 10)
-```
-
-Next, run powerSim to determine the power for the various sample sizes.
-
-```{r}
-# designate effect size desired to detect
-fixef(osml_mod_ext) <- 1/26 # just estimating rn.... so small... 
-# run simulation
-osml_sim <- powerCurve(osml_mod_ext, 
-                     test = fixed('humidity_tmt_percent', 'lr'),
-                     within = "humidity_tmt_percent"
-                     )
-```
-
-Finally, plot to see how sample size affects power:
-
-```{r}
-plot(osml_sim)
-```
-
-
-
-
-
-## Hematocrit
-
-## Mass
-
-## BCI
-
-## CEWL
-
-```{r}
-powerSim(CEWL_mod, fixed("humidity_tmt_percent:day", "lr"), nsim = 20)
-```
-
-
-```{r}
-CEWL_mod_ext <- extend(CEWL_mod,
-                       within = "humidity_tmt_percent +
-                       trial_number", 
-                       n = 10)
-```
-
-Next, run powerSim to determine the power for the various sample sizes.
-
-```{r}
-# designate effect size desired to detect
-fixef(CEWL_mod_ext) <- 1/26 # just estimating rn.... so small... 
-# run simulation
-CEWL_sim <- powerCurve(CEWL_mod_ext, 
-                     test = fixed('humidity_tmt_percent:day', 'lr'),
-                     within = "humidity_tmt_percent+
-                       trial_number"
-                     )
-```
-
-Finally, plot to see how sample size affects power:
-
-```{r}
-plot(CEWL_sim)
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

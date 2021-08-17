@@ -30,7 +30,7 @@ library("lmerTest") # for p-values
 if (!require("onewaytests")) install.packages("onewaytests")
 library("onewaytests") # for Brown-Forsythe test
 if (!require("ggpubr")) install.packages("ggpubr")
-library("ggpubr") # for Brown-Forsythe test
+library("ggpubr") # for ggplot multi-figures
 if (!require("broom")) install.packages("broom")
 library("broom") # lmer model export
 ```
