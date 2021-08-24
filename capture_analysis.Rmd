@@ -109,6 +109,12 @@ morpho_blood_dat <- read.csv("./data/Herpetology_Data.csv", # filename
 summary(morpho_blood_dat)
 unique(morpho_blood_dat$date)
 
+# get info
+morpho_blood_dat %>%
+  dplyr::filter(complete.cases(hold_time)) %>%
+  summarise(mean_hold_time_minutes = mean(hold_time),
+            mean_hold_time_hrs = mean_hold_time_minutes/60)
+
 # export
 #write.csv(morpho_blood_dat, "exported_data/capture_hydration.csv")
 ```
