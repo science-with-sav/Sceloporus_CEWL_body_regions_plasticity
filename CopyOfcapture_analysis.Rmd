@@ -628,7 +628,8 @@ Add CEWL and morpho_blood_SMI data together.
 CEWL_data_full <- CEWL %>%
   left_join(morpho_blood_SMI, 
             by = c("date", "individual_ID")
-            ) 
+            ) %>%
+  mutate(ctemp_adj_CEWL = TEWL_g_m2h/(cloacal_temp_C))
 summary(CEWL_data_full)
 ```
 
@@ -648,6 +649,7 @@ head(CEWL_data_full)
 ```
 
 NOTE: running this more than once overrides things, so be careful
+
 
 
 # Check Data Distributions
@@ -1721,26 +1723,14 @@ CEWL_data_full %>%
                    ), 
                size = 1,
                alpha = 1) +
-  geom_jitter(aes(x = (region), 
-                   y = TEWL_g_m2h, 
-                   color = region
-                   ), 
-               size = 0.6,
-               alpha = 0.4) +
-  geom_point(aes(x = (region), 
-                   y = mean(TEWL_g_m2h), 
-                   color = region,
-                   ), 
-               size = 6,
-               alpha = 1) +
   theme_classic() + 
   xlab("Body Region") + 
   ylab(bquote('CEWL (g / '*m^2~h*')')) + 
   annotate("text", x = 1, y = 64, label = "a", size = 6) +
-  annotate("text", x = 2, y = 77, label = "a", size = 6) +
-  annotate("text", x = 3, y = 95, label = "a", size = 6) +
-  annotate("text", x = 4, y = 65, label = "b", size = 6) +
-  annotate("text", x = 5, y = 106, label = "c", size = 6) +
+  annotate("text", x = 2, y = 77, label = "b", size = 6) +
+  annotate("text", x = 3, y = 95, label = "b", size = 6) +
+  annotate("text", x = 4, y = 65, label = "a", size = 6) +
+  annotate("text", x = 5, y = 106, label = "b", size = 6) +
   scale_color_brewer(palette = "Set2") +
   ylim(1, 110) +
   theme(text = element_text(color = "black", 
@@ -1763,93 +1753,25 @@ ggsave(filename = "CEWL_region_fig.jpeg",
        width = 6, height = 4)
 ```
 
-
-### Body Region Ratios
-
 ```{r}
-CEWL_mite <- CEWL_data_full %>%
-  dplyr::filter(region == "Mite Patch") %>%
-  dplyr::select(mite_CEWL = TEWL_g_m2h, individual_ID)
-CEWL_dewl <- CEWL_data_full %>%
-  dplyr::filter(region == "Dewlap")%>%
-  dplyr::select(dewl_CEWL = TEWL_g_m2h, individual_ID)
-CEWL_head <- CEWL_data_full %>%
-  dplyr::filter(region == "Head") %>%
-  dplyr::select(head_CEWL = TEWL_g_m2h, individual_ID)
-CEWL_vent <- CEWL_data_full %>%
-  dplyr::filter(region == "Ventrum") %>%
-  dplyr::select(vent_CEWL = TEWL_g_m2h, individual_ID)
-CEWL_dors <- CEWL_data_full %>%
-  dplyr::filter(region == "Dorsum") %>%
-  dplyr::select(dors_CEWL = TEWL_g_m2h, individual_ID)
-
-by_region_CEWL <- CEWL_mite %>%
-  left_join(CEWL_dewl, by = "individual_ID") %>%
-  left_join(CEWL_head, by = "individual_ID") %>%
-  left_join(CEWL_vent, by = "individual_ID") %>%
-  left_join(CEWL_dors, by = "individual_ID") %>%
-  mutate(mite_dors = mite_CEWL/dors_CEWL,
-         dewl_dors = mite_CEWL/dors_CEWL,
-         head_dors = mite_CEWL/dors_CEWL,
-         vent_dors = mite_CEWL/dors_CEWL,
-         dors_dors = mite_CEWL/dors_CEWL,
-         )
-
-ratio_mite <- by_region_CEWL %>%
-  dplyr::select(individual_ID, ratio_to_dors = mite_dors) %>%
-  mutate(region = "Mite Patch")
-ratio_dewl <- by_region_CEWL %>%
-  dplyr::select(individual_ID, ratio_to_dors = dewl_dors) %>%
-  mutate(region = "Dewlap")
-ratio_head <- by_region_CEWL %>%
-  dplyr::select(individual_ID, ratio_to_dors = head_dors) %>%
-  mutate(region = "Head")
-ratio_vent <- by_region_CEWL %>%
-  dplyr::select(individual_ID, ratio_to_dors = vent_dors) %>%
-  mutate(region = "Ventrum")
-ratio_dors <- by_region_CEWL %>%
-  dplyr::select(individual_ID, ratio_to_dors = dors_dors) %>%
-  mutate(region = "Dorsum")
-
-vert_ratios <- ratio_mite %>%
-  rbind(ratio_dewl) %>%
-  rbind(ratio_head) %>%
-  rbind(ratio_vent) %>%
-  rbind(ratio_dors)
-```
-
-
-```{r}
-vert_ratios %>% 
+CEWL_data_full %>% 
   ggplot(data = .) + 
   geom_boxplot(aes(x = (region), 
-                   y = ratio_to_dors, 
+                   y = ctemp_adj_CEWL, 
                    color = region
                    ), 
                size = 1,
-               alpha = 1) +
-  geom_jitter(aes(x = (region), 
-                   y = ratio_to_dors, 
-                   color = region
-                   ), 
-               size = 1,
-               alpha = 0.3) +
-  geom_point(aes(x = (region), 
-                   y = mean(ratio_to_dors), 
-                   color = region
-                   ), 
-               size = 5,
                alpha = 1) +
   theme_classic() + 
   xlab("Body Region") + 
-  ylab(bquote('CEWL Ratio to Dorsal (g / '*m^2~h*')')) + 
+  ylab(bquote('Cloacal Temp-AdjustedCEWL (g / '*m^2~h*')')) + 
   annotate("text", x = 1, y = 64, label = "a", size = 6) +
   annotate("text", x = 2, y = 77, label = "b", size = 6) +
   annotate("text", x = 3, y = 95, label = "b", size = 6) +
   annotate("text", x = 4, y = 65, label = "a", size = 6) +
   annotate("text", x = 5, y = 106, label = "b", size = 6) +
   scale_color_brewer(palette = "Set2") +
-  ylim(1, 10) +
+  ylim(0, 5) +
   theme(text = element_text(color = "black", 
                             family = "sans", 
                             size = 18),
@@ -1858,20 +1780,17 @@ vert_ratios %>%
                                  size = 14),
         legend.text.align = 0,
         legend.position = "none"
-) -> CEWL_region_fig3
-CEWL_region_fig3
+) -> CEWL_region_fig2
+CEWL_region_fig2
 
 # export figure
-ggsave(filename = "CEWL_region_fig3.jpeg",
-       plot = CEWL_region_fig3,
+ggsave(filename = "CEWL_region_fig2.jpeg",
+       plot = CEWL_region_fig2,
        path = "./final_figures",
        device = "jpeg",
        dpi = 1200,
        width = 6, height = 4)
 ```
-
-
-
 
 ```{r}
 CEWL_lm1 <- lm(TEWL_g_m2h ~ region, data = CEWL_data_full)
