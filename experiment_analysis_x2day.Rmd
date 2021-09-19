@@ -22,6 +22,8 @@ if (!require("broom")) install.packages("broom")
 library("broom") # lmer model export
 if (!require("broom.mixed")) install.packages("broom.mixed")
 library("broom.mixed") # lmer model export
+if (!require("ggpubr")) install.packages("ggpubr")
+library("ggpubr") # multi-ggplot figures
 ```
 
 
@@ -594,7 +596,7 @@ NOT significantly different, which is good.
 
 Check whether means ended differently:
 
-```{r SMI check original difference}
+```{r SMI check ending difference}
 SMI_diff_lm_end <- all_dat_no_rehab %>%
   dplyr::filter(day %in% c(8, 9)) %>%
   lm(data = ., SMI ~ humidity_tmt_percent)
@@ -781,7 +783,7 @@ drop1(osml_mod)
 osml_modt <- trimmed %>%
   dplyr::filter(complete.cases(osmolality_mmol_kg)) %>%
   lmerTest::lmer(data = .,
-               osmolality_mmol_kg ~ day + humidity_tmt_percent +
+               osmolality_mmol_kg ~ day * humidity_tmt_percent +
                (1|trial_number))
 summary(osml_modt)
 drop1(osml_modt)
