@@ -1389,7 +1389,7 @@ morpho_blood_SMI %>%
               size = 1.6, 
               alpha = 1 ) + 
   theme_classic() + 
-  xlab("Vapor Pressure Deficit at Capture (kPa)") + 
+  xlab("Vapor Pressure Deficit (kPa)") + 
   #ylab("Osmolality (mmol/kg)") + 
   ylab("") +
   xlim(0, 2) +
@@ -1404,11 +1404,13 @@ morpho_blood_SMI %>%
            size = 6) +
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 18),
+                            size = 22),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 14),
+                                 size = 16),
+        axis.text.y = element_blank(),
         legend.text.align = 0,
+        plot.margin = unit(c(0.1,0,0.1,0.45), "cm"),
 ) -> osml_vpd_fig
 osml_vpd_fig
 
@@ -1522,8 +1524,8 @@ morpho_blood_SMI %>%
               size = 1.6, 
               alpha = 1 ) + 
   theme_classic() + 
-  xlab("Ambient Temperature at Capture (°C)") + 
-  ylab("Plasma Osmolality (mmol / kg)") + 
+  xlab("Ambient Temperature (°C)") + 
+  ylab("Plasma Osmolality\n(mmol / kg)") + 
   annotate("text", x = 23, y = 320, 
            label = "paste(italic(R) ^ 2, \" = 0.29\")", 
            parse = TRUE,
@@ -1536,11 +1538,12 @@ morpho_blood_SMI %>%
   ylim(300,450) +
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 18),
+                            size = 22),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 14),
+                                 size = 16),
         legend.text.align = 0,
+        plot.margin = unit(c(0.1,0,0.1,0.45), "cm"),
 ) -> osml_temp_fig
 osml_temp_fig
 
@@ -1642,7 +1645,10 @@ Hematocrit was only meaningfully different based on sex, so that's the only stat
 
 ```{r}
 ggarrange(osml_temp_fig, osml_vpd_fig,
-          ncol = 2, nrow = 1
+          ncol = 2, nrow = 1,
+          labels = c("A", "B", "C", "D", "E", "F"),
+          hjust = c(-2, -0.5),
+          font.label = list(size = 24, face = "bold", color ="black")
           ) -> osml_multi_fig
 osml_multi_fig
 # export figure
@@ -1680,7 +1686,7 @@ Potential relationships:
 CEWL_data_full %>% 
   ggplot(data = .) + 
   geom_boxplot(aes(x = (region), 
-                   y = TEWL_g_m2h, 
+                   y = (TEWL_g_m2h), 
                    color = region
                    ), 
                size = 1,
@@ -2026,14 +2032,14 @@ CEWL_data_full %>%
   xlim(20, 28) +
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 18),
+                            size = 22),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 14),
+                                 size = 16),
         legend.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 12),
-        plot.margin = unit(c(0.1,0.1,0.1,0), "cm"),
+                                 size = 26),
+        plot.margin = unit(c(0.1,0,0.35,0.45), "cm"),
         legend.text.align = 0,
         legend.position = "none"
         #legend.position = c(0.9, 0.85)
@@ -2083,17 +2089,20 @@ CEWL_data_full %>%
               alpha = 1 ) + 
   scale_color_brewer(palette = "Set2") +
   theme_classic() + 
-  xlab("Ambient Temperature at Capture (°C)") + 
+  xlab("Ambient Temperature (°C)") + 
   #ylab("") +
   ylim(1, 100) +
   ylab(bquote('CEWL (g/'*m^2*'h)')) + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 18),
+                            size = 22),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 14),
-        plot.margin = unit(c(0.1,0.5,0.1,0.1), "cm"),
+                                 size = 16),
+        legend.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 26),
+        plot.margin = unit(c(0.1,0,0.35,0.1), "cm"),
         legend.text.align = 0,
         legend.position = "none"
 ) -> cap_temp_CEWL
@@ -2127,8 +2136,9 @@ CEWL_data_full %>%
               size = 1.6, 
               alpha = 1 ) + 
   theme_classic() + 
-  xlab("Vapor Pressure Deficit at Capture (kPa)") + 
-  ylab(bquote('CEWL (g/'*m^2*'h)')) + 
+  xlab("Vapor Pressure Deficit (kPa)") + 
+  #ylab(bquote('CEWL (g/'*m^2*'h)')) + 
+  ylab("") +
   #annotate("text", x = 1, y = 65, label = "a", size = 6) +
   scale_color_brewer(palette = "Set2",
                      name = "") +
@@ -2136,15 +2146,15 @@ CEWL_data_full %>%
   xlim(0.3, 1.6) +
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 18),
+                            size = 22),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 14),
+                                 size = 16),
         legend.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 12),
+                                 size = 26),
         legend.text.align = 0,
-        plot.margin = unit(c(0.1,0.5,0.1,0.1), "cm"),
+        plot.margin = unit(c(0.1,0,0.35,0.45), "cm"),
         legend.position = "none"
         #legend.position = c(0.15, 0.85)
          ) -> CEWL_vpd_fig
@@ -2189,23 +2199,38 @@ CEWL_data_full %>%
               size = 1.6, 
               alpha = 1 ) + 
   theme_classic() + 
-  xlab("Average Windspeed During Measurement") + 
-  ylab("CEWL") + 
-  ylim(1, 100) +
+  scale_color_brewer(palette = "Set2") +
+  xlab("Wind Speed (mph)") + 
+  #ylab(bquote('CEWL (g/'*m^2*'h)')) + 
+  ylab("") +
+  ylim(0,100) +
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 12),
+                            size = 22),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 10),
+                                 size = 16),
+        legend.text = element_text(color = "black", 
+                                 family = "sans", 
+                                 size = 26),
+        axis.text.y = element_blank(),
+        plot.margin = unit(c(0.1,0,0.35,0.45), "cm"),
         legend.text.align = 0,
-)
+        legend.position = "none"
+) -> wind_CEWL_plot
+wind_CEWL_plot
 
+```
+
+model:
+
+```{r}
 # lm: CEWL ~ region + aquaflux measurement RH
 CEWL_lm7 <- lm(TEWL_g_m2h ~ region + Wind_mph_interpol,
            data = CEWL_data_full)
 summary(CEWL_lm7)
 ```
+
 
 ### CEWL ~ Solar Rad
 
@@ -2229,20 +2254,21 @@ CEWL_data_full %>%
               alpha = 1 ) + 
   theme_classic() + 
   scale_color_brewer(palette = "Set2") +
-  xlab(bquote('Solar Radiation at Capture (W/'*m^2*')')) + 
-  ylab(bquote('CEWL (g/'*m^2*'h)')) + 
-  #ylab("") +
+  xlab(bquote('Solar Radiation (W/'*m^2*')')) + 
+  #ylab(bquote('CEWL (g/'*m^2*'h)')) + 
+  ylab("") +
   ylim(0,100) +
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 18),
+                            size = 22),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 14),
+                                 size = 16),
         legend.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 12),
-        plot.margin = unit(c(0.1,0.5,0.1,0.1), "cm"),
+                                 size = 26),
+        axis.text.y = element_blank(),
+        plot.margin = unit(c(0.1,0,0,0.45), "cm"),
         legend.text.align = 0,
         legend.position = "none"
 ) -> sorad_CEWL_plot
@@ -2510,14 +2536,15 @@ CEWL_data_full %>%
   scale_x_continuous(breaks = c(seq(2, 16, by = 2))) +
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 18),
+                            size = 22),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 14),
+                                 size = 16),
+        axis.text.y = element_blank(),
         legend.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 18),
-        plot.margin = unit(c(0.1,0.1,0.1,0), "cm"),
+                                 size = 26),
+        plot.margin = unit(c(0.1,0,0.35,0.45), "cm"),
         legend.text.align = 0,
         legend.position = "none"
         #legend.position = c(0.5, 0.5)
@@ -2687,11 +2714,14 @@ The following variables should be included in the full LMM:
 ## CEWL Multi-Figure
 
 ```{r}
-ggarrange(cap_temp_CEWL, CEWL_ctemp_fig, 
-          sorad_CEWL_plot, CEWL_mass_fig, 
-          CEWL_vpd_fig, 
-          CEWL_legend, # doesn't actually work
-          ncol = 2, nrow = 3
+ggarrange(CEWL_vpd_fig, wind_CEWL_plot, 
+          cap_temp_CEWL, sorad_CEWL_plot, 
+          CEWL_ctemp_fig, CEWL_mass_fig,
+          labels = c("A", "B", "C", "D", "E", "F"),
+          font.label = list(size = 24, face = "bold", color ="black"),
+          ncol = 2, nrow = 3,
+          common.legend = TRUE,
+          legend = "bottom"
           ) -> CEWL_multi_fig
 CEWL_multi_fig
 # export figure
@@ -2700,7 +2730,7 @@ ggsave(filename = "CEWL_multi_fig.jpeg",
        path = "./final_figures",
        device = "jpeg",
        dpi = 1200,
-       width = 12, height = 12)
+       width = 12, height = 14)
 ```
 
 
