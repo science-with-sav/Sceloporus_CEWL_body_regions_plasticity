@@ -763,7 +763,7 @@ Check whether means started out different:
 
 ```{r SMI check original difference}
 SMI_diff_lm <- all_dat_no_rehab %>%
-  dplyr::filter(day == 0) %>%
+  dplyr::filter(day == "Before Experiment") %>%
   lm(data = ., SMI ~ humidity_tmt_percent)
 summary(SMI_diff_lm)
 ```
@@ -774,7 +774,7 @@ Check whether means ended differently:
 
 ```{r SMI check ending difference}
 SMI_diff_lm_end <- all_dat_no_rehab %>%
-  dplyr::filter(day %in% c(8, 9)) %>%
+  dplyr::filter(day == "After Experiment") %>%
   lm(data = ., SMI ~ humidity_tmt_percent)
 summary(SMI_diff_lm_end)
 ```
