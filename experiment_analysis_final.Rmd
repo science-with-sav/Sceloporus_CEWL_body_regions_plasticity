@@ -790,7 +790,7 @@ summary(SMI_mod)
 drop1(SMI_mod)
 
 # drop interaction term
-SMI_mod2 <- lmerTest::lmer(data = all_dat_no_rehab,
+SMI_mod2 <- lme4::lmer(data = all_dat_no_rehab,
                SMI ~ day + humidity_tmt_percent +
                (1|trial_number))
 summary(SMI_mod2)
@@ -800,28 +800,14 @@ drop1(SMI_mod2)
 
 ### Check Conditions
 
-First, get residuals:
-
-```{r}
-res_SMI_mod2 <- all_dat_no_rehab %>%
-  mutate(y_hat = predict(SMI_mod2),
-         e = residuals(SMI_mod2))
-```
-
 
 Is the function **linear**? Is there **equal** variance of the residuals? The residuals should be homoskedactic relative to y_hat (or x). Plotting residuals shows us whether the data meets linearity and equal variance assumptions:
 
 ```{r}
-ggplot(data = res_SMI_mod2, aes(x = y_hat, y = e)) +
-  geom_point() + 
-  theme_classic() + 
-  xlab("predicted y (y-hat)") +
-  ylab("residuals (e)") +
-  ggtitle("") +
-  geom_hline(yintercept = 0)
+plot(SMI_mod2)
 ```
 
-
+L & E both look good.
 
 
 Is the distribution of residuals **normal**?
@@ -830,23 +816,24 @@ H0: data is NOT significantly different from normal distribution
 HA: data IS significantly different from normal distribution
 
 ```{r}
-simple.eda(res_SMI_mod2$e)
-shapiro.test(res_SMI_mod2$e)
+simple.eda(residuals(SMI_mod2))
+shapiro.test(residuals(SMI_mod2))
 ```
 
-
+Normality is fine.
 
 
 
 
 ### Export Best
 
-
-
 SMI is best predicted by day and treatment, but not including their interaction.
 
 ```{r}
-write.csv(broom.mixed::tidy(SMI_mod2t), 
+SMI_mod_final <- lmerTest::lmer(data = all_dat_no_rehab,
+                                SMI ~ day + humidity_tmt_percent +
+                                  (1|trial_number))
+write.csv(broom.mixed::tidy(SMI_mod_final), 
           "./best models/exp_effects_SMI.csv")
 ```
 
@@ -856,59 +843,45 @@ write.csv(broom.mixed::tidy(SMI_mod2t),
 
 ### Build Model
 
-this model seemed to work well with indiv as a random factor, but still excluded because it's probably unnecessary
-
 ```{r hct models}
 hct_mod <- all_dat_no_rehab %>%
   dplyr::filter(complete.cases(hematocrit_percent)) %>%
   lme4::lmer(data = .,
-               hematocrit_percent ~ day + humidity_tmt_percent +
+               hematocrit_percent ~ day * humidity_tmt_percent +
                (1|trial_number))
 summary(hct_mod)
 drop1(hct_mod)
 
-# drop humidity
+# drop day*humidity interaction
 hct_mod2 <- all_dat_no_rehab %>%
   dplyr::filter(complete.cases(hematocrit_percent)) %>%
-  lmerTest::lmer(data = .,
-               hematocrit_percent ~ day +
+  lme4::lmer(data = .,
+               hematocrit_percent ~ day + humidity_tmt_percent +
                (1|trial_number))
 summary(hct_mod2)
 drop1(hct_mod2)
 
-hct_mod2t <- trimmed %>%
+# drop humidity tmt
+hct_mod3 <- all_dat_no_rehab %>%
   dplyr::filter(complete.cases(hematocrit_percent)) %>%
-  lmerTest::lmer(data = .,
+  lme4::lmer(data = .,
                hematocrit_percent ~ day +
                (1|trial_number))
-summary(hct_mod2t)
+summary(hct_mod3)
+drop1(hct_mod3)
 ```
 
-The model AIC is slightly better without the interaction effect, so I removed that. The effect of humidity could ALSO be dropped, so humidity treatment was not an important factor affecting hematocrit, but how many days lizards were in treatment was. Both treatment groups lost hematocrit at approximately the same rate. 
 
 ### Check Conditions
 
-First, get residuals:
-
-```{r}
-res_ <- all_dat_no_rehab %>%
-  mutate(y_hat = predict(),
-         e = residuals())
-```
-
-
 Is the function **linear**? Is there **equal** variance of the residuals? The residuals should be homoskedactic relative to y_hat (or x). Plotting residuals shows us whether the data meets linearity and equal variance assumptions:
 
+
 ```{r}
-ggplot(data = res_, aes(x = y_hat, y = e)) +
-  geom_point() + 
-  theme_classic() + 
-  xlab("predicted y (y-hat)") +
-  ylab("residuals (e)") +
-  ggtitle("") +
-  geom_hline(yintercept = 0)
+plot(hct_mod3)
 ```
 
+L & E both seem fine. Slight fanning to the right, but otherwise no big pattern, so L is definitely okay. E could use help.
 
 
 
@@ -918,17 +891,22 @@ H0: data is NOT significantly different from normal distribution
 HA: data IS significantly different from normal distribution
 
 ```{r}
-simple.eda(res_$e)
-shapiro.test(res_$e)
+simple.eda(residuals(hct_mod3))
+shapiro.test(residuals(hct_mod3))
 ```
 
-
+residuals are normally distributed!
 
 
 
 ### Export Best
 ```{r}
-write.csv(broom::tidy(hct_mod2t), 
+hct_mod_final <- all_dat_no_rehab %>%
+  dplyr::filter(complete.cases(hematocrit_percent)) %>%
+  lmerTest::lmer(data = .,
+               hematocrit_percent ~ day +
+               (1|trial_number))
+write.csv(broom::tidy(hct_mod_final), 
           "./best models/exp_effects_hct.csv")
 ```
 
@@ -937,50 +915,27 @@ write.csv(broom::tidy(hct_mod2t),
 
 ### Build Model
 
-singular warning - do NOT include individual ID as a random effect
-
 ```{r osmolality model}
 osml_mod <- all_dat_no_rehab %>%
   dplyr::filter(complete.cases(osmolality_mmol_kg)) %>%
-  lmerTest::lmer(data = .,
+  lme4::lmer(data = .,
                osmolality_mmol_kg ~ day * humidity_tmt_percent +
                (1|trial_number))
 summary(osml_mod)
 drop1(osml_mod)
-
-osml_modt <- trimmed %>%
-  dplyr::filter(complete.cases(osmolality_mmol_kg)) %>%
-  lmerTest::lmer(data = .,
-               osmolality_mmol_kg ~ day * humidity_tmt_percent +
-               (1|trial_number))
-summary(osml_modt)
-drop1(osml_modt)
 ```
+
+This is the best model.
 
 ### Check Conditions
-
-First, get residuals:
-
-```{r}
-res_ <- all_dat_no_rehab %>%
-  mutate(y_hat = predict(),
-         e = residuals())
-```
-
 
 Is the function **linear**? Is there **equal** variance of the residuals? The residuals should be homoskedactic relative to y_hat (or x). Plotting residuals shows us whether the data meets linearity and equal variance assumptions:
 
 ```{r}
-ggplot(data = res_, aes(x = y_hat, y = e)) +
-  geom_point() + 
-  theme_classic() + 
-  xlab("predicted y (y-hat)") +
-  ylab("residuals (e)") +
-  ggtitle("") +
-  geom_hline(yintercept = 0)
+plot(osml_mod)
 ```
 
-
+L & E both seem fine.
 
 
 Is the distribution of residuals **normal**?
@@ -989,11 +944,11 @@ H0: data is NOT significantly different from normal distribution
 HA: data IS significantly different from normal distribution
 
 ```{r}
-simple.eda(res_$e)
-shapiro.test(res_$e)
+simple.eda(residuals(osml_mod))
+shapiro.test(residuals(osml_mod))
 ```
 
-
+Normality is fine.
 
 
 
@@ -1002,7 +957,12 @@ shapiro.test(res_$e)
 The model seems good as-is. 
 
 ```{r}
-write.csv(broom::tidy(osml_modt), 
+osml_mod_final <- all_dat_no_rehab %>%
+  dplyr::filter(complete.cases(osmolality_mmol_kg)) %>%
+  lmerTest::lmer(data = .,
+               osmolality_mmol_kg ~ day * humidity_tmt_percent +
+               (1|trial_number))
+write.csv(broom::tidy(osml_mod_final), 
           "./best models/exp_effects_osml.csv")
 ```
 
@@ -1023,7 +983,7 @@ summary(CEWL_mod)
 drop1(CEWL_mod)
 ```
 
-Drop triple interaction. I think the day:region standalone would be weird too.
+Drop triple interaction.
 
 ```{r CEWL model 2}
 CEWL_mod2 <- CEWL %>%
@@ -1041,7 +1001,7 @@ We can drop the humidity:region interaction.
 ```{r CEWL model 3}
 CEWL_mod3 <- CEWL %>%
   dplyr::filter(complete.cases(.)) %>%
-  lmerTest::lmer(data = .,
+  lme4::lmer(data = .,
                TEWL_g_m2h ~ 
                day*humidity_tmt_percent + region + cloacal_temp_C +
                (1|trial_number/individual_ID))
@@ -1052,28 +1012,13 @@ drop1(CEWL_mod3)
 
 ### Check Conditions
 
-First, get residuals:
-
-```{r}
-res_ <- all_dat_no_rehab %>%
-  mutate(y_hat = predict(),
-         e = residuals())
-```
-
-
 Is the function **linear**? Is there **equal** variance of the residuals? The residuals should be homoskedactic relative to y_hat (or x). Plotting residuals shows us whether the data meets linearity and equal variance assumptions:
 
 ```{r}
-ggplot(data = res_, aes(x = y_hat, y = e)) +
-  geom_point() + 
-  theme_classic() + 
-  xlab("predicted y (y-hat)") +
-  ylab("residuals (e)") +
-  ggtitle("") +
-  geom_hline(yintercept = 0)
+plot(CEWL_mod3)
 ```
 
-
+clear fanning shape... L & E are not satisfied.
 
 
 Is the distribution of residuals **normal**?
@@ -1082,12 +1027,29 @@ H0: data is NOT significantly different from normal distribution
 HA: data IS significantly different from normal distribution
 
 ```{r}
-simple.eda(res_$e)
-shapiro.test(res_$e)
+simple.eda(residuals(CEWL_mod3))
+shapiro.test(residuals(CEWL_mod3))
 ```
 
+distribution not normal
 
+### Transform CEWL
 
+```{r}
+CEWL_mod3_t <- CEWL %>%
+  dplyr::filter(complete.cases(.)) %>%
+  lme4::lmer(data = .,
+               log(TEWL_g_m2h) ~ 
+               day*humidity_tmt_percent + region + cloacal_temp_C +
+               (1|trial_number/individual_ID))
+summary(CEWL_mod3_t)
+drop1(CEWL_mod3_t)
+plot(CEWL_mod3_t)
+simple.eda(residuals(CEWL_mod3_t))
+shapiro.test(residuals(CEWL_mod3_t))
+```
+
+L, E, and N are all satisfied now. :)
 
 
 ### Export Best
@@ -1096,7 +1058,13 @@ shapiro.test(res_$e)
 The model is best with all the parameters currently included in model 3. 
 
 ```{r}
-write.csv(broom::tidy(CEWL_mod3), 
+CEWL_mod_final <- CEWL %>%
+  dplyr::filter(complete.cases(TEWL_g_m2h)) %>%
+  lmerTest::lmer(data = .,
+               log(TEWL_g_m2h) ~ 
+               day*humidity_tmt_percent + region + cloacal_temp_C +
+               (1|trial_number/individual_ID))
+write.csv(broom::tidy(CEWL_mod_final), 
           "./best models/exp_effects_CEWL.csv")
 ```
 
