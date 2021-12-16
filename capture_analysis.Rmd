@@ -19,10 +19,10 @@ if (!require("weathermetrics")) install.packages("weathermetrics")
 library("weathermetrics") # F to C conversion
 if (!require("PerformanceAnalytics")) install.packages("PerformanceAnalytics") 
 library("PerformanceAnalytics") # pretty multicollinearity plots
+if (!require("AICcmodavg")) install.packages("AICcmodavg")
+library("AICcmodavg") # VIF calculations
 if (!require("UsingR")) install.packages("UsingR")
 library("UsingR")
-if (!require("MASS")) install.packages("MASS")
-library("MASS") # model selection & box-cox
 if (!require("lme4")) install.packages("lme4")
 library("lme4") # for LMMs
 if (!require("lmerTest")) install.packages("lmerTest")
@@ -408,13 +408,8 @@ look for outliers by calculating residuals
 
 ```{r}
 mass_SVL_SLR_residuals <- morpho_blood_dat %>%
-  # not working with function, so just compute by hand... 
-  mutate(#y_hat = predict(mass_SVL_SLR),
-         #e = residuals(mass_SVL_SLR),
-         y_hat = 0.40988*SVL_mm - 16.04514,
-         e = y_hat - mass_g
-         ) %>%
-  dplyr::filter(e < 3 & e > -3)
+  mutate(y_hat = 0.40988*SVL_mm - 16.04514,
+         e = y_hat - mass_g)
 ```
 
 plot residuals
@@ -424,23 +419,56 @@ ggplot(data = mass_SVL_SLR_residuals,
        aes(x = e)) +
   geom_histogram() + 
   theme_classic() + 
-  xlab("residuals (e)")
+  xlab("residuals (e)") +
+  geom_vline(xintercept = -3, linetype = "dashed", color = "maroon") +
+  geom_vline(xintercept = 3, linetype = "dashed", color = "maroon")
 ggplot(data = mass_SVL_SLR_residuals, 
        aes(x = e)) +
   geom_boxplot() + 
   theme_classic() + 
   scale_x_continuous(breaks = c(seq(-5, 5, 1))) +
   xlab("residuals (e)") +
-  geom_vline(xintercept = -3, lty = 1) +
-  geom_vline(xintercept = 3, lty = 1)
+  geom_vline(xintercept = -3, linetype = "dashed", color = "maroon") +
+  geom_vline(xintercept = 3, linetype = "dashed", color = "maroon")
 ```
 
 From the histogram, there are clearly points disconnected from the main curve. In the boxplot, we can distinguish that those outlying points have residuals <-3.5 and >3, so I'll go back and filter those out in the code chunk before making the distribution plots. Now the boxplot has no dots outside the main distribution.
 
+
+calculating residuals with outliers excluded
+
+```{r}
+mass_SVL_SLR_residuals2 <- morpho_blood_dat %>%
+  mutate(y_hat = 0.40988*SVL_mm - 16.04514,
+         e = y_hat - mass_g) %>%
+  dplyr::filter(e < 3 & e > -3)
+```
+
+plot new residuals
+
+```{r}
+ggplot(data = mass_SVL_SLR_residuals2, 
+       aes(x = e)) +
+  geom_histogram() + 
+  theme_classic() + 
+  xlab("residuals (e)") +
+  geom_vline(xintercept = -3, linetype = "dashed", color = "maroon") +
+  geom_vline(xintercept = 3, linetype = "dashed", color = "maroon")
+ggplot(data = mass_SVL_SLR_residuals2, 
+       aes(x = e)) +
+  geom_boxplot() + 
+  theme_classic() + 
+  scale_x_continuous(breaks = c(seq(-5, 5, 1))) +
+  xlab("residuals (e)") +
+  geom_vline(xintercept = -3, linetype = "dashed", color = "maroon") +
+  geom_vline(xintercept = 3, linetype = "dashed", color = "maroon")
+```
+
+
 And, check mean residual value:
 
 ```{r}
-mass_SVL_SLR_residuals %>%
+mass_SVL_SLR_residuals2 %>%
   summarise(mean_res = mean(e),
             med = median(e))
 ```
@@ -476,7 +504,7 @@ cooks <- data.frame(c = cooks.distance(mass_SVL_SLR) # specify model name
                     ) %>% mutate(row = rownames(.))
 
 # add to original dataframe 
-influential <- mass_SVL_SLR_residuals %>%
+influential <- mass_SVL_SLR_residuals2 %>%
   mutate(row = rownames(.)) %>% 
   left_join(., cooks, by = "row")
 
@@ -492,7 +520,7 @@ Create new SLR and check mean residual value after removing outliers and high le
 
 ```{r}
 # create new dataframe with filtered data 
-cleaned_SMI_dat <- mass_SVL_SLR_residuals %>% # already had outliers removed
+cleaned_SMI_dat <- mass_SVL_SLR_residuals2 %>% # already w outliers removed
   mutate(row = rownames(.)) %>%
   # add high leverage point info
   left_join(., high_leverage, by = "row") %>%
@@ -855,15 +883,13 @@ All of the non-normal variables are likely to need transformation if they're inc
 
 
 
-# Basic Figs & LMs
+# Basic Figures
 
-## What affects osmolality & hematocrit?
+## osmolality & hematocrit
 
 ### Hct ~ SVL
 
-
 ```{r}
-# plot
 morpho_blood_SMI %>% 
   ggplot(data = .) + 
   geom_point(aes(x = SVL_mm,
@@ -889,13 +915,7 @@ morpho_blood_SMI %>%
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 10),
-        legend.text.align = 0,
-)
-
-# lm
-lm_hct_SVL <- lm(hematocrit_percent ~ SVL_mm,
-           data = morpho_blood_SMI)
-summary(lm_hct_SVL)
+        legend.text.align = 0)
 ```
 
 
@@ -928,13 +948,7 @@ morpho_blood_SMI %>%
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 10),
-        legend.text.align = 0,
-)
-
-# lm
-lm_osml_SVL <- lm(osmolality_mmol_kg ~ SVL_mm,
-           data = morpho_blood_SMI)
-summary(lm_osml_SVL)
+        legend.text.align = 0)
 ```
 
 
@@ -966,17 +980,11 @@ morpho_blood_SMI %>%
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 10),
-        legend.text.align = 0,
-)
-
-# lm
-lm_hct_mass <- lm(hematocrit_percent ~ SMI,
-           data = morpho_blood_SMI)
-summary(lm_hct_mass)
+        legend.text.align = 0)
 ```
 
-### Osml ~ SMI
 
+### Osml ~ SMI
 
 ```{r}
 morpho_blood_SMI %>% 
@@ -1003,13 +1011,7 @@ morpho_blood_SMI %>%
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 10),
-        legend.text.align = 0,
-)
-
-# lm
-lm_osml_mass <- lm(osmolality_mmol_kg ~ SMI,
-           data = morpho_blood_SMI)
-summary(lm_osml_mass)
+        legend.text.align = 0)
 ```
 
 
@@ -1087,13 +1089,7 @@ morpho_blood_SMI %>%
   theme(text = element_text(color = "black", family = "sans", size = 12),
         axis.text = element_text(color = "black", family = "sans", size = 10),
         legend.text.align = 0,
-        legend.position = "none"
-)
-
-# lm
-lm_osml_sex <- lm(osmolality_mmol_kg ~ sex_M_F,
-           data = morpho_blood_SMI)
-summary(lm_osml_sex)
+        legend.position = "none")
 ```
 
 ### Hct ~ Gravidity
@@ -1116,13 +1112,7 @@ morpho_blood_SMI %>%
   theme(text = element_text(color = "black", family = "sans", size = 12),
         axis.text = element_text(color = "black", family = "sans", size = 10),
         legend.text.align = 0,
-        legend.position = "none"
-)
-
-# lm
-lm_hct_gravid <- lm(hematocrit_percent ~ gravid_Y_N,
-           data = morpho_blood_SMI)
-summary(lm_hct_gravid)
+        legend.position = "none")
 ```
 
 ### Osml ~ Gravidity
@@ -1145,13 +1135,7 @@ morpho_blood_SMI %>%
   theme(text = element_text(color = "black", family = "sans", size = 12),
         axis.text = element_text(color = "black", family = "sans", size = 10),
         legend.text.align = 0,
-        legend.position = "none"
-)
-
-# lm
-lm_osml_gravid <- lm(osmolality_mmol_kg ~ gravid_Y_N,
-           data = morpho_blood_SMI)
-summary(lm_osml_gravid)
+        legend.position = "none")
 ```
 
 ### Hct ~ Sample Eye
@@ -1201,14 +1185,7 @@ morpho_blood_SMI %>%
   theme(text = element_text(color = "black", family = "sans", size = 12),
         axis.text = element_text(color = "black", family = "sans", size = 10),
         legend.text.align = 0,
-        legend.position = "none"
-)
-
-# lm
-lm_osml_eye <- lm(osmolality_mmol_kg ~ blood_sample_eye,
-           data = morpho_blood_SMI)
-summary(lm_osml_eye)
-summary(morpho_blood_SMI$blood_sample_eye)
+        legend.position = "none")
 ```
 
 There IS a significant difference, but upon further inspection, the number of blood draws taken from the right postorbital sinus vs left or both is so uneven, this would be unhelpful in the actual model.
@@ -1233,13 +1210,7 @@ morpho_blood_SMI %>%
   theme(text = element_text(color = "black", family = "sans", size = 12),
         axis.text = element_text(color = "black", family = "sans", size = 10),
         legend.text.align = 0,
-        legend.position = "none"
-)
-
-# lm
-lm_hct_hem <- lm(hematocrit_percent ~ hemolyzed,
-           data = morpho_blood_SMI)
-summary(lm_hct_hem)
+        legend.position = "none")
 ```
 
 
@@ -1264,13 +1235,7 @@ morpho_blood_SMI %>%
   theme(text = element_text(color = "black", family = "sans", size = 12),
         axis.text = element_text(color = "black", family = "sans", size = 10),
         legend.text.align = 0,
-        legend.position = "none"
-)
-
-# lm
-lm_osml_hem <- lm(osmolality_mmol_kg ~ hemolyzed,
-           data = morpho_blood_SMI)
-summary(lm_osml_hem)
+        legend.position = "none")
 ```
 
 Osmolality in hemolyzed samples versus not are significantly different! This is an unfortunate trait of the dataset, and not something we are specifically interested in testing, so we will include it as a random factor in the LMM.
@@ -1292,13 +1257,7 @@ morpho_blood_SMI %>%
   theme(text = element_text(color = "black", family = "sans", size = 12),
         axis.text = element_text(color = "black", family = "sans", size = 10),
         legend.text.align = 0,
-        legend.position = "none"
-)
-
-# lm
-lm_hct_wk <- lm(hematocrit_percent ~ date,
-           data = morpho_blood_SMI)
-summary(lm_hct_wk)
+        legend.position = "none")
 ```
 
 
@@ -1421,11 +1380,6 @@ osml_vpd_fig
    #    device = "jpeg",
     #   dpi = 1200,
      #  width = 6, height = 4)
-
-# lm
-lm_osml_vpd <- lm(osmolality_mmol_kg ~ VPD_kPa_int,
-           data = morpho_blood_SMI)
-summary(lm_osml_vpd)
 ```
 
 
@@ -1457,13 +1411,7 @@ morpho_blood_SMI %>%
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 10),
-        legend.text.align = 0,
-)
-
-# lm
-lm_hct_VPD <- lm(hematocrit_percent ~ VPD_kPa_int,
-           data = morpho_blood_SMI)
-summary(lm_hct_VPD)
+        legend.text.align = 0)
 ```
 
 
@@ -1494,13 +1442,7 @@ morpho_blood_SMI %>%
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 10),
-        legend.text.align = 0,
-)
-
-# lm
-lm_hct_temp <- lm(hematocrit_percent ~ temp_C_interpol,
-           data = morpho_blood_SMI)
-summary(lm_hct_temp)
+        legend.text.align = 0)
 ```
 
 ### Osml ~ Temperature
@@ -1543,7 +1485,7 @@ morpho_blood_SMI %>%
                                  family = "sans", 
                                  size = 16),
         legend.text.align = 0,
-        plot.margin = unit(c(0.1,0,0.1,0.45), "cm"),
+        plot.margin = unit(c(0.1,0,0.1,0.45), "cm")
 ) -> osml_temp_fig
 osml_temp_fig
 
@@ -1554,11 +1496,6 @@ osml_temp_fig
    #    device = "jpeg",
     #   dpi = 1200,
      #  width = 6, height = 4)
-
-# lm
-lm_osml_temp <- lm(osmolality_mmol_kg ~ temp_C_interpol,
-           data = morpho_blood_SMI)
-summary(lm_osml_temp)
 ```
 
 ### Hct ~ Individual
@@ -1589,8 +1526,7 @@ morpho_blood_SMI %>%
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 10),
-        legend.text.align = 0,
-)
+        legend.text.align = 0)
 ```
 
 ### Osml ~ Individual
@@ -1621,24 +1557,9 @@ morpho_blood_SMI %>%
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 10),
-        legend.text.align = 0,
-)
+        legend.text.align = 0)
 ```
 
-
-
-## Conclusion
-
-Osmolality seems to be affected by:
-- SMI (large effect, although not statistically significant)
-- sex (NS)
-- whether or not the sample was hemolyzed (*) !
-- week/date of sampling!! (***)
-- capture temp & VPD (both ***)
-
-So, for the LMM to predict osmolality, we will start with SMI, hemolyzed/not, week/date, and capture temp and VPD as our predictor variables in the model. 
-
-Hematocrit was only meaningfully different based on sex, so that's the only statistic we'll include in the paper for what variables affect hematocrit.
 
 
 ## Osmolality Multi-Figure
@@ -1843,59 +1764,6 @@ ggsave(filename = "CEWL_region_fig3.jpeg",
 
 
 
-```{r}
-CEWL_lm1 <- lm(TEWL_g_m2h ~ region, data = CEWL_data_full)
-summary(CEWL_lm1)
-```
-
-Also get pairwise statistics:
-
-```{r}
-# one-way ANOVA
-CEWL_region_aov <- aov(data = CEWL_data_full,
-                       TEWL_g_m2h ~ region)
-# post-hoc pairwise analysis
-TukeyHSD(CEWL_region_aov)
-```
-
-
-### CEWL Heat Map
-
-get means:
-
-```{r}
-mean_CEWL_region <- CEWL_data_full %>%
-  group_by(region) %>%
-  summarise(CEWL = mean(TEWL_g_m2h)) %>%
-  arrange(CEWL)
-mean_CEWL_region
-```
-
-get colors:
-
-```{r}
-my_CEWL_colors <- RColorBrewer::brewer.pal(9, "Blues")[1:9]
-```
-
-assign colors:
-
-```{r}
-CEWL_heatmap_colors <- data.frame(region = c("Dorsum", 
-                                             "Ventrum", 
-                                             "Head",
-                                             "Dewlap", 
-                                             "Mite Patch"), 
-                                  color = c(my_CEWL_colors[1], #dorsum
-                                            my_CEWL_colors[2], #ventrum
-                                            my_CEWL_colors[7], #head
-                                            my_CEWL_colors[8], #dewlap
-                                            my_CEWL_colors[9])) #mite patch
-
-#write.csv(CEWL_heatmap_colors, "./CEWL_heatmap_colors.csv")
-```
-
-
-
 ### CEWL ~ Osmolality
 
 ```{r}
@@ -1925,13 +1793,7 @@ CEWL_data_full %>%
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 10),
-        legend.text.align = 0,
-)
-
-# lm
-CEWL_lm2 <- lm(TEWL_g_m2h ~ region + osmolality_mmol_kg,
-           data = CEWL_data_full)
-summary(CEWL_lm2)
+        legend.text.align = 0)
 
 
 # Facet ggplot
@@ -1955,8 +1817,7 @@ ggplot(aes(osmolality_mmol_kg, TEWL_g_m2h), data = CEWL_data_full) +
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 10),
-        legend.text.align = 0,
-)+
+        legend.text.align = 0) +
   facet_wrap(~ region) # create a facet for each body region
 ```
 
@@ -1990,18 +1851,11 @@ CEWL_data_full %>%
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 10),
-        legend.text.align = 0,
-)
-
-# lm
-CEWL_lm3 <- lm(TEWL_g_m2h ~ region * hematocrit_percent,
-           data = CEWL_data_full)
-summary(CEWL_lm3)
+        legend.text.align = 0)
 ```
 
 
 ### CEWL ~ Cloacal Temperature
-
 
 ```{r}
 CEWL_data_full %>% 
@@ -2041,11 +1895,7 @@ CEWL_data_full %>%
                                  size = 26),
         plot.margin = unit(c(0.1,0,0.35,0.45), "cm"),
         legend.text.align = 0,
-        legend.position = "none"
-        #legend.position = c(0.9, 0.85)
-  #) +
-  #guides(color = guide_legend(nrow = 2, byrow = TRUE)
-         ) -> CEWL_ctemp_fig
+        legend.position = "none") -> CEWL_ctemp_fig
 CEWL_ctemp_fig
 
 # export figure
@@ -2057,13 +1907,6 @@ CEWL_ctemp_fig
      #  width = 6, height = 4)
 ```
 
-
-
-```{r}
-CEWL_lm4 <- lm(TEWL_g_m2h ~ region + cloacal_temp_C,
-           data = CEWL_data_full)
-summary(CEWL_lm4)
-```
 
 
 
@@ -2107,11 +1950,6 @@ CEWL_data_full %>%
         legend.position = "none"
 ) -> cap_temp_CEWL
 cap_temp_CEWL
-
-# lm: CEWL ~ region + capture temp
-CEWL_lm5 <- lm(TEWL_g_m2h ~ region * temp_C_interpol,
-           data = CEWL_data_full)
-summary(CEWL_lm5)
 ```
 
 
@@ -2170,14 +2008,6 @@ CEWL_vpd_fig
 ```
 
 
-```{r}
-CEWL_lm6 <- lm(TEWL_g_m2h ~ region * VPD_kPa_int,
-           data = CEWL_data_full)
-summary(CEWL_lm6)
-```
-
-
-
 ### CEWL ~ Wind Speed
 
 ```{r}
@@ -2219,16 +2049,6 @@ CEWL_data_full %>%
         legend.position = "none"
 ) -> wind_CEWL_plot
 wind_CEWL_plot
-
-```
-
-model:
-
-```{r}
-# lm: CEWL ~ region + aquaflux measurement RH
-CEWL_lm7 <- lm(TEWL_g_m2h ~ region + Wind_mph_interpol,
-           data = CEWL_data_full)
-summary(CEWL_lm7)
 ```
 
 
@@ -2273,11 +2093,6 @@ CEWL_data_full %>%
         legend.position = "none"
 ) -> sorad_CEWL_plot
 sorad_CEWL_plot
-
-# lm: CEWL ~ region + aquaflux measurement RH
-CEWL_lm8 <- lm(TEWL_g_m2h ~ region + Solar_rad_Wm2_interpol,
-           data = CEWL_data_full)
-summary(CEWL_lm8)
 ```
 
 
@@ -2315,11 +2130,6 @@ CEWL_data_full %>%
         legend.text.align = 0,
         legend.position = "none"
 )
-
-# lm: CEWL ~ region + aquaflux measurement temp
-CEWL_lm9 <- lm(TEWL_g_m2h ~ region * ambient_temp_C,
-           data = CEWL_data_full)
-summary(CEWL_lm9)
 ```
 
 
@@ -2354,13 +2164,7 @@ CEWL_data_full %>%
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 10),
-        legend.text.align = 0,
-)
-
-# lm: CEWL ~ region + aquaflux measurement RH
-CEWL_lm10 <- lm(TEWL_g_m2h ~ region * ambient_RH_percent,
-           data = CEWL_data_full)
-summary(CEWL_lm10)
+        legend.text.align = 0)
 ```
 
 ### CEWL ~ Individual
@@ -2396,13 +2200,7 @@ CEWL_data_full %>%
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 10),
-        legend.text.align = 0,
-)
-
-# lm
-CEWL_lm11 <- lm(TEWL_g_m2h ~ region + individual_ID,
-           data = CEWL_data_full)
-summary(CEWL_lm11)
+        legend.text.align = 0)
 ```
 
 ### CEWL ~ SVL
@@ -2434,14 +2232,9 @@ CEWL_data_full %>%
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 10),
-        legend.text.align = 0,
-)
-
-# lm
-CEWL_lm12 <- lm(TEWL_g_m2h ~ region + SVL_mm,
-           data = CEWL_data_full)
-summary(CEWL_lm12)
+        legend.text.align = 0)
 ```
+
 
 ### CEWL ~ SMI
 
@@ -2494,12 +2287,6 @@ CEWL_SMI_fig
    #    device = "tiff",
     #   dpi = 1200,
      #  width = 6, height = 4)
-
-
-# lm
-CEWL_lm13 <- lm(TEWL_g_m2h ~ region + SMI,
-           data = CEWL_data_full)
-summary(CEWL_lm13)
 ```
 
 ### CEWL ~ Mass
@@ -2561,12 +2348,6 @@ CEWL_legend <- as_ggplot(get_legend(CEWL_mass_fig))
    #    device = "tiff",
     #   dpi = 1200,
      #  width = 6, height = 4)
-
-
-# lm
-CEWL_lm13.1 <- lm(TEWL_g_m2h ~ region*mass_g,
-           data = CEWL_data_full)
-summary(CEWL_lm13.1)
 ```
 
 ### CEWL ~ Sex
@@ -2589,13 +2370,7 @@ CEWL_data_full %>%
   theme(text = element_text(color = "black", family = "sans", size = 12),
         axis.text = element_text(color = "black", family = "sans", size = 10),
         legend.text.align = 0,
-        legend.position = "none"
-)
-
-# lm
-CEWL_lm14 <- lm(TEWL_g_m2h ~ region + sex_M_F, 
-           data = CEWL_data_full)
-summary(CEWL_lm14)
+        legend.position = "none")
 ```
 
 ### CEWL ~ Gravidity
@@ -2619,13 +2394,7 @@ CEWL_data_full %>%
   theme(text = element_text(color = "black", family = "sans", size = 12),
         axis.text = element_text(color = "black", family = "sans", size = 10),
         legend.text.align = 0,
-        legend.position = "none"
-)
-
-# lm
-CEWL_lm15 <- lm(TEWL_g_m2h ~ region + gravid_Y_N, 
-           data = CEWL_data_full)
-summary(CEWL_lm15)
+        legend.position = "none")
 ```
 
 
@@ -2650,13 +2419,7 @@ CEWL_data_full %>%
   theme(text = element_text(color = "black", family = "sans", size = 12),
         axis.text = element_text(color = "black", family = "sans", size = 10),
         legend.text.align = 0,
-        legend.position = "none"
-)
-
-# lm
-CEWL_lm16 <- lm(TEWL_g_m2h ~ region + date,
-           data = CEWL_data_full)
-summary(CEWL_lm16)
+        legend.position = "none")
 ```
 
 
@@ -2689,27 +2452,10 @@ CEWL_data_full %>%
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 10),
-        legend.text.align = 0,
-)
-
-CEWL_lm17 <- glm(data = CEWL_data_full, 
-                      TEWL_g_m2h ~ hold_time + region)
-summary(CEWL_lm17)
+        legend.text.align = 0)
 ```
 
 
-
-## Conclusion
-
-The following variables should be included in the full LMM:
-- *body region* 
-- *cloacal temperature* at measurement
-- *capture temp* (and try an interaction with region)
-- capture *wind speed* and *solar radiation*
-- measurement temperature (and try an interaction with region)
-- individual_ID (as a random effect)
-- *SVL* and *mass*
-- *hold time*
 
 ## CEWL Multi-Figure
 
@@ -2737,74 +2483,14 @@ ggsave(filename = "CEWL_multi_fig.jpeg",
 
 # LMMs
 
+
 ## Hydration
 
-Based on the simple linear models and figures above, osmolality should be predicted by sample eye, hemolysis, date/week, individual, capture temperature, and capture VPD.
-
-Prep dataframe for computing models:
-
-```{r}
-hydrat_mod_dat <- morpho_blood_SMI %>%
-  dplyr::select(date, 
-                individual_ID,
-                osmolality_mmol_kg,
-                temp_C_interpol,
-                VPD_kPa_int,
-                SMI,
-                hemolyzed
-                ) %>%
-  dplyr::filter(complete.cases(.))
-summary(hydrat_mod_dat)
-```
-
-
-### Multicollinearity
-
-First, check for multicollinearity among independent variables:
-
-```{r}
-pairs(hydrat_mod_dat)
-
-# also make another plot with r-sq values
-# only continuous numeric variables work for this one
-hydrat_mod_dat %>% 
-  # select cont variables 
-  dplyr::select(temp_C_interpol,
-                VPD_kPa_int) %>% 
-  # multicollinearity plot
-  chart.Correlation(., histogram = F, pch = 19)
-```
-
-Date and individual_ID are collinear and should not both be used as fixed effects. But, individual_ID is a factor and there is not repetition in the dataset, so that's not feasible as a variable. Temperature and VPD are the only continuous variables, and they are very badly collinear.
-
-Try centering VPD and temp:
-
-```{r}
-hydrat_mod_dat_c <- hydrat_mod_dat %>%
-  mutate(VPD_mean = mean(VPD_kPa_int),
-         temp_mean = mean(temp_C_interpol),
-         VPD_c = VPD_kPa_int - VPD_mean,
-         temp_c = temp_C_interpol - temp_mean)
-summary(hydrat_mod_dat_c)
-```
-
-Test collinearity again:
-
-```{r}
-hydrat_mod_dat_c %>% 
-  # select cont variables 
-  dplyr::select(temp_c,
-                VPD_kPa_int) %>% 
-  # multicollinearity plot
-  chart.Correlation(., histogram = F, pch = 19)
-```
-
-Did not help.
-
-
-### Models & Selection
+### Models
                 
-Start with all the variables that were significant individually in SLRs. 
+Start with all the variables that may explain osmolality variation. Female gravidity cannot be included because of the low sample size and number of contrasts.
+
+FULL model:
 
 ```{r, hydration model 1}
 # model 1
@@ -2813,41 +2499,232 @@ hydrat_mod1 <- lme4::lmer(data = hydrat_mod_dat,
                           osmolality_mmol_kg ~ 
                             # start with interaction + singular effect
                            VPD_kPa_int*temp_C_interpol +
-                            # other potentially important factor
-                            SMI +
+                            # other potentially important factors
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            SMI + SVL_mm + mass_g + sex_M_F +
                             # random effects
                             (1|date) + (1|hemolyzed)) 
 summary(hydrat_mod1)
-drop1(hydrat_mod1)
 ```
 
-Dropping terms will not meaningfully improve the model based on AIC... 
 
-Re-run model using lmertest to get p-values:
+use VIF to look for multicollinearity:
 
 ```{r}
-hydrat_mod2 <- lmerTest::lmer(data = hydrat_mod_dat,
+hydrat_mod1_VIFs <- data.frame(VIF = car::vif(hydrat_mod1)) %>%
+  arrange(VIF)
+hydrat_mod1_VIFs
+```
+
+Remove the highest VIF variables one at a time. First, the temp*VPD interaction.
+
+```{r, hydration model 2}
+# model 2
+hydrat_mod2 <- lme4::lmer(data = hydrat_mod_dat,
                           # response variable
                           osmolality_mmol_kg ~ 
-                            # start with interaction + singular effect
-                           VPD_kPa_int*temp_C_interpol +
-                            # other potentially important factor
-                            SMI +
+                           VPD_kPa_int + temp_C_interpol +
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            SMI + SVL_mm + mass_g + sex_M_F +
                             # random effects
                             (1|date) + (1|hemolyzed)) 
-summary(hydrat_mod2)
+hydrat_mod2_VIFs <- data.frame(VIF = car::vif(hydrat_mod2)) %>%
+  arrange(VIF)
+hydrat_mod2_VIFs
+```
+
+drop mass.
+
+```{r, hydration model 3}
+# model 3
+hydrat_mod3 <- lme4::lmer(data = hydrat_mod_dat,
+                          # response variable
+                          osmolality_mmol_kg ~ 
+                           VPD_kPa_int + temp_C_interpol +
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            SMI + SVL_mm + sex_M_F + 
+                            # random effects
+                            (1|date) + (1|hemolyzed)) 
+hydrat_mod3_VIFs <- data.frame(VIF = car::vif(hydrat_mod3)) %>%
+  arrange(VIF)
+hydrat_mod3_VIFs
+```
+
+drop temperature
+
+```{r, hydration model 4}
+# model 4
+hydrat_mod4 <- lme4::lmer(data = hydrat_mod_dat,
+                          # response variable
+                          osmolality_mmol_kg ~ 
+                           VPD_kPa_int +
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            SMI + SVL_mm + sex_M_F + 
+                            # random effects
+                            (1|date) + (1|hemolyzed)) 
+hydrat_mod4_VIFs <- data.frame(VIF = car::vif(hydrat_mod4)) %>%
+  arrange(VIF)
+hydrat_mod4_VIFs
+```
+
+Okay, now that all VIFs are reasonable values, we can do the remaining model selection based on AIC and t-value.
+
+```{r}
+summary(hydrat_mod4)
+drop1(hydrat_mod4)
+```
+
+drop SVL:
+
+```{r, hydration model 5}
+# model 5
+hydrat_mod5 <- lme4::lmer(data = hydrat_mod_dat,
+                          # response variable
+                          osmolality_mmol_kg ~ 
+                           VPD_kPa_int +
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            SMI + sex_M_F + 
+                            # random effects
+                            (1|date) + (1|hemolyzed)) 
+summary(hydrat_mod5)
+drop1(hydrat_mod5)
+```
+
+drop VPD:
+
+```{r, hydration model 6}
+# model 6
+hydrat_mod6 <- lme4::lmer(data = hydrat_mod_dat,
+                          # response variable
+                          osmolality_mmol_kg ~ 
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            SMI + sex_M_F + 
+                            # random effects
+                            (1|date) + (1|hemolyzed)) 
+summary(hydrat_mod6)
+drop1(hydrat_mod6)
+```
+
+drop SMI:
+
+```{r, hydration model 7}
+# model 7
+hydrat_mod7 <- lme4::lmer(data = hydrat_mod_dat,
+                          # response variable
+                          osmolality_mmol_kg ~ 
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            sex_M_F + 
+                            # random effects
+                            (1|date) + (1|hemolyzed)) 
+summary(hydrat_mod7)
+drop1(hydrat_mod7)
+```
+
+drop sex:
+
+```{r, hydration model 8}
+# model 8
+hydrat_mod8 <- lme4::lmer(data = hydrat_mod_dat,
+                          # response variable
+                          osmolality_mmol_kg ~ 
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            # random effects
+                            (1|date) + (1|hemolyzed)) 
+summary(hydrat_mod8)
+drop1(hydrat_mod8)
 ```
 
 
+drop solar radiation:
+
+```{r, hydration model 9}
+# model 9
+hydrat_mod9 <- lme4::lmer(data = hydrat_mod_dat,
+                          # response variable
+                          osmolality_mmol_kg ~ 
+                            Wind_mph_interpol +
+                            # random effects
+                            (1|date) + (1|hemolyzed)) 
+```
+
+finally, test the null model
+
+```{r, hydration model null}
+hydrat_mod_null <- lme4::lmer(data = hydrat_mod_dat,
+                          osmolality_mmol_kg ~ 1 +
+                            (1|date) + (1|hemolyzed))
+```
 
 
-### Best Model
+### Selection
+
+models 4-9 and the null model are the ones we should compare. models 1-3 had serious multicollinearity thus are not trustworthy models.
+
+```{r osml mod compare}
+hydrat_models <- list(hydrat_mod4, hydrat_mod5, hydrat_mod6,
+               hydrat_mod7, hydrat_mod8, hydrat_mod9, 
+               hydrat_mod_null)
+
+#specify model names
+hydrat_mod_names <- c('(model 4) ~ VPD, Wind, Solar, SMI, SVL, sex', 
+                     '(model 5) ~ VPD, Wind, Solar, SMI, sex', 
+                     '(model 6) ~ Wind, Solar, SMI, sex',
+                     '(model 7) ~ Wind, Solar, sex', 
+                     '(model 8) ~ Wind, Solar', 
+                     '(model 9) ~ Wind', 
+                     'null model')
+#calculate AIC of each model
+hydrat_AICc <- data.frame(aictab(cand.set = hydrat_models, 
+                                 modnames = hydrat_mod_names))
+hydrat_AICc
+```
+
+
+Re-run top 2 models using lmertest to get p-values:
 
 ```{r}
-# save model 2 summary object
-osml_best_mod <- broom.mixed::tidy(hydrat_mod2)
-# export 
-write.csv(osml_best_mod, "./best models/osml_best_mod_vals.csv")
+hydrat_mod5p <- lmerTest::lmer(data = hydrat_mod_dat,
+                          # response variable
+                          osmolality_mmol_kg ~ 
+                           VPD_kPa_int +
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            SMI + sex_M_F + 
+                            # random effects
+                            (1|date) + (1|hemolyzed)) 
+summary(hydrat_mod5p)
+hydrat_mod4p <- lmerTest::lmer(data = hydrat_mod_dat,
+                          # response variable
+                          osmolality_mmol_kg ~ 
+                           VPD_kPa_int +
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            SMI + SVL_mm + sex_M_F + 
+                            # random effects
+                            (1|date) + (1|hemolyzed)) 
+summary(hydrat_mod4p)
+```
+
+
+### Check LM Assumptions
+
+```{r}
+plot(hydrat_mod4)
+plot(hydrat_mod5)
+```
+
+
+residuals look fantastic for both
+
+
+### Export
+
+We should save the information for the top two models, as well as the table showing the rankings of the different models.
+
+```{r}
+write.csv(hydrat_AICc, "./best models/osml_mod_rankings.csv")
+write.csv(broom.mixed::tidy(hydrat_mod5p), 
+          "./best models/osml_best_mod1.csv")
+write.csv(broom.mixed::tidy(hydrat_mod4p), 
+          "./best models/osml_best_mod2.csv")
 ```
 
 
@@ -2933,6 +2810,8 @@ shapiro.test(res_hydrat_mod$e)
 
 Normality is satisfied.
 
+
+## Multicollinearity
 
 ### Conclusion
 
@@ -3423,7 +3302,7 @@ write.csv(CEWL_best_t_mod, "./best models/CEWL_best_mod_t_vals.csv")
 ```
 
 
-
+## Multicollinearity
 
 
 # What to Present in the Paper
