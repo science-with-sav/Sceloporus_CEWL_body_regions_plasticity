@@ -27,8 +27,6 @@ if (!require("lme4")) install.packages("lme4")
 library("lme4") # for LMMs
 if (!require("lmerTest")) install.packages("lmerTest")
 library("lmerTest") # for p-values
-if (!require("onewaytests")) install.packages("onewaytests")
-library("onewaytests") # for Brown-Forsythe test
 if (!require("ggpubr")) install.packages("ggpubr")
 library("ggpubr") # for ggplot multi-figures
 if (!require("broom")) install.packages("broom")
@@ -2484,7 +2482,9 @@ ggsave(filename = "CEWL_multi_fig.jpeg",
 # LMMs
 
 
-## Hydration
+## Hematocrit
+
+**left off: need to run the models for hematocrit and transform CEWL models**
 
 ### Models
                 
@@ -2494,7 +2494,7 @@ FULL model:
 
 ```{r, hydration model 1}
 # model 1
-hydrat_mod1 <- lme4::lmer(data = hydrat_mod_dat,
+hydrat_mod1 <- lme4::lmer(data = morpho_blood_SMI,
                           # response variable
                           osmolality_mmol_kg ~ 
                             # start with interaction + singular effect
@@ -2508,149 +2508,11 @@ summary(hydrat_mod1)
 ```
 
 
-use VIF to look for multicollinearity:
-
-```{r}
-hydrat_mod1_VIFs <- data.frame(VIF = car::vif(hydrat_mod1)) %>%
-  arrange(VIF)
-hydrat_mod1_VIFs
-```
-
-Remove the highest VIF variables one at a time. First, the temp*VPD interaction.
-
-```{r, hydration model 2}
-# model 2
-hydrat_mod2 <- lme4::lmer(data = hydrat_mod_dat,
-                          # response variable
-                          osmolality_mmol_kg ~ 
-                           VPD_kPa_int + temp_C_interpol +
-                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
-                            SMI + SVL_mm + mass_g + sex_M_F +
-                            # random effects
-                            (1|date) + (1|hemolyzed)) 
-hydrat_mod2_VIFs <- data.frame(VIF = car::vif(hydrat_mod2)) %>%
-  arrange(VIF)
-hydrat_mod2_VIFs
-```
-
-drop mass.
-
-```{r, hydration model 3}
-# model 3
-hydrat_mod3 <- lme4::lmer(data = hydrat_mod_dat,
-                          # response variable
-                          osmolality_mmol_kg ~ 
-                           VPD_kPa_int + temp_C_interpol +
-                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
-                            SMI + SVL_mm + sex_M_F + 
-                            # random effects
-                            (1|date) + (1|hemolyzed)) 
-hydrat_mod3_VIFs <- data.frame(VIF = car::vif(hydrat_mod3)) %>%
-  arrange(VIF)
-hydrat_mod3_VIFs
-```
-
-drop temperature
-
-```{r, hydration model 4}
-# model 4
-hydrat_mod4 <- lme4::lmer(data = hydrat_mod_dat,
-                          # response variable
-                          osmolality_mmol_kg ~ 
-                           VPD_kPa_int +
-                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
-                            SMI + SVL_mm + sex_M_F + 
-                            # random effects
-                            (1|date) + (1|hemolyzed)) 
-hydrat_mod4_VIFs <- data.frame(VIF = car::vif(hydrat_mod4)) %>%
-  arrange(VIF)
-hydrat_mod4_VIFs
-```
-
-Okay, now that all VIFs are reasonable values, we can do the remaining model selection based on AIC and t-value.
-
-```{r}
-summary(hydrat_mod4)
-drop1(hydrat_mod4)
-```
-
-drop SVL:
-
-```{r, hydration model 5}
-# model 5
-hydrat_mod5 <- lme4::lmer(data = hydrat_mod_dat,
-                          # response variable
-                          osmolality_mmol_kg ~ 
-                           VPD_kPa_int +
-                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
-                            SMI + sex_M_F + 
-                            # random effects
-                            (1|date) + (1|hemolyzed)) 
-summary(hydrat_mod5)
-drop1(hydrat_mod5)
-```
-
-drop VPD:
-
-```{r, hydration model 6}
-# model 6
-hydrat_mod6 <- lme4::lmer(data = hydrat_mod_dat,
-                          # response variable
-                          osmolality_mmol_kg ~ 
-                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
-                            SMI + sex_M_F + 
-                            # random effects
-                            (1|date) + (1|hemolyzed)) 
-summary(hydrat_mod6)
-drop1(hydrat_mod6)
-```
-
-drop SMI:
-
-```{r, hydration model 7}
-# model 7
-hydrat_mod7 <- lme4::lmer(data = hydrat_mod_dat,
-                          # response variable
-                          osmolality_mmol_kg ~ 
-                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
-                            sex_M_F + 
-                            # random effects
-                            (1|date) + (1|hemolyzed)) 
-summary(hydrat_mod7)
-drop1(hydrat_mod7)
-```
-
-drop sex:
-
-```{r, hydration model 8}
-# model 8
-hydrat_mod8 <- lme4::lmer(data = hydrat_mod_dat,
-                          # response variable
-                          osmolality_mmol_kg ~ 
-                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
-                            # random effects
-                            (1|date) + (1|hemolyzed)) 
-summary(hydrat_mod8)
-drop1(hydrat_mod8)
-```
-
-
-drop solar radiation:
-
-```{r, hydration model 9}
-# model 9
-hydrat_mod9 <- lme4::lmer(data = hydrat_mod_dat,
-                          # response variable
-                          osmolality_mmol_kg ~ 
-                            Wind_mph_interpol +
-                            # random effects
-                            (1|date) + (1|hemolyzed)) 
-```
 
 finally, test the null model
 
 ```{r, hydration model null}
-hydrat_mod_null <- lme4::lmer(data = hydrat_mod_dat,
+hydrat_mod_null <- lme4::lmer(data = morpho_blood_SMI,
                           osmolality_mmol_kg ~ 1 +
                             (1|date) + (1|hemolyzed))
 ```
@@ -2662,17 +2524,17 @@ models 4-9 and the null model are the ones we should compare. models 1-3 had ser
 
 ```{r osml mod compare}
 hydrat_models <- list(hydrat_mod4, hydrat_mod5, hydrat_mod6,
-               hydrat_mod7, hydrat_mod8, hydrat_mod9, 
-               hydrat_mod_null)
+                       hydrat_mod7, hydrat_mod8, hydrat_mod9, 
+                       hydrat_mod_null)
 
 #specify model names
 hydrat_mod_names <- c('(model 4) ~ VPD, Wind, Solar, SMI, SVL, sex', 
-                     '(model 5) ~ VPD, Wind, Solar, SMI, sex', 
-                     '(model 6) ~ Wind, Solar, SMI, sex',
-                     '(model 7) ~ Wind, Solar, sex', 
-                     '(model 8) ~ Wind, Solar', 
-                     '(model 9) ~ Wind', 
-                     'null model')
+                       '(model 5) ~ VPD, Wind, Solar, SMI, sex', 
+                       '(model 6) ~ Wind, Solar, SMI, sex',
+                       '(model 7) ~ Wind, Solar, sex', 
+                       '(model 8) ~ Wind, Solar', 
+                       '(model 9) ~ Wind', 
+                       'null model')
 #calculate AIC of each model
 hydrat_AICc <- data.frame(aictab(cand.set = hydrat_models, 
                                  modnames = hydrat_mod_names))
@@ -2683,7 +2545,7 @@ hydrat_AICc
 Re-run top 2 models using lmertest to get p-values:
 
 ```{r}
-hydrat_mod5p <- lmerTest::lmer(data = hydrat_mod_dat,
+hydrat_mod5p <- lmerTest::lmer(data = morpho_blood_SMI,
                           # response variable
                           osmolality_mmol_kg ~ 
                            VPD_kPa_int +
@@ -2692,7 +2554,7 @@ hydrat_mod5p <- lmerTest::lmer(data = hydrat_mod_dat,
                             # random effects
                             (1|date) + (1|hemolyzed)) 
 summary(hydrat_mod5p)
-hydrat_mod4p <- lmerTest::lmer(data = hydrat_mod_dat,
+hydrat_mod4p <- lmerTest::lmer(data = morpho_blood_SMI,
                           # response variable
                           osmolality_mmol_kg ~ 
                            VPD_kPa_int +
@@ -2720,401 +2582,747 @@ residuals look fantastic for both
 We should save the information for the top two models, as well as the table showing the rankings of the different models.
 
 ```{r}
-write.csv(hydrat_AICc, "./best models/osml_mod_rankings.csv")
+write.csv(hydrat_AICc, "./best_models/osml_mod_rankings.csv")
 write.csv(broom.mixed::tidy(hydrat_mod5p), 
-          "./best models/osml_best_mod1.csv")
+          "./best_models/osml_best_mod1.csv")
 write.csv(broom.mixed::tidy(hydrat_mod4p), 
-          "./best models/osml_best_mod2.csv")
+          "./best_models/osml_best_mod2.csv")
 ```
 
 
-### Check LM Assumptions (Hydration Model)
 
-First, get residuals:
+
+
+
+## Hydration
+
+### Models
+                
+Start with all the variables that may explain osmolality variation. Female gravidity cannot be included because of the low sample size and number of contrasts.
+
+FULL model:
+
+```{r, hydration model 1}
+# model 1
+hydrat_mod1 <- lme4::lmer(data = morpho_blood_SMI,
+                          # response variable
+                          osmolality_mmol_kg ~ 
+                            # start with interaction + singular effect
+                           VPD_kPa_int*temp_C_interpol +
+                            # other potentially important factors
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            SMI + SVL_mm + mass_g + sex_M_F +
+                            # random effects
+                            (1|date) + (1|hemolyzed)) 
+summary(hydrat_mod1)
+```
+
+
+use VIF to look for multicollinearity:
 
 ```{r}
-res_hydrat_mod <- hydrat_mod_dat %>%
-  mutate(y_hat = predict(hydrat_mod2),
-         e = residuals(hydrat_mod2))
+hydrat_mod1_VIFs <- data.frame(VIF = car::vif(hydrat_mod1)) %>%
+  arrange(VIF)
+hydrat_mod1_VIFs
 ```
 
+Remove the highest VIF variables one at a time. First, the temp*VPD interaction.
 
-Linearity and Equal Variance
+```{r, hydration model 2}
+# model 2
+hydrat_mod2 <- lme4::lmer(data = morpho_blood_SMI,
+                          # response variable
+                          osmolality_mmol_kg ~ 
+                           VPD_kPa_int + temp_C_interpol +
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            SMI + SVL_mm + mass_g + sex_M_F +
+                            # random effects
+                            (1|date) + (1|hemolyzed)) 
+hydrat_mod2_VIFs <- data.frame(VIF = car::vif(hydrat_mod2)) %>%
+  arrange(VIF)
+hydrat_mod2_VIFs
+```
 
-Is the function **linear**? Is there **equal** variance of the residuals? The residuals should be homoskedactic relative to y_hat (or x). We don't care if there is a relationship between the residuals ~ dependent variable (actual y).
+drop mass.
 
-Plotting residuals shows us whether the data meets linearity and equal variance assumptions:
+```{r, hydration model 3}
+# model 3
+hydrat_mod3 <- lme4::lmer(data = morpho_blood_SMI,
+                          # response variable
+                          osmolality_mmol_kg ~ 
+                           VPD_kPa_int + temp_C_interpol +
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            SMI + SVL_mm + sex_M_F + 
+                            # random effects
+                            (1|date) + (1|hemolyzed)) 
+hydrat_mod3_VIFs <- data.frame(VIF = car::vif(hydrat_mod3)) %>%
+  arrange(VIF)
+hydrat_mod3_VIFs
+```
+
+drop temperature
+
+```{r, hydration model 4}
+# model 4
+hydrat_mod4 <- lme4::lmer(data = morpho_blood_SMI,
+                          # response variable
+                          osmolality_mmol_kg ~ 
+                           VPD_kPa_int +
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            SMI + SVL_mm + sex_M_F + 
+                            # random effects
+                            (1|date) + (1|hemolyzed)) 
+hydrat_mod4_VIFs <- data.frame(VIF = car::vif(hydrat_mod4)) %>%
+  arrange(VIF)
+hydrat_mod4_VIFs
+```
+
+Okay, now that all VIFs are reasonable values, we can do the remaining model selection based on AIC and t-value.
 
 ```{r}
-ggplot(data = res_hydrat_mod, aes(x = y_hat, y = e)) +
-  geom_point() + 
-  theme_classic() + 
-  xlab("predicted y (y-hat)") +
-  ylab("residuals (e)") +
-  ggtitle("Hydration Best Model") +
-  geom_hline(yintercept = 0)
+summary(hydrat_mod4)
+drop1(hydrat_mod4)
 ```
 
-It looks pretty evenly distributed. No clear patterning, so linearity and equal error variance should be satisfied.
+drop SVL:
 
-Brown-Forsythe test to statistically check equal variance:
+```{r, hydration model 5}
+# model 5
+hydrat_mod5 <- lme4::lmer(data = morpho_blood_SMI,
+                          # response variable
+                          osmolality_mmol_kg ~ 
+                           VPD_kPa_int +
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            SMI + sex_M_F + 
+                            # random effects
+                            (1|date) + (1|hemolyzed)) 
+summary(hydrat_mod5)
+drop1(hydrat_mod5)
+```
 
-H0: normally distributed (non-sig test is GOOD)
-HA: NOT normally distributed (reject nul == assumption not satisfied)
+drop VPD:
+
+```{r, hydration model 6}
+# model 6
+hydrat_mod6 <- lme4::lmer(data = morpho_blood_SMI,
+                          # response variable
+                          osmolality_mmol_kg ~ 
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            SMI + sex_M_F + 
+                            # random effects
+                            (1|date) + (1|hemolyzed)) 
+summary(hydrat_mod6)
+drop1(hydrat_mod6)
+```
+
+drop SMI:
+
+```{r, hydration model 7}
+# model 7
+hydrat_mod7 <- lme4::lmer(data = morpho_blood_SMI,
+                          # response variable
+                          osmolality_mmol_kg ~ 
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            sex_M_F + 
+                            # random effects
+                            (1|date) + (1|hemolyzed)) 
+summary(hydrat_mod7)
+drop1(hydrat_mod7)
+```
+
+drop sex:
+
+```{r, hydration model 8}
+# model 8
+hydrat_mod8 <- lme4::lmer(data = morpho_blood_SMI,
+                          # response variable
+                          osmolality_mmol_kg ~ 
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            # random effects
+                            (1|date) + (1|hemolyzed)) 
+summary(hydrat_mod8)
+drop1(hydrat_mod8)
+```
+
+
+drop solar radiation:
+
+```{r, hydration model 9}
+# model 9
+hydrat_mod9 <- lme4::lmer(data = morpho_blood_SMI,
+                          # response variable
+                          osmolality_mmol_kg ~ 
+                            Wind_mph_interpol +
+                            # random effects
+                            (1|date) + (1|hemolyzed)) 
+```
+
+finally, test the null model
+
+```{r, hydration model null}
+hydrat_mod_null <- lme4::lmer(data = morpho_blood_SMI,
+                          osmolality_mmol_kg ~ 1 +
+                            (1|date) + (1|hemolyzed))
+```
+
+
+### Selection
+
+models 4-9 and the null model are the ones we should compare. models 1-3 had serious multicollinearity thus are not trustworthy models.
+
+```{r osml mod compare}
+hydrat_models <- list(hydrat_mod4, hydrat_mod5, hydrat_mod6,
+                       hydrat_mod7, hydrat_mod8, hydrat_mod9, 
+                       hydrat_mod_null)
+
+#specify model names
+hydrat_mod_names <- c('(model 4) ~ VPD, Wind, Solar, SMI, SVL, sex', 
+                       '(model 5) ~ VPD, Wind, Solar, SMI, sex', 
+                       '(model 6) ~ Wind, Solar, SMI, sex',
+                       '(model 7) ~ Wind, Solar, sex', 
+                       '(model 8) ~ Wind, Solar', 
+                       '(model 9) ~ Wind', 
+                       'null model')
+#calculate AIC of each model
+hydrat_AICc <- data.frame(aictab(cand.set = hydrat_models, 
+                                 modnames = hydrat_mod_names))
+hydrat_AICc
+```
+
+
+Re-run top 2 models using lmertest to get p-values:
 
 ```{r}
-# need to create the right data & format first
-bf_data_temp <- res_hydrat_mod %>%
-  dplyr::filter(complete.cases(temp_C_interpol)) %>%
-  dplyr::mutate(middle = median(temp_C_interpol),
-                side = temp_C_interpol > middle)
-bf_data_temp$side <- as.factor(bf_data_temp$side)
-
-# now run test
-bf.test(formula = e ~ side, # y~x
-        data = bf_data_temp, # dataframe
-        alpha = 0.05, # default 0.05
-        na.rm = TRUE, # remove missing data before running?
-        verbose = TRUE # print output to console?
-        )
-
-# need to create the right data & format first
-bf_data_vpd <- res_hydrat_mod %>%
-  dplyr::filter(complete.cases(VPD_kPa_int)) %>%
-  dplyr::mutate(middle = median(VPD_kPa_int),
-                side = VPD_kPa_int > middle)
-bf_data_vpd$side <- as.factor(bf_data_vpd$side)
-
-# now run test
-bf.test(formula = e ~ side, # y~x
-        data = bf_data_vpd, # dataframe
-        alpha = 0.05, # default 0.05
-        na.rm = TRUE, # remove missing data before running?
-        verbose = TRUE # print output to console?
-        )
+hydrat_mod5p <- lmerTest::lmer(data = morpho_blood_SMI,
+                          # response variable
+                          osmolality_mmol_kg ~ 
+                           VPD_kPa_int +
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            SMI + sex_M_F + 
+                            # random effects
+                            (1|date) + (1|hemolyzed)) 
+summary(hydrat_mod5p)
+hydrat_mod4p <- lmerTest::lmer(data = morpho_blood_SMI,
+                          # response variable
+                          osmolality_mmol_kg ~ 
+                           VPD_kPa_int +
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            SMI + SVL_mm + sex_M_F + 
+                            # random effects
+                            (1|date) + (1|hemolyzed)) 
+summary(hydrat_mod4p)
 ```
 
-Equal variance is satisfied.
 
-
-Now check normality. Is the distribution of residuals **normal**?
-
-use Shapiro-Wilk normality test:
-H0: data is NOT significantly different from normal distribution
-HA: data IS significantly different from normal distribution
+### Check LM Assumptions
 
 ```{r}
-simple.eda(res_hydrat_mod$e)
-shapiro.test(res_hydrat_mod$e)
+plot(hydrat_mod4)
+plot(hydrat_mod5)
 ```
 
-Normality is satisfied.
+
+residuals look fantastic for both
 
 
-## Multicollinearity
+### Export
 
-### Conclusion
+We should save the information for the top two models, as well as the table showing the rankings of the different models.
 
-hydrat_mod2 is the best model to predict osmolality, and the model satisfies all linear regression conditions/assumptions.
+```{r}
+write.csv(hydrat_AICc, "./best_models/osml_mod_rankings.csv")
+write.csv(broom.mixed::tidy(hydrat_mod5p), 
+          "./best_models/osml_best_mod1.csv")
+write.csv(broom.mixed::tidy(hydrat_mod4p), 
+          "./best_models/osml_best_mod2.csv")
+```
 
 
 
 ## CEWL
 
-Based on the simple linear models and figures above, CEWL should be predicted by:
-- body region
-- cloacal temperature at measurement
-- capture temperature, VPD, wind speed, and solar radiation
-- ambient temperature during measurement
-- SVL and mass
-- hold time (time between capture vs measurement)
-- individual ID (as a random effect)
+### Models
+                
+Start with all the variables that may explain CEWL variation.
 
-Prep dataframe for models:
+FULL model:
 
-```{r}
-CEWL_mod_dat <- CEWL_data_full %>% 
-  # select variables of interest
-  dplyr::select(date,
-                hold_time,
-                individual_ID,
-                mass_g,
-                SVL_mm, 
-                TEWL_g_m2h,
-                region,
-                cloacal_temp_C,
-                temp_C_interpol,
-                VPD_kPa_int,
-                Wind_mph_interpol,
-                Solar_rad_Wm2_interpol,
-                ambient_temp_C
-                ) %>%
-  dplyr::filter(complete.cases(.)) # removes 69 observations
+```{r CEWL model 1}
+CEWL_mod1 <- lme4::lmer(data = CEWL_data_full,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (ambient_temp_C + VPD_kPa +
+                           VPD_kPa_int + temp_C_interpol +
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            SMI + SVL_mm + mass_g + sex_M_F) +
+                          hematocrit_percent + osmolality_mmol_kg +
+                          cloacal_temp_C + hold_time +
+                            # random effect
+                            (1|individual_ID))
 ```
 
 
-### Multicollinearity
-
-Check for multicollinearity among independent variables:
+use VIF to look for multicollinearity:
 
 ```{r}
-CEWL_mod_dat %>% 
-  # get rid of dependent variable
-  dplyr::select(-TEWL_g_m2h, individual_ID) %>%
-  # multicollinearity plot
-  pairs(.)
-
-# also make another plot with r-sq values
-# non-numeric variables don't work for this
-CEWL_mod_dat %>% 
-  # select variables of interest
-  dplyr::select(-TEWL_g_m2h, -date, -region, -individual_ID) %>% 
-  # multicollinearity plot
-  chart.Correlation(., histogram = F, pch = 19)
-```
-
-Mass and SVL are very collinear variables that should not be used in combination. Cloacal temp and hold time are pretty collinear, which makes sense; as we held them, they got cooler because they were inside and not basking. Individual ID and VPD are also pretty collinear, but it's less intuitive. Temperature and solar radiation, as well as VPD and solar radiation, are each collinear pairs. We will use model selection to figure out which variable from each collinear pair is better to include in the model. Temperature and VPD are very badly collinear... But as I tried above, centering one or both did not help.
-
-
-
-### Models & Selection
-
-This is the full model with every potential variable and interaction indicated to be meaningful based on figures and SLRs.
-
-```{r}
-# model 1
-CEWL_mod1 <- lme4::lmer(data = CEWL_mod_dat,
-                        TEWL_g_m2h ~
-                         region * (mass_g + ambient_temp_C +
-                                     temp_C_interpol +
-                                     VPD_kPa_int) +
-                         hold_time + SVL_mm +
-                         cloacal_temp_C +
-                         temp_C_interpol:VPD_kPa_int +
-                         Wind_mph_interpol +
-                         Solar_rad_Wm2_interpol + 
-                         (1|individual_ID)) 
-summary(CEWL_mod1)
+CEWL_mod1_VIFs <- data.frame(VIF = car::vif(CEWL_mod1)[,3]) %>%
+  arrange(desc(VIF))
+CEWL_mod1_VIFs
 ```
 
 
-Check which variables to drop:
+drop region*SVL interaction:
 
-```{r}
-drop1(CEWL_mod1)
+```{r CEWL model 2}
+CEWL_mod2 <- lme4::lmer(data = CEWL_data_full,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (ambient_temp_C + VPD_kPa +
+                           VPD_kPa_int + temp_C_interpol +
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            SMI + mass_g + sex_M_F) + SVL_mm + 
+                          hematocrit_percent + osmolality_mmol_kg +
+                          cloacal_temp_C + hold_time +
+                            # random effect
+                            (1|individual_ID))
+CEWL_mod2_VIFs <- data.frame(VIF = car::vif(CEWL_mod2)[,3]) %>%
+  arrange(desc(VIF))
+CEWL_mod2_VIFs
 ```
 
-Based on AIC, dropping SVL, hold time, wind speed, region:ambient_temp_C, and temp_C_interpol:VPD_kPa_int would result in a better model. 
+drop region*ambient temp interaction:
 
-Start with region:ambient_temp_C and temp_C_interpol:VPD_kPa_int interactions:
-
-```{r}
-# model 2
-CEWL_mod2 <- lme4::lmer(data = CEWL_mod_dat,
-                        TEWL_g_m2h ~
-                         region * (mass_g +
-                                     temp_C_interpol +
-                                     VPD_kPa_int) +
-                         hold_time + SVL_mm +
-                         cloacal_temp_C +
-                         Wind_mph_interpol +
-                         Solar_rad_Wm2_interpol + 
-                         (1|individual_ID)) 
-summary(CEWL_mod2)
-
-# compare
-anova(CEWL_mod2, CEWL_mod1)
+```{r CEWL model 3}
+CEWL_mod3 <- lme4::lmer(data = CEWL_data_full,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (VPD_kPa +
+                           VPD_kPa_int + temp_C_interpol +
+                            Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                            SMI + mass_g + sex_M_F) + SVL_mm + 
+                          hematocrit_percent + osmolality_mmol_kg +
+                          cloacal_temp_C + hold_time + ambient_temp_C + 
+                            # random effect
+                            (1|individual_ID))
+CEWL_mod3_VIFs <- data.frame(VIF = car::vif(CEWL_mod3)[,3]) %>%
+  arrange(desc(VIF))
+CEWL_mod3_VIFs
 ```
 
-AIC improved somewhat and we do not lose a significant amount of predictive power using alpha 0.05, so the reduced model is better. Continue dropping...
+drop other region * temperature interaction:
 
-Check drop terms again:
-
-```{r}
-drop1(CEWL_mod2)
+```{r CEWL model 4}
+CEWL_mod4 <- lme4::lmer(data = CEWL_data_full,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (VPD_kPa + VPD_kPa_int + 
+                          Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                          SMI + mass_g + sex_M_F) + SVL_mm + 
+                          hematocrit_percent + osmolality_mmol_kg +
+                          cloacal_temp_C + hold_time + 
+                          ambient_temp_C + temp_C_interpol +
+                            # random effect
+                            (1|individual_ID))
+CEWL_mod4_VIFs <- data.frame(VIF = car::vif(CEWL_mod4)[,3]) %>%
+  arrange(desc(VIF))
+CEWL_mod4_VIFs
 ```
 
-Hold time and SVL should still be deleted.
+remove region interaction with ambient VPD at msmt:
 
-```{r}
-# model 3
-CEWL_mod3 <- lme4::lmer(data = CEWL_mod_dat,
-                        TEWL_g_m2h ~
-                         region * (mass_g +
-                                     temp_C_interpol +
-                                     VPD_kPa_int) +
-                         cloacal_temp_C +
-                         Wind_mph_interpol +
-                         Solar_rad_Wm2_interpol + 
-                         (1|individual_ID)) 
-summary(CEWL_mod3)
-
-# compare
-anova(CEWL_mod3, CEWL_mod1)
-anova(CEWL_mod3, CEWL_mod2)
+```{r CEWL model 5}
+CEWL_mod5 <- lme4::lmer(data = CEWL_data_full,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (VPD_kPa_int + 
+                          Wind_mph_interpol + Solar_rad_Wm2_interpol +
+                          SMI + mass_g + sex_M_F) + SVL_mm + 
+                          hematocrit_percent + osmolality_mmol_kg +
+                          cloacal_temp_C + hold_time + 
+                          ambient_temp_C + temp_C_interpol + VPD_kPa + 
+                            # random effect
+                            (1|individual_ID))
+CEWL_mod5_VIFs <- data.frame(VIF = car::vif(CEWL_mod5)[,3]) %>%
+  arrange(desc(VIF))
+CEWL_mod5_VIFs
 ```
 
-Once again, the AIC is slightly lower, and our model fit is not significantly worse by going to model 3, so the reduced model is better.
+remove region interaction with wind at capture:
 
-Check drop terms again to see if anything else could potentially be removed:
-
-```{r}
-drop1(CEWL_mod3)
+```{r CEWL model 6}
+CEWL_mod6 <- lme4::lmer(data = CEWL_data_full,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (VPD_kPa_int + Solar_rad_Wm2_interpol +
+                          SMI + mass_g + sex_M_F) + SVL_mm + 
+                          hematocrit_percent + osmolality_mmol_kg +
+                          cloacal_temp_C + hold_time + 
+                          ambient_temp_C + temp_C_interpol + VPD_kPa + 
+                          Wind_mph_interpol + 
+                            # random effect
+                            (1|individual_ID))
+CEWL_mod6_VIFs <- data.frame(VIF = car::vif(CEWL_mod6)[,3]) %>%
+  arrange(desc(VIF))
+CEWL_mod6_VIFs
 ```
 
-We have arrived at the best model based on AIC.
+The predictors in this model are much less collinear. Now we will begin model selection using AIC and t-values.
 
+Need dataset without NAs first.
 
-Since we dropped a lot of variables, I want to go back and make sure to use as much data as possible in the final model, so I can add back in observations with missing values for variables no longer included in the reduced model.
- 
 ```{r}
-# filter
-CEWL_mod_dat2 <- CEWL_data_full %>% 
-  # select variables of interest
-  dplyr::select(individual_ID,
-                mass_g,
-                TEWL_g_m2h,
-                region,
-                cloacal_temp_C,
-                temp_C_interpol,
-                VPD_kPa_int,
-                Wind_mph_interpol,
-                Solar_rad_Wm2_interpol,
-                ) %>%
-  dplyr::filter(complete.cases(.)) # able to have 5 more observations
-
-# redo best model
-
-# model 3
-CEWL_mod3_adj <- lmerTest::lmer(data = CEWL_mod_dat2,
-                        TEWL_g_m2h ~
-                         region * (mass_g +
-                                     temp_C_interpol +
-                                     VPD_kPa_int) +
-                         cloacal_temp_C +
-                         Wind_mph_interpol +
-                         Solar_rad_Wm2_interpol + 
-                         (1|individual_ID)) 
-summary(CEWL_mod3_adj)
+CEWL_dat_sub1 <- CEWL_data_full %>% 
+  dplyr::filter(complete.cases(region, VPD_kPa_int, 
+                               Solar_rad_Wm2_interpol, 
+                               SMI, SVL_mm, mass_g, sex_M_F, 
+                               hematocrit_percent, osmolality_mmol_kg, 
+                               cloacal_temp_C, hold_time, 
+                               ambient_temp_C, temp_C_interpol, 
+                               Wind_mph_interpol, VPD_kPa))
 ```
 
 
-
-### Best Model
-
-The best model is CEWL predicted by: body region and its interaction with mass and capture temp and VPD, cloacal temperature, solar radiation at capture time, and individual ID as a random effect.
-
-```{r}
-# save best model info
-CEWL_best_mod <- broom.mixed::tidy(CEWL_mod3_adj)
-# export 
-#write.csv(CEWL_best_mod, "./best models/CEWL_best_mod_vals.csv")
+```{r CEWL model 6a}
+CEWL_mod6a <- lme4::lmer(data = CEWL_dat_sub1,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (VPD_kPa_int + Solar_rad_Wm2_interpol +
+                          SMI + mass_g + sex_M_F) + SVL_mm + 
+                          hematocrit_percent + osmolality_mmol_kg +
+                          cloacal_temp_C + hold_time + 
+                          ambient_temp_C + temp_C_interpol + VPD_kPa + 
+                          Wind_mph_interpol + 
+                            # random effect
+                            (1|individual_ID))
+summary(CEWL_mod6a)
+drop1(CEWL_mod6a)
 ```
+
+
+drop region*SMI interaction:
+
+```{r CEWL model 6a}
+CEWL_mod7 <- lme4::lmer(data = CEWL_dat_sub1,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (VPD_kPa_int + Solar_rad_Wm2_interpol +
+                          mass_g + sex_M_F) + SVL_mm + SMI + 
+                          hematocrit_percent + osmolality_mmol_kg +
+                          cloacal_temp_C + hold_time + 
+                          ambient_temp_C + temp_C_interpol + VPD_kPa + 
+                          Wind_mph_interpol + 
+                            # random effect
+                            (1|individual_ID))
+summary(CEWL_mod7)
+drop1(CEWL_mod7)
+```
+
+drop region*sex interaction:
+
+```{r CEWL model 8}
+CEWL_mod8 <- lme4::lmer(data = CEWL_dat_sub1,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (VPD_kPa_int + Solar_rad_Wm2_interpol +
+                          mass_g) + SVL_mm + SMI + sex_M_F + 
+                          hematocrit_percent + osmolality_mmol_kg +
+                          cloacal_temp_C + hold_time + 
+                          ambient_temp_C + temp_C_interpol + VPD_kPa + 
+                          Wind_mph_interpol + 
+                            # random effect
+                            (1|individual_ID))
+summary(CEWL_mod8)
+drop1(CEWL_mod8)
+```
+
+drop SMI:
+
+```{r CEWL model 9}
+CEWL_mod9 <- lme4::lmer(data = CEWL_dat_sub1,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (VPD_kPa_int + Solar_rad_Wm2_interpol +
+                          mass_g) + SVL_mm + sex_M_F + 
+                          hematocrit_percent + osmolality_mmol_kg +
+                          cloacal_temp_C + hold_time + 
+                          ambient_temp_C + temp_C_interpol + VPD_kPa + 
+                          Wind_mph_interpol + 
+                          # random effect
+                          (1|individual_ID))
+summary(CEWL_mod9)
+drop1(CEWL_mod9)
+```
+
+drop SVL:
+
+```{r CEWL model 10}
+CEWL_mod10 <- lme4::lmer(data = CEWL_dat_sub1,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (VPD_kPa_int + Solar_rad_Wm2_interpol +
+                          mass_g) + sex_M_F + 
+                          hematocrit_percent + osmolality_mmol_kg +
+                          cloacal_temp_C + hold_time + 
+                          ambient_temp_C + temp_C_interpol + VPD_kPa + 
+                          Wind_mph_interpol + 
+                          # random effect
+                          (1|individual_ID))
+summary(CEWL_mod10)
+drop1(CEWL_mod10)
+```
+
+drop osmolality:
+
+```{r CEWL model 11}
+CEWL_mod11 <- lme4::lmer(data = CEWL_dat_sub1,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (VPD_kPa_int + Solar_rad_Wm2_interpol +
+                          mass_g) + sex_M_F + 
+                          hematocrit_percent +
+                          cloacal_temp_C + hold_time + 
+                          ambient_temp_C + temp_C_interpol + VPD_kPa + 
+                          Wind_mph_interpol + 
+                          # random effect
+                          (1|individual_ID))
+summary(CEWL_mod11)
+drop1(CEWL_mod11)
+```
+
+drop hold time:
+
+```{r CEWL model 12}
+CEWL_mod12 <- lme4::lmer(data = CEWL_dat_sub1,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (VPD_kPa_int + Solar_rad_Wm2_interpol +
+                          mass_g) + sex_M_F + 
+                          hematocrit_percent +
+                          cloacal_temp_C + 
+                          ambient_temp_C + temp_C_interpol + VPD_kPa + 
+                          Wind_mph_interpol + 
+                          # random effect
+                          (1|individual_ID))
+summary(CEWL_mod12)
+drop1(CEWL_mod12)
+```
+
+drop wind:
+
+```{r CEWL model 13}
+CEWL_mod13 <- lme4::lmer(data = CEWL_dat_sub1,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (VPD_kPa_int + Solar_rad_Wm2_interpol +
+                          mass_g) + sex_M_F + 
+                          hematocrit_percent +
+                          cloacal_temp_C + 
+                          ambient_temp_C + temp_C_interpol + VPD_kPa + 
+                          # random effect
+                          (1|individual_ID))
+summary(CEWL_mod13)
+drop1(CEWL_mod13)
+```
+
+drop sex:
+
+```{r CEWL model 14}
+CEWL_mod14 <- lme4::lmer(data = CEWL_dat_sub1,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (VPD_kPa_int + Solar_rad_Wm2_interpol +
+                          mass_g) + 
+                          hematocrit_percent +
+                          cloacal_temp_C + 
+                          ambient_temp_C + temp_C_interpol + VPD_kPa + 
+                          # random effect
+                          (1|individual_ID))
+summary(CEWL_mod14)
+drop1(CEWL_mod14)
+```
+
+drop hematocrit:
+
+```{r CEWL model 15}
+CEWL_mod15 <- lme4::lmer(data = CEWL_dat_sub1,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (VPD_kPa_int + Solar_rad_Wm2_interpol +
+                          mass_g) + 
+                          cloacal_temp_C + 
+                          ambient_temp_C + temp_C_interpol + VPD_kPa + 
+                          # random effect
+                          (1|individual_ID))
+summary(CEWL_mod15)
+drop1(CEWL_mod15)
+```
+
+
+drop region*sorad interaction:
+
+```{r CEWL model 16}
+CEWL_mod16 <- lme4::lmer(data = CEWL_dat_sub1,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (VPD_kPa_int + mass_g) + 
+                          Solar_rad_Wm2_interpol +
+                          cloacal_temp_C + 
+                          ambient_temp_C + temp_C_interpol + VPD_kPa + 
+                          # random effect
+                          (1|individual_ID))
+summary(CEWL_mod16)
+drop1(CEWL_mod16)
+```
+
+drop temp at capture:
+
+```{r CEWL model 17}
+CEWL_mod17 <- lme4::lmer(data = CEWL_dat_sub1,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (VPD_kPa_int + mass_g) + 
+                          Solar_rad_Wm2_interpol +
+                          cloacal_temp_C + 
+                          ambient_temp_C + VPD_kPa + 
+                          # random effect
+                          (1|individual_ID))
+summary(CEWL_mod17)
+drop1(CEWL_mod17)
+```
+
+
+drop ambient VPD at msmt:
+
+```{r CEWL model 18}
+CEWL_mod18 <- lme4::lmer(data = CEWL_dat_sub1,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (VPD_kPa_int + mass_g) + 
+                          Solar_rad_Wm2_interpol +
+                          cloacal_temp_C + 
+                          ambient_temp_C + 
+                          # random effect
+                          (1|individual_ID))
+summary(CEWL_mod18)
+drop1(CEWL_mod18)
+```
+
+drop ambient temp at msmt:
+
+```{r CEWL model 19}
+CEWL_mod19 <- lme4::lmer(data = CEWL_dat_sub1,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (VPD_kPa_int + mass_g) + 
+                          Solar_rad_Wm2_interpol +
+                          cloacal_temp_C + 
+                          # random effect
+                          (1|individual_ID))
+summary(CEWL_mod19)
+drop1(CEWL_mod19)
+```
+
+
+finally, test the null model
+
+```{r CEWL model null}
+CEWL_mod_null <- lme4::lmer(data = CEWL_dat_sub1,
+                          TEWL_g_m2h ~ 1 + (1|individual_ID))
+```
+
+
+### Selection
+
+Models 6a to 19 and the null model are the ones we should compare.
+
+```{r CEWL mod compare}
+CEWL_models <- list(CEWL_mod6a, CEWL_mod7, CEWL_mod8, CEWL_mod9, 
+                    CEWL_mod10, CEWL_mod11, CEWL_mod12, CEWL_mod13,
+                    CEWL_mod14, CEWL_mod15, CEWL_mod16, CEWL_mod17,
+                    CEWL_mod18, CEWL_mod19, CEWL_mod_null)
+
+#specify model names
+CEWL_mod_names <- c('(model 6a) ~', 
+                       '(model 7) ~ ', 
+                       '(model 8) ~ ',
+                       '(model 9) ~ ', 
+                       '(model 10) ~ ', 
+                       '(model 11) ~ ',
+                      '(model 12) ~ ',
+                      '(model 13) ~ ',
+                      '(model 14) ~ ',
+                      '(model 15) ~ ',
+                      '(model 16) ~ ',
+                      '(model 17) ~ ',
+                      '(model 18) ~ ',
+                      '(model 19) ~ ',
+                       'null model')
+#calculate AIC of each model
+CEWL_AICc <- data.frame(aictab(cand.set = CEWL_models, 
+                                 modnames = CEWL_mod_names))
+CEWL_AICc
+```
+
+
+Re-run top 2 models using lmertest to get p-values:
+
+```{r CEWL best models}
+CEWL_mod16p <- lmerTest::lmer(data = CEWL_dat_sub1,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (VPD_kPa_int + mass_g) + 
+                          Solar_rad_Wm2_interpol +
+                          cloacal_temp_C + 
+                          ambient_temp_C + temp_C_interpol + VPD_kPa + 
+                          # random effect
+                          (1|individual_ID))
+summary(CEWL_mod16p)
+
+CEWL_mod17p <- lmerTest::lmer(data = CEWL_dat_sub1,
+                          # response variable
+                          TEWL_g_m2h ~ 
+                          # potential predictors
+                          region * (VPD_kPa_int + mass_g) + 
+                          Solar_rad_Wm2_interpol +
+                          cloacal_temp_C + 
+                          ambient_temp_C + VPD_kPa + 
+                          # random effect
+                          (1|individual_ID))
+summary(CEWL_mod17p)
+```
+
 
 
 
 ### Check LM Assumptions
 
-First, get residuals:
-
 ```{r}
-CEWL_mod_res <- CEWL_mod_dat2 %>%
-  mutate(y_hat = predict(CEWL_mod3_adj),
-         e = residuals(CEWL_mod3_adj))
+plot(CEWL_mod16)
+plot(CEWL_mod17)
 ```
 
-
-Linearity and Equal Variance
-
-Is the function **linear**? Is there **equal** variance of the residuals? The residuals should be homoskedactic relative to y_hat (or x). We don't care if there is a relationship between the residuals ~ dependent variable (actual y).
-
-Plotting residuals shows us whether the data meets linearity and equal variance assumptions:
-
-```{r}
-ggplot(data = CEWL_mod_res, aes(x = y_hat, y = e)) +
-  geom_point() + 
-  theme_classic() + 
-  xlab("predicted y (y-hat)") +
-  ylab("residuals (e)") +
-  ggtitle("CEWL Model Residuals") +
-  geom_hline(yintercept = 0)
-```
-
-It's definitely making a fan shape. :(
-
-Brown-Forsythe test to statistically check equal variance, for each continuous predictor variable:
-
-H0: normally distributed (non-sig test is GOOD)
-HA: NOT normally distributed (reject nul == assumption not satisfied)
-
-
-```{r}
-# need to create the right data & format first
-bf_data_CEWL <- CEWL_mod_res %>%
-  dplyr::mutate(middle_mass = median(mass_g), # mass
-                side_mass = as.factor(mass_g > middle_mass),
-                # solar radiation
-                middle_sorad = median(Solar_rad_Wm2_interpol),
-                side_sorad = as.factor(Solar_rad_Wm2_interpol > middle_sorad), 
-                # temperature
-                middle_temp = median(temp_C_interpol),
-                side_temp = as.factor(temp_C_interpol > middle_temp),
-                # VPD
-                middle_absh = median(VPD_kPa_int),
-                side_absh = as.factor(VPD_kPa_int > middle_absh),
-                middle_ct = median(cloacal_temp_C),
-                side_ct = as.factor(cloacal_temp_C > middle_ct)
-                )
-
-
-# now run test
-bf.test(formula = e ~ side_absh, # y~x
-        data = bf_data_CEWL, # dataframe
-        alpha = 0.05, # default 0.05
-        na.rm = TRUE, # remove missing data before running?
-        verbose = TRUE # print output to console?
-        )
-bf.test(formula = e ~ side_temp, # y~x
-        data = bf_data_CEWL, # dataframe
-        alpha = 0.05, # default 0.05
-        na.rm = TRUE, # remove missing data before running?
-        verbose = TRUE # print output to console?
-        )
-bf.test(formula = e ~ side_sorad, # y~x
-        data = bf_data_CEWL, # dataframe
-        alpha = 0.05, # default 0.05
-        na.rm = TRUE, # remove missing data before running?
-        verbose = TRUE # print output to console?
-        )
-bf.test(formula = e ~ side_ct, # y~x
-        data = bf_data_CEWL, # dataframe
-        alpha = 0.05, # default 0.05
-        na.rm = TRUE, # remove missing data before running?
-        verbose = TRUE # print output to console?
-        )
-bf.test(formula = e ~ side_mass, # y~x
-        data = bf_data_CEWL, # dataframe
-        alpha = 0.05, # default 0.05
-        na.rm = TRUE, # remove missing data before running?
-        verbose = TRUE # print output to console?
-        )
-```
-
-Equal variance is satisfied for all 5 continuous predictor variables.
-
-
-Now check normality. Is the distribution of residuals **normal**?
-
-use Shapiro-Wilk normality test:
-H0: data is NOT significantly different from normal distribution
-HA: data IS significantly different from normal distribution
-
-```{r}
-simple.eda(CEWL_mod_res$e)
-shapiro.test(CEWL_mod_res$e)
-```
-
-not normal!
+Both have fanning, which indicates that linearity and equal error variance are not satisfied.
 
 
 ### Test Transformations 
@@ -3187,128 +3395,37 @@ summary(CEWL_mod_final)
 
 
 
-### Re-Check Assumptions (transformed model 3)
+### Export
 
-First, get residuals:
+We should save the information for the top two models, as well as the table showing the rankings of the different models.
 
 ```{r}
-CEWL_t_mod_res <- CEWL_mod_dat2 %>%
-  mutate(y_hat = predict(CEWL_mod_final),
-         e = residuals(CEWL_mod_final))
+write.csv(hydrat_AICc, "./best_models/osml_mod_rankings.csv")
+write.csv(broom.mixed::tidy(hydrat_mod5p), 
+          "./best_models/osml_best_mod1.csv")
+write.csv(broom.mixed::tidy(hydrat_mod4p), 
+          "./best_models/osml_best_mod2.csv")
 ```
 
 
-Linearity and Equal Variance
-
-Is the function **linear**? Is there **equal** variance of the residuals? The residuals should be homoskedactic relative to y_hat (or x). We don't care if there is a relationship between the residuals ~ dependent variable (actual y).
-
-Plotting residuals shows us whether the data meets linearity and equal variance assumptions:
-
-```{r}
-ggplot(data = CEWL_t_mod_res, aes(x = y_hat, y = e)) +
-  geom_point() + 
-  theme_classic() + 
-  xlab("predicted y (y-hat)") +
-  ylab("residuals (e)") +
-  ggtitle("CEWL Model 13 Residuals") +
-  geom_hline(yintercept = 0)
-```
-
-It looks much much better. :) Equal error variance doesn't look perfect, but there's no more fan shape.
-
-Brown-Forsythe test to statistically check equal variance:
-
-H0: normally distributed (non-sig test is GOOD)
-HA: NOT normally distributed (reject nul == assumption not satisfied)
-
-```{r}
-# need to create the right data & format first
-bf_data_CEWL_t <- CEWL_t_mod_res %>%
-  dplyr::mutate(middle_mass = median(mass_g), # mass
-                side_mass = as.factor(mass_g > middle_mass),
-                # solar radiation
-                middle_sorad = median(Solar_rad_Wm2_interpol),
-                side_sorad = as.factor(Solar_rad_Wm2_interpol > middle_sorad), 
-                # temperature
-                middle_temp = median(temp_C_interpol),
-                side_temp = as.factor(temp_C_interpol > middle_temp),
-                # VPD
-                middle_absh = median(VPD_kPa_int),
-                side_absh = as.factor(VPD_kPa_int > middle_absh),
-                middle_ct = median(cloacal_temp_C),
-                side_ct = as.factor(cloacal_temp_C > middle_ct)
-                )
 
 
-# now run test
-bf.test(formula = e ~ side_absh, # y~x
-        data = bf_data_CEWL_t, # dataframe
-        alpha = 0.05, # default 0.05
-        na.rm = TRUE, # remove missing data before running?
-        verbose = TRUE # print output to console?
-        )
-bf.test(formula = e ~ side_temp, # y~x
-        data = bf_data_CEWL_t, # dataframe
-        alpha = 0.05, # default 0.05
-        na.rm = TRUE, # remove missing data before running?
-        verbose = TRUE # print output to console?
-        )
-bf.test(formula = e ~ side_sorad, # y~x
-        data = bf_data_CEWL_t, # dataframe
-        alpha = 0.05, # default 0.05
-        na.rm = TRUE, # remove missing data before running?
-        verbose = TRUE # print output to console?
-        )
-bf.test(formula = e ~ side_ct, # y~x
-        data = bf_data_CEWL_t, # dataframe
-        alpha = 0.05, # default 0.05
-        na.rm = TRUE, # remove missing data before running?
-        verbose = TRUE # print output to console?
-        )
-bf.test(formula = e ~ side_mass, # y~x
-        data = bf_data_CEWL_t, # dataframe
-        alpha = 0.05, # default 0.05
-        na.rm = TRUE, # remove missing data before running?
-        verbose = TRUE # print output to console?
-        )
-```
-
-Equal variance is still satisfied for all continuous predictor variables.
 
 
-Now check normality. Is the distribution of residuals **normal**?
-
-use Shapiro-Wilk normality test:
-H0: data is NOT significantly different from normal distribution
-HA: data IS significantly different from normal distribution
-
-```{r}
-simple.eda(CEWL_t_mod_res$e)
-shapiro.test(CEWL_t_mod_res$e)
-```
-
-Still not statistically normal... but the distribution looks a lot better.
 
 
-### Conclusion
-
-The best CEWL model should use log-transformed CEWL because this greatly improves the model based on AIC and it allows the model to satisfy the linearity assumption of LMM. 
-
-```{r}
-# save log model 3 summary object
-CEWL_best_t_mod <- broom.mixed::tidy(CEWL_mod_final)
-# export 
-write.csv(CEWL_best_t_mod, "./best models/CEWL_best_mod_t_vals.csv")
-```
 
 
-## Multicollinearity
 
 
-# What to Present in the Paper
 
-- figures (exported)
-- hct SLR
-- best osml mod
-- best CEWL mod (CEWL log-transformed)
+
+
+
+
+
+
+
+
+
 
