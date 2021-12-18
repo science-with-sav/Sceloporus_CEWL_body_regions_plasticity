@@ -24,6 +24,8 @@ if (!require("broom.mixed")) install.packages("broom.mixed")
 library("broom.mixed") # lmer model export
 if (!require("ggpubr")) install.packages("ggpubr")
 library("ggpubr") # multi-ggplot figures
+if (!require("AICcmodavg")) install.packages("AICcmodavg")
+library("AICcmodavg") # VIF calculations
 ```
 
 define not-in function:
@@ -872,7 +874,7 @@ SMI_mod3p <- lmerTest::lmer(data = all_dat_no_rehab,
 
 Save information for the top models, as well as the table showing the rankings of the different models.
 
-```{r save}
+```{r save SMI}
 write.csv(SMI_AICc, "./best_models/exp_effects_SMI_mod_rankings.csv")
 write.csv(broom.mixed::tidy(SMI_mod2p), 
           "./best_models/exp_effects_SMI_best_mod1.csv")
@@ -975,7 +977,7 @@ hct_mod1p <- lmerTest::lmer(data = all_dat_no_rehab,
 
 ### Export 
 
-```{r save}
+```{r save hct}
 write.csv(hct_AICc, "./best_models/exp_effects_hct_mod_rankings.csv")
 write.csv(broom.mixed::tidy(hct_mod1), 
           "./best_models/exp_effects_hct_best_mod1.csv")
@@ -1075,7 +1077,7 @@ osml_mod1p <- lmerTest::lmer(data = all_dat_no_rehab,
 
 ### Export 
 
-```{r save}
+```{r save osml}
 write.csv(osml_AICc, "./best_models/exp_effects_osml_mod_rankings.csv")
 write.csv(broom.mixed::tidy(osml_mod1p), 
           "./best_models/exp_effects_osml_best_mod1.csv")
@@ -1227,7 +1229,7 @@ summary(CEWL_mod1tp)
 ### Export 
 
 
-```{r save}
+```{r save CEWL}
 write.csv(CEWL_AICc, "./best_models/exp_effects_CEWL_mod_rankings.csv")
 write.csv(broom.mixed::tidy(CEWL_mod1tp), 
           "./best_models/exp_effects_CEWL_best_mod1.csv")
