@@ -1,0 +1,9 @@
+"","effect","group","term","estimate","std.error","statistic"
+"1","fixed",NA,"(Intercept)",36.0219920326918,1.99947339005375,18.0157396501903
+"2","fixed",NA,"dayMid Experiment",-6.61111111111109,2.08056236485045,-3.17755969386012
+"3","fixed",NA,"dayAfter Experiment",-8.2222222222222,2.08056236485045,-3.95192298059914
+"4","fixed",NA,"humidity_tmt_percentDry",-0.879724995644334,2.11146990536196,-0.416641029744408
+"5","fixed",NA,"dayMid Experiment:humidity_tmt_percentDry",1.72875816993462,2.9853159394445,0.579087173686648
+"6","fixed",NA,"dayAfter Experiment:humidity_tmt_percentDry",0.339869281045732,2.9853159394445,0.113847005790943
+"7","ran_pars","trial_number","sd__(Intercept)",2.68050594864387,NA,NA
+"8","ran_pars","Residual","sd__Observation",6.24168709455136,NA,NA
