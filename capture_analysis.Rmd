@@ -2497,8 +2497,7 @@ hct_mod1 <- lm(data = morpho_blood_SMI,
                           # predictor variables
                           VPD_kPa_int*temp_C_interpol +
                           Wind_mph_interpol + Solar_rad_Wm2_interpol +
-                          SMI + SVL_mm + mass_g + sex_M_F +
-                          date + hemolyzed) 
+                          SMI + SVL_mm + mass_g + sex_M_F) 
 summary(hct_mod1)
 ```
 
@@ -2519,30 +2518,28 @@ hct_mod2 <- lm(data = morpho_blood_SMI,
                           # predictor variables
                           VPD_kPa_int + temp_C_interpol +
                           Wind_mph_interpol + Solar_rad_Wm2_interpol +
-                          SMI + SVL_mm + mass_g + sex_M_F +
-                          date + hemolyzed) 
+                          SMI + SVL_mm + mass_g + sex_M_F) 
 hct_mod2_VIFs <- data.frame(VIF = car::vif(hct_mod2)) %>%
   arrange(desc(VIF))
 hct_mod2_VIFs
 ```
 
-drop temp:
+drop SVL:
 
 ```{r hct model 3}
 hct_mod3 <- lm(data = morpho_blood_SMI,
                           # response variable
                           hematocrit_percent ~ 
                           # predictor variables
-                          VPD_kPa_int +
+                          VPD_kPa_int + temp_C_interpol +
                           Wind_mph_interpol + Solar_rad_Wm2_interpol +
-                          SMI + SVL_mm + mass_g + sex_M_F +
-                          date + hemolyzed) 
+                          SMI + mass_g + sex_M_F) 
 hct_mod3_VIFs <- data.frame(VIF = car::vif(hct_mod3)) %>%
   arrange(desc(VIF))
 hct_mod3_VIFs
 ```
 
-drop SVL:
+drop temperature:
 
 ```{r hct model 4}
 hct_mod4 <- lm(data = morpho_blood_SMI,
@@ -2551,8 +2548,7 @@ hct_mod4 <- lm(data = morpho_blood_SMI,
                           # predictor variables
                           VPD_kPa_int +
                           Wind_mph_interpol + Solar_rad_Wm2_interpol +
-                          SMI + mass_g + sex_M_F +
-                          date + hemolyzed) 
+                          SMI + mass_g + sex_M_F) 
 hct_mod4_VIFs <- data.frame(VIF = car::vif(hct_mod4)) %>%
   arrange(desc(VIF))
 hct_mod4_VIFs
@@ -2576,8 +2572,7 @@ hct_mod5 <- lm(data = morpho_blood_SMI,
                           # predictor variables
                           VPD_kPa_int +
                           Wind_mph_interpol + Solar_rad_Wm2_interpol +
-                          SMI + sex_M_F +
-                          date + hemolyzed) 
+                          SMI + sex_M_F) 
 summary(hct_mod5)
 drop1(hct_mod5)
 ```
@@ -2589,82 +2584,47 @@ hct_mod6 <- lm(data = morpho_blood_SMI,
                           # response variable
                           hematocrit_percent ~ 
                           # predictor variables
-                          VPD_kPa_int +
-                          Solar_rad_Wm2_interpol +
-                          SMI + sex_M_F +
-                          date + hemolyzed) 
+                          VPD_kPa_int + Solar_rad_Wm2_interpol +
+                          SMI + sex_M_F) 
 summary(hct_mod6)
 drop1(hct_mod6)
 ```
 
-drop hemolyzed:
+drop SMI:
 
 ```{r hct model 7}
 hct_mod7 <- lm(data = morpho_blood_SMI,
                           # response variable
                           hematocrit_percent ~ 
                           # predictor variables
-                          VPD_kPa_int +
-                          Solar_rad_Wm2_interpol +
-                          SMI + sex_M_F +
-                          date) 
+                          VPD_kPa_int + Solar_rad_Wm2_interpol + sex_M_F) 
 summary(hct_mod7)
 drop1(hct_mod7)
 ```
 
-drop SMI:
+drop solar:
 
 ```{r hct model 8}
 hct_mod8 <- lm(data = morpho_blood_SMI,
                           # response variable
                           hematocrit_percent ~ 
                           # predictor variables
-                          VPD_kPa_int +
-                          Solar_rad_Wm2_interpol +
-                          sex_M_F +
-                          date) 
+                          VPD_kPa_int + sex_M_F) 
 summary(hct_mod8)
 drop1(hct_mod8)
 ```
 
-drop solar radiation:
+drop VPD:
 
 ```{r hct model 9}
 hct_mod9 <- lm(data = morpho_blood_SMI,
                           # response variable
                           hematocrit_percent ~ 
                           # predictor variables
-                          VPD_kPa_int +
-                          sex_M_F +
-                          date) 
+                          sex_M_F) 
 summary(hct_mod9)
-drop1(hct_mod9)
 ```
 
-drop date:
-
-```{r hct model 10}
-hct_mod10 <- lm(data = morpho_blood_SMI,
-                          # response variable
-                          hematocrit_percent ~ 
-                          # predictor variables
-                          VPD_kPa_int +
-                          sex_M_F) 
-summary(hct_mod10)
-drop1(hct_mod10)
-```
-
-drop VPD:
-
-```{r hct model 11}
-hct_mod11 <- lm(data = morpho_blood_SMI,
-                          # response variable
-                          hematocrit_percent ~ 
-                          # predictor variables
-                          sex_M_F) 
-summary(hct_mod11)
-drop1(hct_mod11)
-```
 
 
 finally, test the null model
@@ -2674,7 +2634,6 @@ hct_mod_null <- lm(data = morpho_blood_SMI,
                           # response variable
                           hematocrit_percent ~ 1) 
 summary(hct_mod_null)
-drop1(hct_mod_null)
 ```
 
 
@@ -2684,18 +2643,15 @@ models 4-11 and the null model are the ones we should compare. models 1-3 had se
 
 ```{r hct mod compare}
 hct_models <- list(hct_mod4, hct_mod5, hct_mod6, hct_mod7, 
-                   hct_mod8, hct_mod9, hct_mod10, hct_mod11, 
-                   hct_mod_null)
+                   hct_mod8, hct_mod9, hct_mod_null)
 
 #specify model names
-hct_mod_names <- c('(model 4) ~ ', 
-                       '(model 5) ~ ', 
-                       '(model 6) ~ ',
-                       '(model 7) ~ ', 
-                       '(model 8) ~ ', 
-                       '(model 9) ~ ',
-                       '(model 10) ~ ',
-                       '(model 11) ~ ',
+hct_mod_names <- c('(model 4) ~ sex, VPD at capture, solar radiation at capture, SMI, wind speed at capture, mass', 
+                       '(model 5) ~ sex, VPD at capture, solar radiation at capture, SMI, wind speed at capture', 
+                       '(model 6) ~ sex, VPD at capture, solar radiation at capture, SMI',
+                       '(model 7) ~ sex, VPD at capture, solar radiation at capture', 
+                       '(model 8) ~ sex, VPD at capture', 
+                       '(model 9) ~ sex',
                        'null model')
 #calculate AIC of each model
 hct_AICc <- data.frame(aictab(cand.set = hct_models, 
@@ -2708,8 +2664,8 @@ hct_AICc
 ### Check LM Assumptions
 
 ```{r}
-plot(hct_mod4)
-plot(hct_mod5)
+plot(hct_mod7)
+plot(hct_mod8)
 plot(hct_mod6)
 ```
 
@@ -2723,12 +2679,12 @@ We should save the information for the top three models, as well as the table sh
 
 ```{r}
 write.csv(hct_AICc, "./best_models/hct_mod_rankings.csv")
+write.csv(broom.mixed::tidy(hct_mod7), 
+          "./best_models/hct_best_mod1.csv")
+write.csv(broom.mixed::tidy(hct_mod8), 
+          "./best_models/hct_best_mod2.csv")
 write.csv(broom.mixed::tidy(hct_mod6), 
-          "./best_models/osml_best_mod1.csv")
-write.csv(broom.mixed::tidy(hct_mod5), 
-          "./best_models/osml_best_mod2.csv")
-write.csv(broom.mixed::tidy(hct_mod4), 
-          "./best_models/osml_best_mod3.csv")
+          "./best_models/hct_best_mod3.csv")
 ```
 
 
@@ -3404,20 +3360,20 @@ CEWL_models <- list(CEWL_mod6a, CEWL_mod7, CEWL_mod8, CEWL_mod9,
                     CEWL_mod18, CEWL_mod19, CEWL_mod_null)
 
 #specify model names
-CEWL_mod_names <- c('(model 6a) ~', 
-                       '(model 7) ~ ', 
-                       '(model 8) ~ ',
-                       '(model 9) ~ ', 
-                       '(model 10) ~ ', 
-                       '(model 11) ~ ',
-                      '(model 12) ~ ',
-                      '(model 13) ~ ',
-                      '(model 14) ~ ',
-                      '(model 15) ~ ',
-                      '(model 16) ~ ',
-                      '(model 17) ~ ',
-                      '(model 18) ~ ',
-                      '(model 19) ~ ',
+CEWL_mod_names <- c('(model 6a) ~ region*VPD_kPa_int + region*Solar_rad_Wm2_interpol + region*SMI + region*mass_g + region*sex_M_F + SVL_mm + hematocrit_percent + osmolality_mmol_kg + cloacal_temp_C + hold_time + ambient_temp_C + temp_C_interpol + VPD_kPa + Wind_mph_interpol', 
+                       '(model 7) ~ region*VPD_kPa_int + region*Solar_rad_Wm2_interpol + SMI + region*mass_g + region*sex_M_F + SVL_mm + hematocrit_percent + osmolality_mmol_kg + cloacal_temp_C + hold_time + ambient_temp_C + temp_C_interpol + VPD_kPa + Wind_mph_interpol', 
+                       '(model 8) ~ region*VPD_kPa_int + region*Solar_rad_Wm2_interpol + SMI + region*mass_g + sex_M_F + SVL_mm + hematocrit_percent + osmolality_mmol_kg + cloacal_temp_C + hold_time + ambient_temp_C + temp_C_interpol + VPD_kPa + Wind_mph_interpol',
+                       '(model 9) ~ region*VPD_kPa_int + region*Solar_rad_Wm2_interpol + region*mass_g + sex_M_F + SVL_mm + hematocrit_percent + osmolality_mmol_kg + cloacal_temp_C + hold_time + ambient_temp_C + temp_C_interpol + VPD_kPa + Wind_mph_interpol', 
+                       '(model 10) ~ region*VPD_kPa_int + region*Solar_rad_Wm2_interpol + region*mass_g + sex_M_F + hematocrit_percent + osmolality_mmol_kg + cloacal_temp_C + hold_time + ambient_temp_C + temp_C_interpol + VPD_kPa + Wind_mph_interpol', 
+                       '(model 11) ~ region*VPD_kPa_int + region*Solar_rad_Wm2_interpol + region*mass_g + sex_M_F + hematocrit_percent + cloacal_temp_C + hold_time + ambient_temp_C + temp_C_interpol + VPD_kPa + Wind_mph_interpol',
+                      '(model 12) ~ region*VPD_kPa_int + region*Solar_rad_Wm2_interpol + region*mass_g + sex_M_F + hematocrit_percent + cloacal_temp_C + ambient_temp_C + temp_C_interpol + VPD_kPa + Wind_mph_interpol',
+                      '(model 13) ~ region*VPD_kPa_int + region*Solar_rad_Wm2_interpol + region*mass_g + sex_M_F + hematocrit_percent + cloacal_temp_C + ambient_temp_C + temp_C_interpol + VPD_kPa',
+                      '(model 14) ~ region*VPD_kPa_int + region*Solar_rad_Wm2_interpol + region*mass_g + hematocrit_percent + cloacal_temp_C + ambient_temp_C + temp_C_interpol + VPD_kPa',
+                      '(model 15) ~ region*VPD_kPa_int + region*Solar_rad_Wm2_interpol + region*mass_g + cloacal_temp_C + ambient_temp_C + temp_C_interpol + VPD_kPa',
+                      '(model 16) ~ region*VPD_kPa_int + Solar_rad_Wm2_interpol + region*mass_g + cloacal_temp_C + ambient_temp_C + temp_C_interpol + VPD_kPa',
+                      '(model 17) ~ region*VPD_kPa_int + Solar_rad_Wm2_interpol + region*mass_g + cloacal_temp_C + ambient_temp_C + VPD_kPa',
+                      '(model 18) ~ region*VPD_kPa_int + Solar_rad_Wm2_interpol + region*mass_g + cloacal_temp_C + ambient_temp_C',
+                      '(model 19) ~ region*VPD_kPa_int + Solar_rad_Wm2_interpol + region*mass_g + cloacal_temp_C',
                        'null model')
 #calculate AIC of each model
 CEWL_AICc <- data.frame(aictab(cand.set = CEWL_models, 
