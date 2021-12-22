@@ -489,6 +489,10 @@ all_dat_mean_osml <- all_dat %>%
   dplyr::filter(complete.cases(osmolality_mmol_kg)) %>%
   group_by(humidity_tmt_percent, day) %>%
   summarise(osml_mean = mean(osmolality_mmol_kg))
+all_dat_mean_CEWL <- CEWL %>%
+  dplyr::filter(complete.cases(TEWL_g_m2h)) %>%
+  group_by(humidity_tmt_percent, day) %>%
+  summarise(CEWL_mean = mean(TEWL_g_m2h))
 ```
 
 
@@ -499,7 +503,8 @@ ggplot() +
   geom_point(data = all_dat,
              aes(x = day,
                  y = SMI, 
-                 color = humidity_tmt_percent
+                 color = humidity_tmt_percent,
+                 shape = humidity_tmt_percent
                  ), 
              size = 1, 
              alpha = 0.6) +
@@ -507,36 +512,54 @@ ggplot() +
             aes(x = day,
                 y = SMI,
                 group = individual_ID,
-                color = humidity_tmt_percent),
-            alpha = 0.2) +
+                color = humidity_tmt_percent,
+                #linetype = humidity_tmt_percent
+                ),
+            alpha = 0.4) +
   geom_line(data = all_dat_mean_SMI,
             aes(x = day,
                 y = SMI_mean,
                 group = humidity_tmt_percent,
-                color = humidity_tmt_percent),
-            size = 1.6,
+                color = humidity_tmt_percent,
+                #linetype = humidity_tmt_percent
+                ),
+            size = 1.5,
             alpha = 1) +
+  geom_point(data = all_dat_mean_SMI,
+             aes(x = day,
+                 y = SMI_mean,
+                 color = humidity_tmt_percent,
+                 shape = humidity_tmt_percent),
+             size = 5, 
+             alpha = 1) +
   theme_classic() + 
   scale_color_brewer(palette = "Set2",
                      name = "") +
+  scale_shape_manual(values = c(17, 19), name = "") +
+  #scale_linetype_manual(values = c("solid", "dotdash"),
+   #                  name = "") +
   xlab("") + 
-  ylab("Body Condition (g)") + 
+  ylab("Body Condition\n(g)") + 
   geom_vline(xintercept = 3.5,
              linetype = "dashed",
              color = "darkgrey") +
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 22),
+                            size = 26),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 16),
+                                 size = 18),
         axis.text.x = element_blank(),
         legend.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 24),
+                                 size = 28),
         legend.text.align = 0,
         legend.position = "none",
-        plot.margin = unit(c(0.2,0,0,0.4), "cm")
+        plot.margin = unit(c(0.1, #top
+                             0.1, #right
+                             0.1, #bottom
+                             0.5 #left
+                             ), "cm")
 ) -> tmt_effects_SMI
 tmt_effects_SMI
 
@@ -557,7 +580,8 @@ ggplot() +
   geom_point(data = all_dat, 
              aes(x = day,
                  y = hematocrit_percent, 
-                 color = humidity_tmt_percent
+                 color = humidity_tmt_percent,
+                 shape = humidity_tmt_percent
                  ), 
              size = 1, 
              alpha = 0.6) +
@@ -565,39 +589,57 @@ ggplot() +
             aes(x = day,
                 y = hematocrit_percent,
                 group = individual_ID,
-                color = humidity_tmt_percent),
-            alpha = 0.2) +
+                color = humidity_tmt_percent,
+                #linetype = humidity_tmt_percent
+                ),
+            alpha = 0.4) +
   geom_line(data = all_dat_mean_hct,
             aes(x = day,
                 y = hct_mean,
                 group = humidity_tmt_percent,
-                color = humidity_tmt_percent),
-            size = 1.6,
+                color = humidity_tmt_percent,
+                #linetype = humidity_tmt_percent
+                ),
+            size = 1.5,
             alpha = 1) +
+  geom_point(data = all_dat_mean_hct,
+             aes(x = day,
+                 y = hct_mean,
+                 color = humidity_tmt_percent,
+                 shape = humidity_tmt_percent),
+             size = 5, 
+             alpha = 1) +
   theme_classic() + 
   scale_color_brewer(palette = "Set2",
                      name = "") +
+  scale_shape_manual(values = c(17, 19), name = "") +
+  #scale_linetype_manual(values = c("solid", "dotdash"),
+   #                  name = "") +
   scale_x_discrete(labels = c("Before\nExperiment", 
                               "Mid\nExperiment",
                               "After\nExperiment",
                               "After\nRehydration")) +
   xlab("") + 
-  ylab("Hematocrit (%)") + 
+  ylab("Hematocrit\n(%)") + 
   geom_vline(xintercept = 3.5,
              linetype = "dashed",
              color = "darkgrey") +
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 22),
+                            size = 26),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 16),
+                                 size = 18),
         legend.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 24),
+                                 size = 28),
         legend.text.align = 0,
         legend.position = "none",
-        plot.margin = unit(c(0.2,0,0,0.4), "cm")
+        plot.margin = unit(c(0.1, #top
+                             0.1, #right
+                             0.1, #bottom
+                             0.5 #left
+                             ), "cm")
         ) -> tmt_effects_hct
 tmt_effects_hct
 
@@ -619,7 +661,8 @@ ggplot() +
   geom_point(data = all_dat,
              aes(x = day,
                  y = osmolality_mmol_kg, 
-                 color = humidity_tmt_percent
+                 color = humidity_tmt_percent,
+                 shape = humidity_tmt_percent
                  ), 
              size = 1, 
              alpha = 0.6) +
@@ -627,36 +670,54 @@ ggplot() +
             aes(x = day,
                 y = osmolality_mmol_kg,
                 group = individual_ID,
-                color = humidity_tmt_percent),
-            alpha = 0.2) +
+                color = humidity_tmt_percent,
+                #linetype = humidity_tmt_percent
+                ),
+            alpha = 0.4) +
   geom_line(data = all_dat_mean_osml,
             aes(x = day,
                 y = osml_mean,
                 group = humidity_tmt_percent,
-                color = humidity_tmt_percent),
-            size = 1.6,
+                color = humidity_tmt_percent,
+                #linetype = humidity_tmt_percent
+                ),
+            size = 1.5,
             alpha = 1) +
+  geom_point(data = all_dat_mean_osml,
+             aes(x = day,
+                 y = osml_mean,
+                 color = humidity_tmt_percent,
+                 shape = humidity_tmt_percent),
+             size = 5, 
+             alpha = 1) +
   theme_classic() + 
   scale_color_brewer(palette = "Set2",
                      name = "") +
+  scale_shape_manual(values = c(17, 19), name = "") +
+  #scale_linetype_manual(values = c("solid", "dotdash"),
+   #                  name = "") +
   xlab("") + 
-  ylab("Osmolality (mmol / kg)") + 
+  ylab("Plasma Osmolality\n(mmol / kg)") + 
   geom_vline(xintercept = 3.5,
              linetype = "dashed",
              color = "darkgrey") +
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 22),
+                            size = 26),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 16),
+                                 size = 18),
         axis.text.x = element_blank(),
         legend.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 24),
+                                 size = 28),
         legend.text.align = 0,
         legend.position = "none",
-        plot.margin = unit(c(0.2,0,0,0.1), "cm")
+        plot.margin = unit(c(0.1, #top
+                             0.1, #right
+                             0.1, #bottom
+                             0.1 #left
+                             ), "cm")
         ) -> tmt_effects_osml
 tmt_effects_osml
 
@@ -677,7 +738,7 @@ ggarrange(tmt_effects_osml, tmt_effects_SMI, tmt_effects_hct,
           ncol = 1, nrow = 3,
           labels = c("A", "B", "C"),
           font.label = list(size = 24, face = "bold", color ="black"),
-          vjust = c(1, 1, 1),
+          hjust = -2, vjust = 1.1,
           common.legend = TRUE,
           legend = "bottom"
           ) -> tmt_multi_fig
@@ -688,7 +749,7 @@ ggsave(filename = "tmt_multi_fig.jpeg",
        path = "./final_figures",
        device = "jpeg",
        dpi = 1200,
-       width = 6, height = 12)
+       width = 8, height = 12)
 ```
 
 
@@ -697,33 +758,48 @@ ggsave(filename = "tmt_multi_fig.jpeg",
 ## CEWL
 
 ```{r CEWL fig}
-CEWL %>% 
-  ggplot(data = .) + 
+ggplot(data = CEWL) + 
   geom_point(aes(x = n_day,
                  y = TEWL_g_m2h, 
-                 color = humidity_tmt_percent
+                 group = individual_ID,
+                 color = humidity_tmt_percent,
+                 shape = humidity_tmt_percent
                  ), 
              size = 1, 
              alpha = 0.6) +
   geom_line(aes(x = n_day,
                 y = TEWL_g_m2h,
                 group = individual_ID,
-                color = humidity_tmt_percent),
-            alpha = 0.2) +
+                color = humidity_tmt_percent,
+                #linetype = humidity_tmt_percent
+                ),
+            alpha = 0.4) +
   stat_smooth(aes(x = n_day, 
                   y = TEWL_g_m2h, 
-                  color = humidity_tmt_percent
+                  color = humidity_tmt_percent,
+                #linetype = humidity_tmt_percent
                   ),
               formula = y ~ x, 
               method = "lm", 
               se = F, 
-              size = 1.6, 
+              size = 1.5, 
               alpha = 1) + 
+  geom_point(aes(x = n_day,
+                 y = TEWL_g_m2h, 
+                 group = humidity_tmt_percent,
+                 color = humidity_tmt_percent,
+                 shape = humidity_tmt_percent
+                 ), 
+             size = 5, 
+             alpha = 1) +
   theme_classic() + 
   scale_color_brewer(palette = "Set2",
                      name = ""
                      #name = "Humidity\nTreatment"
                      ) +
+  scale_shape_manual(values = c(17, 19), name = "") +
+  #scale_linetype_manual(values = c("solid", "dotdash"),
+   #                     name = "") +
   facet_wrap(~region, ncol = 2) +
   scale_x_continuous(breaks = c(0, 1),
                      labels = c("0" = "before", "1" = "after")
@@ -732,14 +808,14 @@ CEWL %>%
   ylab(bquote('CEWL (g/'*m^2*'h)')) + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
-                            size = 22),
+                            size = 24),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 16,
+                                 size = 18,
                                  angle = 90),
         legend.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 24),
+                                 size = 26),
         legend.text.align = 0,
         legend.position = c(0.75,0.12),
         #legend.justification = c(1, 1)
@@ -752,7 +828,7 @@ ggsave(filename = "tmt_effects_CEWL.jpeg",
        path = "./final_figures",
        device = "jpeg",
        dpi = 1200,
-       width = 6, height = 9)
+       width = 8, height = 12)
 ```
 
 
@@ -979,7 +1055,7 @@ hct_mod1p <- lmerTest::lmer(data = all_dat_no_rehab,
 
 ```{r save hct}
 write.csv(hct_AICc, "./best_models/exp_effects_hct_mod_rankings.csv")
-write.csv(broom.mixed::tidy(hct_mod1), 
+write.csv(broom.mixed::tidy(hct_mod1p), 
           "./best_models/exp_effects_hct_best_mod1.csv")
 ```
 
