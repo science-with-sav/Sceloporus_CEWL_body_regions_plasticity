@@ -182,10 +182,10 @@ all_dat$humidity_tmt_percent <- factor(all_dat$humidity_tmt_percent,
 ```{r}
 all_dat$day <- factor(all_dat$day,
                       levels = c("0", "4", "8", "9", "10", "11"),
-                      labels = c("Before Experiment", 
-                                 "Mid Experiment", 
-                                 "After Experiment", 
-                                 "After Experiment",
+                      labels = c("Before Acclimation", 
+                                 "Mid Acclimation", 
+                                 "After Acclimation", 
+                                 "After Acclimation",
                                  "After Rehydration",
                                  "After Rehydration"))
 summary(all_dat)
@@ -481,18 +481,21 @@ Visually, looks slightly skewed to the right, but statistically, the distributio
 all_dat_mean_SMI <- all_dat %>%
   group_by(humidity_tmt_percent, day) %>%
   summarise(SMI_mean = mean(SMI))
+all_dat_mean_SMI
 all_dat_mean_hct <- all_dat %>%
   dplyr::filter(complete.cases(hematocrit_percent)) %>%
   group_by(humidity_tmt_percent, day) %>%
   summarise(hct_mean = mean(hematocrit_percent))
+all_dat_mean_hct
 all_dat_mean_osml <- all_dat %>%
   dplyr::filter(complete.cases(osmolality_mmol_kg)) %>%
   group_by(humidity_tmt_percent, day) %>%
   summarise(osml_mean = mean(osmolality_mmol_kg))
-all_dat_mean_CEWL <- CEWL %>%
-  dplyr::filter(complete.cases(TEWL_g_m2h)) %>%
-  group_by(humidity_tmt_percent, day) %>%
-  summarise(CEWL_mean = mean(TEWL_g_m2h))
+all_dat_mean_osml
+all_dat_mean_CEWL <- read.csv("./data/CEWL_predicted_exp_means.csv") %>%
+  mutate(region = as.factor(region),
+         humidity_tmt_percent = as.factor(humidity_tmt_percent))
+all_dat_mean_CEWL
 ```
 
 
@@ -615,9 +618,9 @@ ggplot() +
   scale_shape_manual(values = c(17, 19), name = "") +
   #scale_linetype_manual(values = c("solid", "dotdash"),
    #                  name = "") +
-  scale_x_discrete(labels = c("Before\nExperiment", 
-                              "Mid\nExperiment",
-                              "After\nExperiment",
+  scale_x_discrete(labels = c("Before\nAcclimation", 
+                              "Mid\nAcclimation",
+                              "After\nAcclimation",
                               "After\nRehydration")) +
   xlab("") + 
   ylab("Hematocrit\n(%)") + 
@@ -744,7 +747,7 @@ ggarrange(tmt_effects_osml, tmt_effects_SMI, tmt_effects_hct,
           ) -> tmt_multi_fig
 tmt_multi_fig
 # export figure
-ggsave(filename = "tmt_multi_fig.jpeg",
+ggsave(filename = "tmt_multi_fig2.jpeg",
        plot = tmt_multi_fig,
        path = "./final_figures",
        device = "jpeg",
@@ -784,8 +787,9 @@ ggplot(data = CEWL) +
               se = F, 
               size = 1.5, 
               alpha = 1) + 
-  geom_point(aes(x = n_day,
-                 y = TEWL_g_m2h, 
+  geom_point(data = all_dat_mean_CEWL,
+             aes(x = n_day,
+                 y = CEWL_mean, 
                  group = humidity_tmt_percent,
                  color = humidity_tmt_percent,
                  shape = humidity_tmt_percent
@@ -802,7 +806,8 @@ ggplot(data = CEWL) +
    #                     name = "") +
   facet_wrap(~region, ncol = 2) +
   scale_x_continuous(breaks = c(0, 1),
-                     labels = c("0" = "before", "1" = "after")
+                     labels = c("0" = "Before\nAcclimation", 
+                                "1" = "After\nAcclimation")
                      ) +
   xlab("") + 
   ylab(bquote('CEWL (g/'*m^2*'h)')) + 
@@ -811,8 +816,11 @@ ggplot(data = CEWL) +
                             size = 24),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
-                                 size = 18,
-                                 angle = 90),
+                                 size = 18),
+        axis.text.x = element_text(#angle = 90,
+                                   hjust = c(0, 1),
+                                   #vjust = 0.2
+                                   ),
         legend.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 26),
@@ -1261,6 +1269,22 @@ CEWL_AICc
 ```
 
 The FULL model is the best model.
+
+
+### Predict
+
+Use the model to get the predicted means, which I will go back and use in the tmt_effects_CEWL figure.
+
+```{r}
+CEWL_predicts <- CEWL %>%
+  mutate(pred = predict(CEWL_mod1)) %>%
+  group_by(region, humidity_tmt_percent, n_day) %>%
+  summarise(CEWL_mean = mean(pred))
+CEWL_predicts
+#write.csv(CEWL_predicts, "./data/CEWL_predicted_exp_means.csv")
+```
+
+
 
 ### Check Conditions
 

@@ -1,0 +1,21 @@
+"","region","humidity_tmt_percent","n_day","CEWL_mean"
+"1","Dorsum","Humid",0,22.3629411764697
+"2","Dorsum","Humid",1,37.1474999999992
+"3","Dorsum","Dry",0,24.7156250000001
+"4","Dorsum","Dry",1,18.9537500000001
+"5","Ventrum","Humid",0,36.4276470588235
+"6","Ventrum","Humid",1,54.9158823529412
+"7","Ventrum","Dry",0,38.434375
+"8","Ventrum","Dry",1,35.1175
+"9","Head","Humid",0,27.5647058823529
+"10","Head","Humid",1,34.0617647058823
+"11","Head","Dry",0,29.8834375
+"12","Head","Dry",1,22.23125
+"13","Dewlap","Humid",0,25.9475
+"14","Dewlap","Humid",1,34.8733333333334
+"15","Dewlap","Dry",0,28.394375
+"16","Dewlap","Dry",1,24.5466666666666
+"17","Mite Patch","Humid",0,27.3841176470588
+"18","Mite Patch","Humid",1,34.30875
+"19","Mite Patch","Dry",0,32.234
+"20","Mite Patch","Dry",1,22.310625
