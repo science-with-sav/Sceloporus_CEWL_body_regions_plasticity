@@ -737,7 +737,7 @@ tmt_effects_osml
 ## Multi-Figure
 
 ```{r}
-ggarrange(tmt_effects_osml, tmt_effects_SMI, tmt_effects_hct,
+ggarrange(tmt_effects_SMI, tmt_effects_osml, tmt_effects_hct,
           ncol = 1, nrow = 3,
           labels = c("A", "B", "C"),
           font.label = list(size = 24, face = "bold", color ="black"),
@@ -922,6 +922,7 @@ SMI_AICc
 ```{r}
 plot(SMI_mod2)
 plot(SMI_mod3)
+vif(SMI_mod2)
 ```
 
 L & E both look good.
@@ -1032,6 +1033,7 @@ hct_AICc
 
 ```{r}
 plot(hct_mod1)
+vif(hct_mod1)
 ```
 
 looks okay
@@ -1132,6 +1134,7 @@ osml_AICc
 
 ```{r}
 plot(osml_mod1)
+vif(osml_mod1)
 ```
 
 looks pretty good
@@ -1292,6 +1295,7 @@ Is the function **linear**? Is there **equal** variance of the residuals? The re
 
 ```{r}
 plot(CEWL_mod1)
+vif(CEWL_mod1)
 ```
 
 clear fanning shape... L & E are not satisfied.

@@ -31,6 +31,8 @@ if (!require("ggpubr")) install.packages("ggpubr")
 library("ggpubr") # for ggplot multi-figures
 if (!require("broom")) install.packages("broom")
 library("broom") # lmer model export
+if (!require("car")) install.packages("car")
+library("car") # VIF
 ```
 
 
@@ -953,6 +955,8 @@ morpho_blood_SMI %>%
 ### Hct ~ SMI
 
 ```{r}
+my_pnk <- RColorBrewer::brewer.pal(5, "Set2")[4]
+
 morpho_blood_SMI %>% 
   ggplot(data = .) + 
   geom_point(aes(x = SMI,
@@ -992,7 +996,6 @@ hct_SMI_fig
 ### Osml ~ SMI
 
 ```{r}
-my_pnk <- RColorBrewer::brewer.pal(5, "Set2")[4]
 
 morpho_blood_SMI %>% 
   ggplot(data = .) + 
@@ -2662,7 +2665,8 @@ CEWL_data_full %>%
   #annotate("text", x = 1, y = 65, label = "a", size = 6) +
   scale_color_brewer(palette = "Set2",
                      name = "") +
-  scale_linetype_manual(values = c("solid", "dashed", 
+  scale_linetype_manual(name = "", 
+                        values = c("solid", "dashed", 
                                    "twodash", "longdash", "dotted")) +
   ylim(1, 100) +
   xlim(2, 16) +
@@ -2683,20 +2687,20 @@ CEWL_data_full %>%
                              0.1 #left
                              ), "cm"),
         legend.text.align = 0,
-        #legend.position = c(0.5, 0.6),
-        legend.position = "none"
+        legend.position = c(0.5, 0.6),
+        #legend.position = "none"
          ) -> mass_CEWL_fig
 mass_CEWL_fig
 
 # MUST CHANGE COMMENTS ABOVE to produce this
-#CEWL_legend <- as_ggplot(get_legend(mass_CEWL_fig))
+CEWL_legend <- as_ggplot(get_legend(mass_CEWL_fig))
 # export legend
-#ggsave(filename = "CEWL_body_reg_legend.jpeg",
- #      plot = CEWL_legend,
-  #     path = "./final_figures",
-   #    device = "jpeg",
-    #   dpi = 1200,
-     #  width = 3, height = 3)
+ggsave(filename = "CEWL_body_reg_legend.jpeg",
+       plot = CEWL_legend,
+       path = "./final_figures",
+       device = "jpeg",
+       dpi = 1200,
+       width = 3, height = 3)
 
 # export figure
 #ggsave(filename = "mass_CEWL_fig",
@@ -3032,6 +3036,9 @@ hct_AICc
 plot(hct_mod7)
 plot(hct_mod8)
 plot(hct_mod6)
+vif(hct_mod7)
+vif(hct_mod8)
+vif(hct_mod6)
 ```
 
 
@@ -3284,6 +3291,8 @@ summary(hydrat_mod4p)
 ```{r}
 plot(hydrat_mod4)
 plot(hydrat_mod5)
+vif(hydrat_mod4)
+vif(hydrat_mod5)
 ```
 
 
@@ -3846,6 +3855,7 @@ CEWL_mod16t <- lme4::lmer(data = CEWL_dat_sub1,
                           # random effect
                           (1|individual_ID))
 plot(CEWL_mod16t)
+vif(CEWL_mod16t)
 
 CEWL_mod17t <- lme4::lmer(data = CEWL_dat_sub1,
                           # response variable
@@ -3858,9 +3868,10 @@ CEWL_mod17t <- lme4::lmer(data = CEWL_dat_sub1,
                           # random effect
                           (1|individual_ID))
 plot(CEWL_mod17t)
+vif(CEWL_mod17t)
 ```
 
-MUCH better! These models are good.
+MUCH better! These models are good. VIF within tolerable limits.
 
 
 Re-select model data for only the variables included in the final models:
