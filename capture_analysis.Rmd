@@ -20,7 +20,7 @@ library("weathermetrics") # F to C conversion
 if (!require("PerformanceAnalytics")) install.packages("PerformanceAnalytics") 
 library("PerformanceAnalytics") # pretty multicollinearity plots
 if (!require("AICcmodavg")) install.packages("AICcmodavg")
-library("AICcmodavg") # VIF calculations
+library("AICcmodavg") # model selection
 if (!require("UsingR")) install.packages("UsingR")
 library("UsingR")
 if (!require("lme4")) install.packages("lme4")
@@ -260,11 +260,61 @@ summary(CEWL)
 ```
 
 
+
+### CEWL Formatting
+
+redo the levels for body region:
+
+```{r}
+CEWL$region <- factor(CEWL$region,
+                                levels = c("dors", "vent", 
+                                           "head", "dewl", "mite"),
+                                labels = c("Dorsum", "Ventrum", "Head",
+                                           "Dewlap", "Mite Patch")
+                                )
+unique(CEWL$region)
+```
+
+NOTE: running this^ more than once overrides things, so be careful
+
 Write CEWL dataframe as a csv for use in other analyses:
 
 ```{r}
 #write.csv(CEWL, "exported_data/capture_CEWL.csv")
 ```
+
+
+
+
+### Extra CEWL Stats
+
+Also get mean values by body region:
+
+```{r}
+# calculate means
+CEWL_means <- CEWL %>%
+  group_by(region) %>%
+  summarise(mean_CEWL = mean(TEWL_g_m2h),
+            sd_CEWL = sd(TEWL_g_m2h)
+            ) %>%
+  arrange(mean_CEWL)
+CEWL_means
+
+# pairwise ANOVA
+CEWL_SLR <- lm(TEWL_g_m2h ~ region, data = CEWL)
+CEWL_aov <- aov(CEWL_SLR)
+CEWL_posthoc <- TukeyHSD(CEWL_aov)
+plot(CEWL_posthoc)
+CEWL_posthoc_df <- data.frame(CEWL_posthoc[1]) %>%
+  dplyr::select(Difference = region.diff,
+                 '95% Confidence Interval Lower Limit' = region.lwr,
+                 '95% Confidence Interval Upper Limit' = region.upr,
+                 'Adjusted p-value' = region.p.adj)
+CEWL_posthoc_df
+write.csv(CEWL_posthoc_df, "./best_models/CEWL_pairwise_diffs.csv")
+```
+
+
 
 
 
@@ -669,21 +719,7 @@ summary(CEWL_data_full)
 ```
 
 
-### Final Formatting
 
-redo the levels for body region:
-
-```{r}
-CEWL_data_full$region <- factor(CEWL_data_full$region,
-                                levels = c("dors", "vent", 
-                                           "head", "dewl", "mite"),
-                                labels = c("Dorsum", "Ventrum", "Head",
-                                           "Dewlap", "Mite Patch")
-                                )
-unique(CEWL_data_full$region)
-```
-
-NOTE: running this more than once overrides things, so be careful
 
 
 # Check Data Distributions
@@ -1904,10 +1940,10 @@ CEWL_data_full %>%
   xlab("Body Region") + 
   ylab(bquote('CEWL (g / '*m^2~h*')')) + 
   annotate("text", x = 1, y = 64, label = "a", size = 6) +
-  annotate("text", x = 2, y = 77, label = "a", size = 6) +
-  annotate("text", x = 3, y = 95, label = "a", size = 6) +
-  annotate("text", x = 4, y = 65, label = "b", size = 6) +
-  annotate("text", x = 5, y = 106, label = "c", size = 6) +
+  annotate("text", x = 2, y = 77, label = "b", size = 6) +
+  annotate("text", x = 3, y = 95, label = "b", size = 6) +
+  annotate("text", x = 4, y = 65, label = "a", size = 6) +
+  annotate("text", x = 5, y = 106, label = "b", size = 6) +
   scale_color_brewer(palette = "Set2") +
   ylim(1, 110) +
   theme(text = element_text(color = "black", 

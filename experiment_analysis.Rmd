@@ -856,7 +856,7 @@ Check whether means started out different:
 
 ```{r SMI check original difference}
 SMI_diff_lm <- all_dat_no_rehab %>%
-  dplyr::filter(day == "Before Experiment") %>%
+  dplyr::filter(day == "Before Acclimation") %>%
   lm(data = ., SMI ~ humidity_tmt_percent)
 summary(SMI_diff_lm)
 ```
@@ -867,7 +867,7 @@ Check whether means ended differently:
 
 ```{r SMI check ending difference}
 SMI_diff_lm_end <- all_dat_no_rehab %>%
-  dplyr::filter(day == "After Experiment") %>%
+  dplyr::filter(day == "After Acclimation") %>%
   lm(data = ., SMI ~ humidity_tmt_percent)
 summary(SMI_diff_lm_end)
 ```
@@ -1286,7 +1286,6 @@ CEWL_predicts <- CEWL %>%
 CEWL_predicts
 #write.csv(CEWL_predicts, "./data/CEWL_predicted_exp_means.csv")
 ```
-
 
 
 ### Check Conditions
