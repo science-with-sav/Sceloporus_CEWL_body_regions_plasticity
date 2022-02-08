@@ -1,6 +1,0 @@
-"","effect","group","term","estimate","std.error","statistic","df","p.value"
-"1","fixed",NA,"(Intercept)",35.5915742550574,1.71166801936134,20.7935030931625,4.85345616238371,6.23735931216259e-06
-"2","fixed",NA,"dayMid Experiment",-5.77142857142857,1.47226664737398,-3.9200973422327,98.7664917406761,0.000163364950837264
-"3","fixed",NA,"dayAfter Experiment",-8.05714285714285,1.47226664737398,-5.47261114113674,98.7664917342508,3.36307443117416e-07
-"4","ran_pars","trial_number","sd__(Intercept)",2.69320914872069,NA,NA,NA,NA
-"5","ran_pars","Residual","sd__Observation",6.15893326128572,NA,NA,NA,NA

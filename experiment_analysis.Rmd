@@ -26,6 +26,8 @@ if (!require("ggpubr")) install.packages("ggpubr")
 library("ggpubr") # multi-ggplot figures
 if (!require("AICcmodavg")) install.packages("AICcmodavg")
 library("AICcmodavg") # VIF calculations
+if (!require("car")) install.packages("car")
+library("car") # VIF calculations
 ```
 
 define not-in function:
@@ -878,26 +880,27 @@ summary(SMI_diff_lm_end)
 ```{r SMI models}
 SMI_mod1 <- lme4::lmer(data = all_dat_no_rehab,
                SMI ~ day*humidity_tmt_percent +
-               (1|trial_number))
+               (1|trial_number/individual_ID))
 drop1(SMI_mod1)
 
 # drop interaction term
 SMI_mod2 <- lme4::lmer(data = all_dat_no_rehab,
                SMI ~ day + humidity_tmt_percent +
-               (1|trial_number))
+               (1|trial_number/individual_ID))
 drop1(SMI_mod2)
 
 # drop humidity effect
 SMI_mod3 <- lme4::lmer(data = all_dat_no_rehab,
                SMI ~ day +
-               (1|trial_number))
+               (1|trial_number/individual_ID))
 drop1(SMI_mod3)
 
 # null model
 SMI_mod_null <- lme4::lmer(data = all_dat_no_rehab,
                SMI ~ 1 +
-               (1|trial_number))
+               (1|trial_number/individual_ID))
 ```
+
 
 ### Selection
 
@@ -922,7 +925,7 @@ SMI_AICc
 ```{r}
 plot(SMI_mod2)
 plot(SMI_mod3)
-vif(SMI_mod2)
+car::vif(SMI_mod2)
 ```
 
 L & E both look good.
@@ -947,10 +950,12 @@ Re-run top 2 models with lmerTest for p-values:
 ```{r SMI top mod ps}
 SMI_mod2p <- lmerTest::lmer(data = all_dat_no_rehab,
                SMI ~ day + humidity_tmt_percent +
-               (1|trial_number))
+               (1|trial_number/individual_ID))
+summary(SMI_mod2p)
 SMI_mod3p <- lmerTest::lmer(data = all_dat_no_rehab,
                SMI ~ day +
-               (1|trial_number))
+               (1|trial_number/individual_ID))
+summary(SMI_mod2p)
 ```
 
 
@@ -979,7 +984,7 @@ hct_mod1 <- all_dat_no_rehab %>%
   dplyr::filter(complete.cases(hematocrit_percent)) %>%
   lme4::lmer(data = .,
                hematocrit_percent ~ day * humidity_tmt_percent +
-               (1|trial_number))
+               (1|trial_number/individual_ID))
 summary(hct_mod1)
 drop1(hct_mod1)
 
@@ -988,7 +993,7 @@ hct_mod2 <- all_dat_no_rehab %>%
   dplyr::filter(complete.cases(hematocrit_percent)) %>%
   lme4::lmer(data = .,
                hematocrit_percent ~ day + humidity_tmt_percent +
-               (1|trial_number))
+               (1|trial_number/individual_ID))
 summary(hct_mod2)
 drop1(hct_mod2)
 
@@ -997,7 +1002,7 @@ hct_mod3 <- all_dat_no_rehab %>%
   dplyr::filter(complete.cases(hematocrit_percent)) %>%
   lme4::lmer(data = .,
                hematocrit_percent ~ day +
-               (1|trial_number))
+               (1|trial_number/individual_ID))
 summary(hct_mod3)
 drop1(hct_mod3)
 
@@ -1006,7 +1011,7 @@ hct_mod_null <- all_dat_no_rehab %>%
   dplyr::filter(complete.cases(hematocrit_percent)) %>%
   lme4::lmer(data = .,
                hematocrit_percent ~ 1 +
-               (1|trial_number))
+               (1|trial_number/individual_ID))
 summary(hct_mod_null)
 ```
 
@@ -1033,7 +1038,7 @@ hct_AICc
 
 ```{r}
 plot(hct_mod1)
-vif(hct_mod1)
+car::vif(hct_mod1)
 ```
 
 looks okay
@@ -1055,8 +1060,9 @@ Re-run top model with lmerTest for p-values:
 
 ```{r hct top mod ps}
 hct_mod1p <- lmerTest::lmer(data = all_dat_no_rehab,
-               SMI ~ day * humidity_tmt_percent +
-               (1|trial_number))
+               hematocrit_percent ~ day * humidity_tmt_percent +
+               (1|trial_number/individual_ID))
+summary(hct_mod1p)
 ```
 
 
@@ -1080,7 +1086,7 @@ osml_mod1 <- all_dat_no_rehab %>%
   dplyr::filter(complete.cases(osmolality_mmol_kg)) %>%
   lme4::lmer(data = .,
                osmolality_mmol_kg ~ day * humidity_tmt_percent +
-               (1|trial_number))
+               (1|trial_number/individual_ID))
 summary(osml_mod1)
 drop1(osml_mod1)
 
@@ -1089,7 +1095,7 @@ osml_mod2 <- all_dat_no_rehab %>%
   dplyr::filter(complete.cases(osmolality_mmol_kg)) %>%
   lme4::lmer(data = .,
                osmolality_mmol_kg ~ day + humidity_tmt_percent +
-               (1|trial_number))
+               (1|trial_number/individual_ID))
 summary(osml_mod2)
 drop1(osml_mod2)
 
@@ -1098,7 +1104,7 @@ osml_mod3 <- all_dat_no_rehab %>%
   dplyr::filter(complete.cases(osmolality_mmol_kg)) %>%
   lme4::lmer(data = .,
                osmolality_mmol_kg ~ day +
-               (1|trial_number))
+               (1|trial_number/individual_ID))
 summary(osml_mod3)
 drop1(osml_mod3)
 
@@ -1107,7 +1113,7 @@ osml_mod_null <- all_dat_no_rehab %>%
   dplyr::filter(complete.cases(osmolality_mmol_kg)) %>%
   lme4::lmer(data = .,
                osmolality_mmol_kg ~ 1 +
-               (1|trial_number))
+               (1|trial_number/individual_ID))
 summary(osml_mod_null)
 ```
 
@@ -1134,7 +1140,7 @@ osml_AICc
 
 ```{r}
 plot(osml_mod1)
-vif(osml_mod1)
+car::vif(osml_mod1)
 ```
 
 looks pretty good
@@ -1156,8 +1162,9 @@ Re-run top model with lmerTest for p-values:
 
 ```{r osml top mod ps}
 osml_mod1p <- lmerTest::lmer(data = all_dat_no_rehab,
-               SMI ~ day * humidity_tmt_percent +
-               (1|trial_number))
+               osmolality_mmol_kg ~ day * humidity_tmt_percent +
+               (1|trial_number/individual_ID))
+summary(osml_mod1p)
 ```
 
 
@@ -1294,7 +1301,7 @@ Is the function **linear**? Is there **equal** variance of the residuals? The re
 
 ```{r}
 plot(CEWL_mod1)
-vif(CEWL_mod1)
+car::vif(CEWL_mod1)
 ```
 
 clear fanning shape... L & E are not satisfied.
