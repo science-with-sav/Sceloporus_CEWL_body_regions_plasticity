@@ -127,6 +127,19 @@ lost
 
 Individuals 23 and 56 actually both do not exist because those numbers were skipped when assigning IDs, so we have all the individuals measured in the dataframe.
 
+#### Stats for Permit Report
+
+```{r}
+permit_stats <- morpho_blood_dat %>%
+  group_by(date, sex_M_F) %>%
+  summarise(n = n())
+permit_stats
+# check total
+sum(permit_stats$n)
+# save
+write.csv(permit_stats, "./data/collection_summary.csv")
+```
+
 
 
 
@@ -720,6 +733,9 @@ CEWL_data_full <- CEWL %>%
             ) 
 summary(CEWL_data_full)
 ```
+
+
+
 
 
 
