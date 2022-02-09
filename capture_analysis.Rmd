@@ -294,10 +294,13 @@ Also get mean values by body region:
 # calculate means
 CEWL_means <- CEWL %>%
   group_by(region) %>%
-  summarise(mean_CEWL = mean(TEWL_g_m2h),
-            sd_CEWL = sd(TEWL_g_m2h)
+  summarise(n_obs = n(),
+            mean_CEWL = mean(TEWL_g_m2h),
+            SD_CEWL = sd(TEWL_g_m2h),
+            SEM_CEWL = SD_CEWL/sqrt(n_obs)
             ) %>%
-  arrange(mean_CEWL)
+  dplyr::select(region, mean_CEWL, SEM_CEWL)
+  #arrange(mean_CEWL)
 CEWL_means
 
 # pairwise ANOVA
