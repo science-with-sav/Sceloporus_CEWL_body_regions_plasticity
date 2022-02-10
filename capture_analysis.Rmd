@@ -17,8 +17,6 @@ if (!require("zoo")) install.packages("zoo")
 library("zoo") # interpolation using na.approx
 if (!require("weathermetrics")) install.packages("weathermetrics")
 library("weathermetrics") # F to C conversion
-if (!require("PerformanceAnalytics")) install.packages("PerformanceAnalytics") 
-library("PerformanceAnalytics") # pretty multicollinearity plots
 if (!require("AICcmodavg")) install.packages("AICcmodavg")
 library("AICcmodavg") # model selection
 if (!require("UsingR")) install.packages("UsingR")
@@ -31,6 +29,8 @@ if (!require("ggpubr")) install.packages("ggpubr")
 library("ggpubr") # for ggplot multi-figures
 if (!require("broom")) install.packages("broom")
 library("broom") # lmer model export
+if (!require("broom.mixed")) install.packages("broom.mixed")
+library("broom.mixed") # lmer model export
 if (!require("car")) install.packages("car")
 library("car") # VIF
 ```
@@ -323,8 +323,8 @@ CEWL_posthoc <- TukeyHSD(CEWL_aov)
 plot(CEWL_posthoc)
 CEWL_posthoc_df <- data.frame(CEWL_posthoc[1]) %>%
   dplyr::select(Difference = region.diff,
-                 '95% Confidence Interval Lower Limit' = region.lwr,
-                 '95% Confidence Interval Upper Limit' = region.upr,
+                 '95% confidence interval Lower limit' = region.lwr,
+                 '95% confidence interval Upper limit' = region.upr,
                  'Adjusted p-value' = region.p.adj)
 CEWL_posthoc_df
 write.csv(CEWL_posthoc_df, "./best_models/CEWL_pairwise_diffs.csv")
@@ -1083,7 +1083,7 @@ morpho_blood_SMI %>%
         legend.text.align = 0,
         plot.margin = unit(c(0.1, #top
                              0.1, #right
-                             0.1, #bottom
+                             0.35, #bottom
                              0.1 #left
                              ), "cm"),
 ) -> osml_SMI_fig
@@ -1462,7 +1462,8 @@ morpho_blood_SMI %>%
               alpha = 1 ) + 
   theme_classic() + 
   xlab("VPD at Capture (kPa)") + 
-  ylab("Plasma Osmolality\n(mmol / kg)") + 
+  #ylab("Plasma Osmolality\n(mmol / kg)") + 
+  ylab("") +
   xlim(0.3, 1.6) +
   ylim(300, 450) +
   theme(text = element_text(color = "black", 
@@ -1471,7 +1472,7 @@ morpho_blood_SMI %>%
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 16),
-        #axis.text.y = element_blank(),
+        axis.text.y = element_blank(),
         legend.text.align = 0,
         plot.margin = unit(c(0.1, #top
                              0.1, #right
@@ -1545,8 +1546,7 @@ morpho_blood_SMI %>%
               alpha = 1 ) + 
   theme_classic() + 
   xlab("Wind Speed at Capture (mph)") + 
-  #ylab("Osmolality (mmol/kg)") + 
-  ylab("") +
+  ylab("Plasma Osmolality\n(mmol / kg)") + 
   xlim(3, 7) +
   ylim(300, 450) +
   theme(text = element_text(color = "black", 
@@ -1555,11 +1555,11 @@ morpho_blood_SMI %>%
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 16),
-        axis.text.y = element_blank(),
+        #axis.text.y = element_blank(),
         legend.text.align = 0,
         plot.margin = unit(c(0.1, #top
                              0.1, #right
-                             0.35, #bottom
+                             0.1, #bottom
                              0.1 #left
                              ), "cm")
 ) -> osml_wind_fig
@@ -1846,8 +1846,8 @@ morpho_blood_SMI %>%
 Based on reviewer comments & model revisions, this should include: VPD, wind, and sorad at capture, body condition, and sex. I'll do the 4 continuous variables in one multi-fig, then do the fig for sex separately bc its categorical.
 
 ```{r}
-ggarrange(osml_vpd_fig, osml_SMI_fig, 
-          osml_sorad_fig, osml_wind_fig, 
+ggarrange(osml_wind_fig, osml_vpd_fig, 
+          osml_sorad_fig, osml_SMI_fig, 
           ncol = 2, nrow = 2,
           labels = c("A", "B", "C", "D"),
           hjust = 0, vjust = 1.1,
@@ -2208,10 +2208,9 @@ CEWL_data_full %>%
               size = 1.6, 
               alpha = 1) + 
   theme_classic() + 
-  xlab("Cloacal Temperature (°C)") + 
+  xlab("Body Temperature (°C)") + 
   #ylab("") +
   ylab(bquote('CEWL (g/'*m^2*'h)')) + 
-  #annotate("text", x = 1, y = 65, label = "a", size = 6) +
   scale_color_brewer(palette = "Set2",
                      name = "") +
   scale_linetype_manual(values = c("solid", "dashed", 
@@ -2275,17 +2274,17 @@ CEWL_data_full %>%
                                    "twodash", "longdash", "dotted")) +
   theme_classic() + 
   xlab("Temperature at Capture (°C)") + 
-  ylab("") +
+  #ylab("") +
   ylim(1, 100) +
   #xlim(16, 24) +
-  #ylab(bquote('CEWL (g/'*m^2*'h)')) + 
+  ylab(bquote('CEWL (g/'*m^2*'h)')) + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
                             size = 22),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 16),
-        axis.text.y = element_blank(),
+        #axis.text.y = element_blank(),
         legend.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 26),
@@ -2324,9 +2323,8 @@ CEWL_data_full %>%
               alpha = 1 ) + 
   theme_classic() + 
   xlab("VPD at Capture (kPa)") + 
-  #ylab(bquote('CEWL (g/'*m^2*'h)')) + 
-  ylab("") +
-  #annotate("text", x = 1, y = 65, label = "a", size = 6) +
+  ylab(bquote('CEWL (g/'*m^2*'h)')) + 
+  #ylab("") +
   scale_color_brewer(palette = "Set2",
                      name = "") +
   scale_linetype_manual(values = c("solid", "dashed", 
@@ -2339,7 +2337,7 @@ CEWL_data_full %>%
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 16),
-        axis.text.y = element_blank(),
+        #axis.text.y = element_blank(),
         legend.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 26),
@@ -2489,15 +2487,16 @@ CEWL_data_full %>%
                                    "twodash", "longdash", "dotted")) +
   theme_classic() + 
   xlab("Temperature at Measurement (°C)") + 
-  #ylab("") +
+  ylab("") +
   ylim(1, 100) +
-  ylab(bquote('CEWL (g/'*m^2*'h)')) + 
+  #ylab(bquote('CEWL (g/'*m^2*'h)')) + 
   theme(text = element_text(color = "black", 
                             family = "sans", 
                             size = 22),
         axis.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 16),
+        axis.text.y = element_blank(),
         legend.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 26),
@@ -2538,9 +2537,8 @@ CEWL_data_full %>%
               alpha = 1 ) + 
   theme_classic() + 
   xlab("VPD at Measurement (kPa)") + 
-  ylab(bquote('CEWL (g/'*m^2*'h)')) + 
-  #ylab("") +
-  #annotate("text", x = 1, y = 65, label = "a", size = 6) +
+  #ylab(bquote('CEWL (g/'*m^2*'h)')) + 
+  ylab("") +
   scale_color_brewer(palette = "Set2",
                      name = "") +
   scale_linetype_manual(values = c("solid", "dashed", 
@@ -2556,6 +2554,7 @@ CEWL_data_full %>%
         legend.text = element_text(color = "black", 
                                  family = "sans", 
                                  size = 26),
+        axis.text.y = element_blank(),
         legend.text.align = 0,
         plot.margin = unit(c(0.1, #top
                              0.1, #right
@@ -2724,7 +2723,7 @@ CEWL_data_full %>%
                         values = c("solid", "dashed", 
                                    "twodash", "longdash", "dotted")) +
   ylim(1, 100) +
-  xlim(2, 16) +
+  #xlim(2, 16) +
   scale_x_continuous(breaks = c(seq(2, 16, by = 2))) +
   theme(text = element_text(color = "black", 
                             family = "sans", 
@@ -2742,8 +2741,8 @@ CEWL_data_full %>%
                              0.1 #left
                              ), "cm"),
         legend.text.align = 0,
-        legend.position = c(0.5, 0.6),
-        #legend.position = "none"
+        #legend.position = c(0.5, 0.6),
+        legend.position = "none"
          ) -> mass_CEWL_fig
 mass_CEWL_fig
 
@@ -2878,8 +2877,8 @@ CEWL_data_full %>%
 Based on reviewer comments & model revisions, this should include: capture VPD and temp, mass, sorad, clotemp, msmt VPD & temp. 7 variables total. Used to be 6... 
 
 ```{r}
-ggarrange(msmt_VPD_CEWL_fig, cap_vpd_CEWL_fig, 
-          msmt_temp_CEWL_fig, cap_temp_CEWL_fig, 
+ggarrange(cap_vpd_CEWL_fig, msmt_VPD_CEWL_fig, 
+          cap_temp_CEWL_fig, msmt_temp_CEWL_fig, 
           clotemp_CEWL_fig, cap_sorad_CEWL_fig, 
           mass_CEWL_fig, 
           labels = c("A", "B", "C", "D", "E", "F", "G"),

@@ -10,6 +10,7 @@ output:
 # Packages
 
 ```{r setup, include=FALSE}
+`%nin%` = Negate(`%in%`)
 if (!require("tidyverse")) install.packages("tidyverse")
 library("tidyverse")
 if (!require("UsingR")) install.packages("UsingR")
@@ -30,11 +31,7 @@ if (!require("car")) install.packages("car")
 library("car") # VIF calculations
 ```
 
-define not-in function:
 
-```{r}
-`%nin%` = Negate(`%in%`)
-```
 
 
 # Data
@@ -563,7 +560,7 @@ ggplot() +
         plot.margin = unit(c(0.1, #top
                              0.1, #right
                              0.1, #bottom
-                             0.5 #left
+                             0.46 #left
                              ), "cm")
 ) -> tmt_effects_SMI
 tmt_effects_SMI
@@ -643,7 +640,7 @@ ggplot() +
         plot.margin = unit(c(0.1, #top
                              0.1, #right
                              0.1, #bottom
-                             0.5 #left
+                             0.46 #left
                              ), "cm")
         ) -> tmt_effects_hct
 tmt_effects_hct
