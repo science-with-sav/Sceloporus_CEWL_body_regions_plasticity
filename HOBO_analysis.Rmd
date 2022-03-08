@@ -1,8 +1,9 @@
 ---
-title: "HOBO Logger Data for Sceloporus Climate Studies"
+title: "HOBO Logger Data for Sceloporus Humidity Acclimation Study, 2021"
 author: "Savannah Weaver"
-output: pdf_document
-toc: TRUE
+output: 
+  pdf_document:
+    toc: TRUE
 ---
 
 # Packages
@@ -782,16 +783,12 @@ Both humidity treatment and trial number, AND their interaction is significant f
 
 Need pairwise to know which ones are actually different:
 
-```{r}
-# humidity 
-anova_humidity <- aov(humidity_mod)
-posthoc_humidity <- TukeyHSD(anova_humidity)
-posthoc_humidity
 
-# temp
-anova_temp <- aov(temp_mod)
-posthoc_temp <- TukeyHSD(anova_temp)
-posthoc_temp
+```{r}
+TukeyHSD(aov(temp_tmt_mod))
+TukeyHSD(aov(humidity_tmt_mod))
+TukeyHSD(aov(temp_trial_mod))
+TukeyHSD(aov(humidity_trial_mod))
 ```
 
 

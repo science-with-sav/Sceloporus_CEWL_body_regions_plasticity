@@ -1,7 +1,6 @@
 ---
-title: "Experimental Data Analysis"
+title: "Sceloporus Humidity Acclimation 2021 - Experimental Data Analysis"
 author: "Savannah Weaver"
-date: "July 2021"
 output: 
   pdf_document:
     toc: TRUE
@@ -249,8 +248,6 @@ summary(cap_CEWL)
 
 ### Post-Experiment CEWL
 
-*In the future, I could automate this like I did for the HOBO data.*
-
 Load in each of the post-rehab datafiles:
 
 ```{r exp CEWL data}
@@ -306,8 +303,6 @@ summary(exp_CT)
 
 
 ### Join Dataframes 
-
-
 
 Merge all post-experiment CEWL, add cloacal temperature, add capture CEWL:
 
@@ -393,82 +388,6 @@ summary(CEWL)
 #write.csv(all_dat, "exported_data/exp_effects_hydration.csv")
 #write.csv(CEWL, "exported_data/exp_effects_CEWL.csv")
 ```
-
-
-
-
-
-# Data Distributions
-
-## Mass
-
-```{r mass hist}
-all_dat %>%
-  ggplot(., aes(x = mass_g)) +
-  geom_histogram(color = "black", fill="steelblue", bins=50) + 
-  theme_classic() +
-  xlab("Mass (g)") + 
-  ylab("Count")
-simple.eda(all_dat$mass_g)
-shapiro.test(all_dat$mass_g)
-```
-
-Mass distribution not normal, skewed to the left.
-
-
-## Scaled Mass Index
-
-```{r SMI hist}
-all_dat %>%
-  ggplot(., aes(x = SMI)) +
-  geom_histogram(color = "black", fill="steelblue", bins=50) + 
-  theme_classic() +
-  xlab("Scaled Mass Index (g)") + 
-  ylab("Count")
-simple.eda(all_dat$SMI)
-shapiro.test(all_dat$SMI)
-```
-
-
-## Hematocrit
-
-```{r hct hist}
-all_dat %>%
-  ggplot(., aes(x = hematocrit_percent)) +
-  geom_histogram(color = "black", fill="steelblue", bins=50) + 
-  theme_classic() +
-  xlab("Hematocrit (%)") + 
-  ylab("Count")
-simple.eda(all_dat$hematocrit_percent)
-shapiro.test(all_dat$hematocrit_percent)
-```
-
-Visually, looks slightly skewed to the right, but statistically, the distribution of hematocrit is normal.
-
-
-## Osmolality
-
-```{r osml hist}
-all_dat %>%
-  ggplot(., aes(x = osmolality_mmol_kg)) +
-  geom_histogram(color = "black", fill="steelblue", bins=50) + 
-  theme_classic() +
-  xlab("Osmolality (mmol / kg)") + 
-  ylab("Count")
-simple.eda(all_dat$osmolality_mmol_kg)
-shapiro.test(all_dat$osmolality_mmol_kg)
-```
-
-Visually, looks slightly skewed to the right, but statistically, the distribution of osmolality is normal.
-
-
-
-
-
-
-
-
-
 
 
 
