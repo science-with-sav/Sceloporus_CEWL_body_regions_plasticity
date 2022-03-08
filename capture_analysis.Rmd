@@ -1,7 +1,6 @@
 ---
 title: "Cal Poly Herpetology CURE - Capture Data Analyses"
 author: "Savannah Weaver"
-date: "June 2021"
 output: 
   pdf_document:
     toc: TRUE
@@ -127,7 +126,7 @@ lost
 
 Individuals 23 and 56 actually both do not exist because those numbers were skipped when assigning IDs, so we have all the individuals measured in the dataframe.
 
-#### Stats for Permit Report
+#### Stats for CDFW Permit Report
 
 ```{r}
 permit_stats <- morpho_blood_dat %>%
@@ -741,270 +740,9 @@ summary(CEWL_data_full)
 
 
 
-# Check Data Distributions
-
-## Histograms & Q-Q Plots
-
-### SVL
-
-```{r}
-morpho_blood_SMI %>%
-  ggplot(., aes(x = SVL_mm)) +
-  geom_histogram(color = "black", fill="steelblue", bins=50) + 
-  theme_classic() +
-  xlab("SVL (mm)") + 
-  ylab("Count")
-simple.eda(morpho_blood_SMI$SVL_mm)
-# Normality test if p > .05, data is normal. Data is not normal.
-shapiro.test(morpho_blood_SMI$SVL_mm)
-```
-
-### Mass
-
-```{r}
-morpho_blood_SMI %>%
-  ggplot(., aes(x = mass_g)) +
-  geom_histogram(color = "black", fill="steelblue", bins=50) + 
-  theme_classic() +
-  xlab("Mass (g)") + 
-  ylab("Count")
-simple.eda(morpho_blood_SMI$mass_g)
-# Normality test if p > .05, data is normal. Data is not normal.
-shapiro.test(morpho_blood_SMI$mass_g)
-```
-
-### SMI
-
-```{r}
-morpho_blood_SMI %>%
-  ggplot(., aes(x = SMI)) +
-  geom_histogram(color = "black", fill="steelblue", bins=50) + 
-  theme_classic() +
-  xlab("Scaled Mass Index (g)") + 
-  ylab("Count")
-simple.eda(morpho_blood_SMI$SMI)
-# Normality test if p > .05, data is normal. Data is not normal.
-shapiro.test(morpho_blood_SMI$SMI)
-```
-
-SMI is one of the few variables actually normally distributed!
-
-
-### Hematocrit 
-
-looks pretty normally distributed around ~35%, but not statistically normal
-
-```{r}
-morpho_blood_SMI %>%
-  ggplot(., aes(x = hematocrit_percent)) +
-  geom_histogram(color = "black", fill="steelblue", bins=50) + 
-  theme_classic() +
-  xlab("Hematocrit (%)") + 
-  ylab("Count")
-simple.eda(morpho_blood_SMI$hematocrit_percent)
-# Normality test if p > .05, data is normal. Data is not normal
-shapiro.test(morpho_blood_SMI$hematocrit_percent)
-```
-
-### Osmolality 
-
-pretty normally distributed around ~370! :D
-
-```{r}
-morpho_blood_SMI %>%
-  ggplot(., aes(x = osmolality_mmol_kg)) +
-  geom_histogram(color = "black", fill="steelblue", bins=50) + 
-  theme_classic() +
-  xlab("Osmolality (mmol/kg)") + 
-  ylab("Count")
-simple.eda(morpho_blood_SMI$osmolality_mmol_kg)
-# Normality test if p > .05, data is normal. Data is normal
-shapiro.test(morpho_blood_SMI$osmolality_mmol_kg)
-```
-
-### Cloacal Temperature 
-
-seems normally distributed, but not normal
-
-```{r}
-morpho_blood_SMI %>%
-  ggplot(., aes(x = cloacal_temp_C)) +
-  geom_histogram(color = "black", fill="steelblue", bins=10) + 
-  theme_classic() +
-  xlab("cloacal temperature (C)") + 
-  ylab("Count")
-simple.eda(morpho_blood_SMI$cloacal_temp_C)
-# Normality test if p > .05, data is normal. Data is not normal
-shapiro.test(morpho_blood_SMI$cloacal_temp_C)
-```
-
-
-
-
-### CEWL
-
-```{r}
-CEWL_data_full %>%
-  ggplot(., aes(x = TEWL_g_m2h)) +
-  geom_histogram(color = "black", fill="steelblue", bins=50) + 
-  theme_classic() +
-  xlab("TEWL_g_m2h") + 
-  ylab("Count")
-simple.eda(CEWL_data_full$TEWL_g_m2h)
-CEWL_data_full %>%
-  ggplot(., aes(x = TEWL_g_m2h)) +
-  geom_histogram(color = "black", fill="steelblue", bins=50) + 
-  theme_classic() +
-  xlab("TEWL_g_m2h") + 
-  ylab("Count") + 
-  facet_wrap(~region)
-
-# Normality test if p > .05, data is normal. Data is not normal
-shapiro.test(CEWL_data_full$TEWL_g_m2h)
-
-# Log transformation
-shapiro.test(log(CEWL_data_full$TEWL_g_m2h))
-# p-value improves to  0.00548, but is still significant
-```
-
-
-### Capture Temperature 
-
-```{r}
-morpho_blood_SMI %>%
-  ggplot(., aes(x = temp_C_interpol)) +
-  geom_histogram(color = "black", fill="steelblue", bins=30) + 
-  theme_classic() +
-  xlab("Temperature (C)") + 
-  ylab("Count")
-simple.eda(morpho_blood_SMI$temp_C_interpol)
-# Normality test if p > .05, data is normal. Data is not normal
-shapiro.test(morpho_blood_SMI$temp_C_interpol)
-
-# log transform 
-shapiro.test(log(morpho_blood_SMI$temp_C_interpol))
-```
-
-
-### Wind Speed at Capture
-
-```{r}
-morpho_blood_SMI %>%
-  ggplot(., aes(x = Wind_mph_interpol)) +
-  geom_histogram(color = "black", fill="steelblue", bins=30) + 
-  theme_classic() +
-  xlab("Wind Speed (mph)") + 
-  ylab("Count")
-simple.eda(morpho_blood_SMI$Wind_mph_interpol)
-# Normality test if p > .05, data is normal. Data is not normal
-shapiro.test(morpho_blood_SMI$Wind_mph_interpol)
-
-# ln transformation doesn't fix non normality
-shapiro.test(log(morpho_blood_SMI$Wind_mph_interpol))
-```
-
-### Solar Radiation at Capture
-
-```{r}
-morpho_blood_SMI %>%
-  ggplot(., aes(x = Solar_rad_Wm2_interpol)) +
-  geom_histogram(color = "black", fill="steelblue", bins=30) + 
-  theme_classic() +
-  xlab("Solar Radiation (W/m^2)") + 
-  ylab("Count")
-simple.eda(morpho_blood_SMI$Solar_rad_Wm2_interpol)
-# Normality test if p > .05, data is normal. Data is not normal
-shapiro.test(morpho_blood_SMI$Solar_rad_Wm2_interpol)
-
-# Doesn't fix non normality
-shapiro.test(log(morpho_blood_SMI$Solar_rad_Wm2_interpol))
-```
-
-## Conclusion
-
-Osmolality and SMI were the only normally distributed variables. 
-
-The following variables each had non-normal distributions:
-- SVL (skewed left)
-- mass (skewed left)
-- hct (looks like a bell curve, but not very pretty)
-- cloacal temp (skewed right)
-- CEWL (skewed right, overall and for each region individually)
-- capture temp (multimodal)
-- wind speed (multimodal but sorta bell curve)
-- solar radiation (multimodal)
-
-All of the non-normal variables are likely to need transformation if they're included in the final model.
-
-
-
-# Basic Figures
+# Figures
 
 ## osmolality & hematocrit
-
-### Hct ~ SVL
-
-```{r}
-morpho_blood_SMI %>% 
-  ggplot(data = .) + 
-  geom_point(aes(x = SVL_mm,
-                 y = hematocrit_percent, 
-                 ), 
-             size = 1, 
-             alpha = 0.6) + 
-  stat_smooth(aes(x = SVL_mm, 
-                  y = hematocrit_percent, 
-                  ), 
-              formula = y ~ x, 
-              method = "lm", 
-              color = "gray",
-              se = F, 
-              size = 1.6, 
-              alpha = 1 ) + 
-  theme_classic() + 
-  xlab("SVL") + 
-  ylab("Hct") + 
-  theme(text = element_text(color = "black", 
-                            family = "sans", 
-                            size = 12),
-        axis.text = element_text(color = "black", 
-                                 family = "sans", 
-                                 size = 10),
-        legend.text.align = 0)
-```
-
-
-
-### Osml ~ SVL
-
-```{r}
-morpho_blood_SMI %>% 
-  ggplot(data = .) + 
-  geom_point(aes(x = SVL_mm,
-                 y = osmolality_mmol_kg, 
-                 ), 
-             size = 1, 
-             alpha = 0.6) + 
-  stat_smooth(aes(x = SVL_mm, 
-                  y = osmolality_mmol_kg, 
-                  ), 
-              formula = y ~ x, 
-              method = "lm", 
-              color = "gray",
-              se = F, 
-              size = 1.6, 
-              alpha = 1 ) + 
-  theme_classic() + 
-  xlab("SVL") + 
-  ylab("Osmolality") + 
-  theme(text = element_text(color = "black", 
-                            family = "sans", 
-                            size = 12),
-        axis.text = element_text(color = "black", 
-                                 family = "sans", 
-                                 size = 10),
-        legend.text.align = 0)
-```
 
 
 ### Hct ~ SMI
@@ -1193,77 +931,6 @@ ggplot(data = morpho_blood_SMI) +
 osml_sex_fig
 ```
 
-### Hct ~ Gravidity
-
-```{r}
-morpho_blood_SMI %>% 
-  dplyr::filter(sex_M_F == 'F') %>%
-  ggplot(data = .) + 
-  geom_boxplot(aes(x = gravid_Y_N, 
-                   y = hematocrit_percent, 
-                   color = gravid_Y_N
-                   ), 
-               size = 1,
-               alpha = 0.6) + 
-  scale_colour_manual(name = "Gravid", 
-                      values = c("green4", "salmon1") ) +
-  theme_classic() + 
-  xlab("Gravid (Females Only)") + 
-  ylab("Hematocrit") + 
-  theme(text = element_text(color = "black", family = "sans", size = 12),
-        axis.text = element_text(color = "black", family = "sans", size = 10),
-        legend.text.align = 0,
-        legend.position = "none")
-```
-
-### Osml ~ Gravidity
-
-```{r}
-morpho_blood_SMI %>% 
-  dplyr::filter(sex_M_F == 'F') %>%
-  ggplot(data = .) + 
-  geom_boxplot(aes(x = gravid_Y_N, 
-                   y = osmolality_mmol_kg, 
-                   color = gravid_Y_N
-                   ), 
-               size = 1,
-               alpha = 0.6) + 
-  scale_colour_manual(name = "Gravid", 
-                      values = c("green4", "salmon1") ) +
-  theme_classic() + 
-  xlab("Gravid (Females Only)") + 
-  ylab("Osmolality") + 
-  theme(text = element_text(color = "black", family = "sans", size = 12),
-        axis.text = element_text(color = "black", family = "sans", size = 10),
-        legend.text.align = 0,
-        legend.position = "none")
-```
-
-### Hct ~ Sample Eye
-
-Actually, any blood samples not taken from the right eye ended up being excluded or didn't have hematocrit values, so we can't test this difference.
-
-```{r}
-morpho_blood_SMI %>% 
-  dplyr::filter(blood_sample_eye %in% c("R", "L")) %>%
-  ggplot(data = .) + 
-  geom_boxplot(aes(x = blood_sample_eye, 
-                   y = hematocrit_percent, 
-                   color = blood_sample_eye
-                   ), 
-               size = 1,
-               alpha = 0.6) + 
-  scale_colour_manual(name = "Blood Sample Eye", 
-                      values = c("green4", "salmon1") ) +
-  theme_classic() + 
-  xlab("Blood Sample Eye") + 
-  ylab("Hematocrit") + 
-  theme(text = element_text(color = "black", family = "sans", size = 12),
-        axis.text = element_text(color = "black", family = "sans", size = 10),
-        legend.text.align = 0,
-        legend.position = "none"
-)
-```
 
 
 ### Osml ~ Sample Eye
@@ -1392,7 +1059,7 @@ ggplot(data = morpho_blood_SMI) +
                alpha = 0.6) +
   theme_classic() + 
   xlab("Date") + 
-  ylab("Plasma Osmolality\n(mmol / kg)") + 
+  ylab("Plasma Osmolality\n(mmol/kg)") + 
   annotate("text", x = 1, y = 365, label = "a", size = 6) +
   annotate("text", x = 2, y = 390, label = "b", size = 6) +
   annotate("text", x = 3, y = 437, label = "c", size = 6) +
@@ -1546,7 +1213,7 @@ morpho_blood_SMI %>%
               alpha = 1 ) + 
   theme_classic() + 
   xlab("Wind Speed at Capture (mph)") + 
-  ylab("Plasma Osmolality\n(mmol / kg)") + 
+  ylab("Plasma Osmolality\n(mmol/kg)") + 
   xlim(3, 7) +
   ylim(300, 450) +
   theme(text = element_text(color = "black", 
@@ -1713,7 +1380,7 @@ morpho_blood_SMI %>%
               alpha = 1) + 
   theme_classic() + 
   xlab(bquote('Solar Radiation at Capture (W/'*m^2*')')) + 
-  ylab("Plasma Osmolality\n(mmol / kg)") + 
+  ylab("Plasma Osmolality\n(mmol/kg)") + 
   xlim(580, 1050) +
   ylim(300,450) +
   theme(text = element_text(color = "black", 
@@ -1915,22 +1582,7 @@ ggsave(filename = "sex_multi_fig.jpeg",
 
 
 
-## What affects evaporative water loss?
-
-Potential relationships:
-- CEWL ~ date/week, 
-        individual, 
-        SVL, 
-        SMI, 
-        gravidity, 
-        hct, 
-        osml, 
-        cloacal temp, 
-        ambient temp, 
-        ambient RH, 
-        measurement temp,
-        measurement RH,
-        **body region**
+## evaporative water loss
 
 ### CEWL ~ Body Region
 
@@ -1957,7 +1609,7 @@ CEWL_data_full %>%
                alpha = 1) +
   theme_classic() + 
   xlab("Body Region") + 
-  ylab(bquote('CEWL (g / '*m^2~h*')')) + 
+  ylab(bquote('CEWL (g/'*m^2*'h)')) + 
   annotate("text", x = 1, y = 64, label = "a", size = 6) +
   annotate("text", x = 2, y = 77, label = "b", size = 6) +
   annotate("text", x = 3, y = 95, label = "b", size = 6) +
@@ -1986,111 +1638,6 @@ ggsave(filename = "CEWL_region_fig.jpeg",
 ```
 
 
-### Body Region Ratios
-
-```{r}
-CEWL_mite <- CEWL_data_full %>%
-  dplyr::filter(region == "Mite Patch") %>%
-  dplyr::select(mite_CEWL = TEWL_g_m2h, individual_ID)
-CEWL_dewl <- CEWL_data_full %>%
-  dplyr::filter(region == "Dewlap")%>%
-  dplyr::select(dewl_CEWL = TEWL_g_m2h, individual_ID)
-CEWL_head <- CEWL_data_full %>%
-  dplyr::filter(region == "Head") %>%
-  dplyr::select(head_CEWL = TEWL_g_m2h, individual_ID)
-CEWL_vent <- CEWL_data_full %>%
-  dplyr::filter(region == "Ventrum") %>%
-  dplyr::select(vent_CEWL = TEWL_g_m2h, individual_ID)
-CEWL_dors <- CEWL_data_full %>%
-  dplyr::filter(region == "Dorsum") %>%
-  dplyr::select(dors_CEWL = TEWL_g_m2h, individual_ID)
-
-by_region_CEWL <- CEWL_mite %>%
-  left_join(CEWL_dewl, by = "individual_ID") %>%
-  left_join(CEWL_head, by = "individual_ID") %>%
-  left_join(CEWL_vent, by = "individual_ID") %>%
-  left_join(CEWL_dors, by = "individual_ID") %>%
-  mutate(mite_dors = mite_CEWL/dors_CEWL,
-         dewl_dors = mite_CEWL/dors_CEWL,
-         head_dors = mite_CEWL/dors_CEWL,
-         vent_dors = mite_CEWL/dors_CEWL,
-         dors_dors = mite_CEWL/dors_CEWL,
-         )
-
-ratio_mite <- by_region_CEWL %>%
-  dplyr::select(individual_ID, ratio_to_dors = mite_dors) %>%
-  mutate(region = "Mite Patch")
-ratio_dewl <- by_region_CEWL %>%
-  dplyr::select(individual_ID, ratio_to_dors = dewl_dors) %>%
-  mutate(region = "Dewlap")
-ratio_head <- by_region_CEWL %>%
-  dplyr::select(individual_ID, ratio_to_dors = head_dors) %>%
-  mutate(region = "Head")
-ratio_vent <- by_region_CEWL %>%
-  dplyr::select(individual_ID, ratio_to_dors = vent_dors) %>%
-  mutate(region = "Ventrum")
-ratio_dors <- by_region_CEWL %>%
-  dplyr::select(individual_ID, ratio_to_dors = dors_dors) %>%
-  mutate(region = "Dorsum")
-
-vert_ratios <- ratio_mite %>%
-  rbind(ratio_dewl) %>%
-  rbind(ratio_head) %>%
-  rbind(ratio_vent) %>%
-  rbind(ratio_dors)
-```
-
-
-```{r}
-vert_ratios %>% 
-  ggplot(data = .) + 
-  geom_boxplot(aes(x = (region), 
-                   y = ratio_to_dors, 
-                   color = region
-                   ), 
-               size = 1,
-               alpha = 1) +
-  geom_jitter(aes(x = (region), 
-                   y = ratio_to_dors, 
-                   color = region
-                   ), 
-               size = 1,
-               alpha = 0.3) +
-  geom_point(aes(x = (region), 
-                   y = mean(ratio_to_dors), 
-                   color = region
-                   ), 
-               size = 5,
-               alpha = 1) +
-  theme_classic() + 
-  xlab("Body Region") + 
-  ylab(bquote('CEWL Ratio to Dorsal (g / '*m^2~h*')')) + 
-  annotate("text", x = 1, y = 64, label = "a", size = 6) +
-  annotate("text", x = 2, y = 77, label = "b", size = 6) +
-  annotate("text", x = 3, y = 95, label = "b", size = 6) +
-  annotate("text", x = 4, y = 65, label = "a", size = 6) +
-  annotate("text", x = 5, y = 106, label = "b", size = 6) +
-  scale_color_brewer(palette = "Set2") +
-  ylim(1, 10) +
-  theme(text = element_text(color = "black", 
-                            family = "sans", 
-                            size = 18),
-        axis.text = element_text(color = "black", 
-                                 family = "sans", 
-                                 size = 14),
-        legend.text.align = 0,
-        legend.position = "none"
-) -> CEWL_region_fig3
-CEWL_region_fig3
-
-# export figure
-ggsave(filename = "CEWL_region_fig3.jpeg",
-       plot = CEWL_region_fig3,
-       path = "./final_figures",
-       device = "jpeg",
-       dpi = 1200,
-       width = 6, height = 4)
-```
 
 
 
@@ -2153,37 +1700,6 @@ ggplot(aes(osmolality_mmol_kg, TEWL_g_m2h), data = CEWL_data_full) +
 ```
 
 
-### CEWL ~ Hematocrit
-
-```{r}
-CEWL_data_full %>% 
-  ggplot(data = .) + 
-  geom_point(aes(x = hematocrit_percent,
-                 y = TEWL_g_m2h, 
-                 color = region
-                 ), 
-             size = 1, 
-             alpha = 0.6) + 
-  stat_smooth(aes(x = hematocrit_percent, 
-                  y = TEWL_g_m2h, 
-                  color = region
-                  ), 
-              formula = y ~ x, 
-              method = "lm", 
-              se = F, 
-              size = 1.6, 
-              alpha = 1 ) + 
-  theme_classic() + 
-  xlab("Hematocrit") + 
-  ylab("CEWL") + 
-  theme(text = element_text(color = "black", 
-                            family = "sans", 
-                            size = 12),
-        axis.text = element_text(color = "black", 
-                                 family = "sans", 
-                                 size = 10),
-        legend.text.align = 0)
-```
 
 
 ### CEWL ~ Cloacal Temperature
@@ -2763,53 +2279,6 @@ ggsave(filename = "CEWL_body_reg_legend.jpeg",
    #    device = "tiff",
     #   dpi = 1200,
      #  width = 6, height = 4)
-```
-
-### CEWL ~ Sex
-
-```{r}
-CEWL_data_full %>% 
-  ggplot(data = .) + 
-  geom_boxplot(aes(x = sex_M_F, 
-                   y = TEWL_g_m2h, 
-                   color = sex_M_F
-                   ), 
-               size = 1,
-               alpha = 0.6) + 
-  facet_wrap(~region) +
-  scale_color_manual(values = c("royalblue1", "mediumorchid")) +
-  scale_x_discrete(breaks = c(1,2,3)) +
-  theme_classic() + 
-  xlab("Sex") + 
-  ylab("CEWL") + 
-  theme(text = element_text(color = "black", family = "sans", size = 12),
-        axis.text = element_text(color = "black", family = "sans", size = 10),
-        legend.text.align = 0,
-        legend.position = "none")
-```
-
-### CEWL ~ Gravidity
-
-```{r}
-CEWL_data_full %>% 
-  dplyr::filter(sex_M_F == "F") %>%
-  ggplot(data = .) + 
-  geom_boxplot(aes(x = gravid_Y_N, 
-                   y = TEWL_g_m2h, 
-                   color = gravid_Y_N
-                   ), 
-               size = 1,
-               alpha = 0.6) + 
-  facet_wrap(~region) +
-  scale_color_manual(values = c("royalblue1", "mediumorchid")) +
-  scale_x_discrete(breaks = c(1,2,3)) +
-  theme_classic() + 
-  xlab("Female Gravid or Not") + 
-  ylab("CEWL") + 
-  theme(text = element_text(color = "black", family = "sans", size = 12),
-        axis.text = element_text(color = "black", family = "sans", size = 10),
-        legend.text.align = 0,
-        legend.position = "none")
 ```
 
 

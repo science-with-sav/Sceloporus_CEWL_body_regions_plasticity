@@ -699,7 +699,7 @@ ggplot() +
   #scale_linetype_manual(values = c("solid", "dotdash"),
    #                  name = "") +
   xlab("") + 
-  ylab("Plasma Osmolality\n(mmol / kg)") + 
+  ylab("Plasma Osmolality\n(mmol/kg)") + 
   geom_vline(xintercept = 3.5,
              linetype = "dashed",
              color = "darkgrey") +
